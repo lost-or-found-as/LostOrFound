@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "lost-or-found-as",
     "name": "Lost or Found",
     "slug": "RepairLostOrFound",
     "icon": "./assets/images/icon.png",
