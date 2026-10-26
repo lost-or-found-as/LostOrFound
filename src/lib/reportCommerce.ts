@@ -55,6 +55,52 @@ export type TestOrderActivationResult = {
   testActivation: true;
 };
 
-export function activateTestReportOrder(orderId: string) {
-  return request<TestOrderActivationResult>(`/orders/${encodeURIComponent(orderId)}/test-activate`, { method: "POST" });
+function activeEntitlementFromOrder(order: any) {
+  const rows = Array.isArray(order?.report_entitlements)
+    ? order.report_entitlements
+    : [];
+  return rows.find((item: any) => String(item?.status || "").toUpperCase() === "ACTIVE") || rows[0] || null;
+}
+
+async function reconcileSuccessfulAreaAlertActivation(orderId: string, originalError: unknown) {
+  try {
+    const current = await fetchReportOrder(orderId);
+    const order = current?.order;
+    const status = String(order?.status || "").toUpperCase();
+    const entitlement = activeEntitlementFromOrder(order);
+    if (status === "ACTIVE" && entitlement?.current_period_end) {
+      return {
+        order,
+        entitlement,
+        campaignId: null,
+        areaAlertDispatch: null,
+        testActivation: true as const,
+        reconciledAfterError: true,
+      };
+    }
+  } catch {
+    // Preserve the original activation error if reconciliation is unavailable.
+  }
+  throw originalError;
+}
+
+export async function activateTestReportOrder(orderId: string) {
+  try {
+    const result = await request<TestOrderActivationResult>(
+      `/orders/${encodeURIComponent(orderId)}/test-activate`,
+      { method: "POST" },
+    );
+    if (
+      String(result?.order?.status || "").toUpperCase() === "ACTIVE" &&
+      result?.entitlement?.current_period_end
+    ) {
+      return result;
+    }
+    return reconcileSuccessfulAreaAlertActivation(
+      orderId,
+      new Error("AREA_ALERT_ACTIVATION_RESPONSE_INCOMPLETE"),
+    );
+  } catch (error) {
+    return reconcileSuccessfulAreaAlertActivation(orderId, error);
+  }
 }

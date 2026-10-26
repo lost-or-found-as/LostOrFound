@@ -336,8 +336,52 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       (isGeoAlertOrder && geoAlertTestModeAllowed(userId));
     if (!activationAllowed)
       return res.status(403).json({ error: "TEST_ACTIVATION_NOT_ALLOWED" });
-    if (["ACTIVE", "REFUNDED", "CANCELLED"].includes(order.status))
-      return res.json({ order, idempotentReplay: true });
+    if (["ACTIVE", "REFUNDED", "CANCELLED"].includes(order.status)) {
+      const { data: existingEntitlement, error: existingEntitlementError } =
+        await supaAdmin
+          .from("report_entitlements")
+          .select("*")
+          .eq("order_id", order.id)
+          .eq("user_id", userId)
+          .maybeSingle();
+      if (existingEntitlementError) {
+        console.error("[geo-alert][activation-replay-entitlement-load-failed]", {
+          orderId: order.id,
+          userId,
+          errorCode: existingEntitlementError.code || null,
+          errorMessage: existingEntitlementError.message || String(existingEntitlementError),
+        });
+      }
+      const { data: existingCampaign, error: existingCampaignError } =
+        await supaAdmin
+          .from("geo_alert_campaigns")
+          .select("id,status,ends_at")
+          .eq("order_id", order.id)
+          .maybeSingle();
+      if (existingCampaignError) {
+        console.error("[geo-alert][activation-replay-campaign-load-failed]", {
+          orderId: order.id,
+          userId,
+          errorCode: existingCampaignError.code || null,
+          errorMessage: existingCampaignError.message || String(existingCampaignError),
+        });
+      }
+      console.info("[geo-alert][activation-replay-normalized]", {
+        orderId: order.id,
+        userId,
+        orderStatus: order.status,
+        campaignId: existingCampaign?.id || null,
+      });
+      return res.json({
+        order,
+        entitlement: existingEntitlement || null,
+        campaignId: existingCampaign?.id || null,
+        campaign: existingCampaign || null,
+        areaAlertDispatch: null,
+        testActivation: true,
+        idempotentReplay: true,
+      });
+    }
 
     const report = await ownedReport(order.report_id, userId);
     if (!report) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
