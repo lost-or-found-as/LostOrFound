@@ -59,7 +59,19 @@ async function userCanAccessAreaAlert(campaignId, userId) {
     .eq("user_id", userId)
     .maybeSingle();
   if (recipientError) throw recipientError;
-  if (!recipient) return null;
+  if (!recipient) {
+    const { data: notification, error: notificationError } = await supaAdmin
+      .from("notifications")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("type", "AREA_ALERT")
+      .eq("entity_type", "area_alert_campaign")
+      .eq("entity_id", campaignId)
+      .maybeSingle();
+    if (notificationError) throw notificationError;
+    if (!notification) return null;
+    console.info("[geo-alert][AREA_ALERT_IN_APP_ACCESS]", { campaignId, userId });
+  }
 
   const { data: campaign, error: campaignError } = await supaAdmin
     .from("geo_alert_campaigns")

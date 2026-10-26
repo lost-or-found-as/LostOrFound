@@ -38,6 +38,29 @@ async function dispatchAreaAlertCampaign(campaignId) {
       skippedAsDuplicate: 0,
     };
 
+  const { data: eligibleUsers, error: eligibleUsersError } = await supaAdmin.rpc(
+    "geo_alert_eligible_users",
+    { p_campaign_id: id },
+  );
+  if (eligibleUsersError) throw eligibleUsersError;
+
+  for (const candidate of eligibleUsers || []) {
+    const notificationKey = `AREA_ALERT:${id}:${candidate.recipient_user_id}`;
+    const { error: notificationError } = await supaAdmin
+      .from("notifications")
+      .insert({
+        user_id: candidate.recipient_user_id,
+        type: "AREA_ALERT",
+        entity_type: "area_alert_campaign",
+        entity_id: id,
+        title: "AREA_ALERT",
+        body: candidate.report_title || "AREA_ALERT",
+        notification_key: notificationKey,
+        agg_count: 1,
+      });
+    if (notificationError && notificationError.code !== "23505") throw notificationError;
+  }
+
   const { data: candidates, error: candidateError } = await supaAdmin.rpc(
     "geo_alert_eligible_installations",
     { p_campaign_id: id },
@@ -71,41 +94,12 @@ async function dispatchAreaAlertCampaign(campaignId) {
   if (!accepted.length) {
     return {
       ok: true,
-      eligible: (candidates || []).length,
+      eligible: (eligibleUsers || []).length,
+      pushEligible: (candidates || []).length,
       sent: 0,
       skippedAsDuplicate: (candidates || []).length,
       tickets: [],
     };
-  }
-
-  // One persistent in-app inbox entry per recipient user, independent of OS notification history.
-  const users = new Map();
-  for (const candidate of accepted) {
-    if (!users.has(candidate.recipient_user_id))
-      users.set(candidate.recipient_user_id, candidate);
-  }
-  for (const candidate of users.values()) {
-    const notificationKey = `AREA_ALERT:${id}:${candidate.recipient_user_id}`;
-    const { error: notificationError } = await supaAdmin
-      .from("notifications")
-      .insert({
-        user_id: candidate.recipient_user_id,
-        type: "AREA_ALERT",
-        entity_type: "area_alert_campaign",
-        entity_id: id,
-        title:
-          candidate.language === "en"
-            ? "Lost item near you"
-            : "Mistet gjenstand i området ditt",
-        body:
-          candidate.language === "en"
-            ? `${candidate.report_title || "An item"} was reported lost near an area you follow.`
-            : `${candidate.report_title || "En gjenstand"} er meldt mistet nær et område du følger.`,
-        notification_key: notificationKey,
-        agg_count: 1,
-      });
-    if (notificationError && notificationError.code !== "23505")
-      throw notificationError;
   }
 
   const notificationKey = `AREA_ALERT:${id}`;
@@ -156,20 +150,25 @@ async function dispatchAreaAlertCampaign(campaignId) {
 
   console.info("[geo-alert][recipient-summary]", {
     campaignId,
-    candidates: candidates.length,
-    sent,
-    skippedAsDuplicate,
-    failed,
+    candidates: (candidates || []).length,
+    sent: accepted.length,
+    skippedAsDuplicate: (candidates || []).length - accepted.length,
+    failed: tickets.filter((ticket) => ticket?.status !== "ok").length,
   });
 
   console.info("[geo-alert][delivery-summary]", {
     campaignId,
-    result: { sent, skippedAsDuplicate, failed },
+    result: {
+      sent: accepted.length,
+      skippedAsDuplicate: (candidates || []).length - accepted.length,
+      failed: tickets.filter((ticket) => ticket?.status !== "ok").length,
+    },
   });
 
   return {
     ok: true,
-    eligible: (candidates || []).length,
+    eligible: (eligibleUsers || []).length,
+      pushEligible: (candidates || []).length,
     sent: accepted.length,
     skippedAsDuplicate: (candidates || []).length - accepted.length,
     tickets,

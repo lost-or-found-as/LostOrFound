@@ -50,7 +50,21 @@ router.get("/:campaignId/view", requireUser, async (req, res) => {
       .eq("user_id", req.user.id)
       .maybeSingle();
     if (recipientError) throw recipientError;
-    if (!recipient) return res.status(404).json({ error: "AREA_ALERT_NOT_AVAILABLE" });
+    let notificationAccess = false;
+    if (!recipient) {
+      const { data: notification, error: notificationError } = await supaAdmin
+        .from("notifications")
+        .select("id")
+        .eq("user_id", req.user.id)
+        .eq("type", "AREA_ALERT")
+        .eq("entity_type", "area_alert_campaign")
+        .eq("entity_id", campaignId)
+        .maybeSingle();
+      if (notificationError) throw notificationError;
+      notificationAccess = Boolean(notification);
+      console.info("[geo-alert][AREA_ALERT_NOTIFICATION_ACCESS]", { campaignId, userId: req.user.id, notificationAccess });
+      if (!notificationAccess) return res.status(404).json({ error: "AREA_ALERT_NOT_AVAILABLE" });
+    }
 
     const { data: campaign, error } = await supaAdmin
       .from("geo_alert_campaigns")
@@ -59,7 +73,7 @@ router.get("/:campaignId/view", requireUser, async (req, res) => {
       .maybeSingle();
     if (error) throw error;
     if (!campaign) return res.status(404).json({ error: "AREA_ALERT_NOT_AVAILABLE" });
-    return res.json({ ok: true, campaign, recipientStatus: recipient.status });
+    return res.json({ ok: true, campaign, recipientStatus: recipient?.status || "IN_APP_ONLY" });
   } catch (e) {
     return res.status(500).json({ error: e?.message || "AREA_ALERT_VIEW_FAILED" });
   }
