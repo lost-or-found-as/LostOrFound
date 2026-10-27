@@ -4,6 +4,7 @@ const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
 const { requireUser } = require("../mw/auth");
 const { notifyUser } = require("../lib/userNotify");
+const { localizedPair } = require("../lib/messages");
 
 async function getObservation(id) {
   const { data, error } = await supaAdmin.from("area_alert_observations")
@@ -74,8 +75,8 @@ router.post("/:observationId/messages", requireUser, async (req, res) => {
       type: "OBSERVATION_MESSAGE",
       entityType: "observation",
       entityId: o.id,
-      titles: { no: "Ny melding om observasjon", en: "New observation message" },
-      bodies: { no: "Du har fått en ny melding om en observasjon eller et mulig funn.", en: "You received a new message about an observation or possible find." },
+      titles: localizedPair("push.observationMessage.title"),
+      bodies: localizedPair("push.observationMessage.body"),
       data: { observationId: o.id, reportId: o.report_id },
     });
     return res.json({ ok: true, message: ins.data });

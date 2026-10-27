@@ -5,6 +5,7 @@ const router=express.Router();
 const {supaAdmin}=require("../supabaseClient");
 const {requireUser}=require("../mw/auth");
 const {notifyUser}=require("../lib/userNotify");
+const {localizedPair}=require("../lib/messages");
 function cleanText(v,n){const s=String(v||"").trim();return s?s.slice(0,n):null;}
 function validPoint(lat,lng){return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180;}
 async function getCampaign(id){const q=await supaAdmin.from("geo_alert_campaigns").select("id,user_id,report_id,status,ends_at,reports(id,user_id,type,status,deleted_at,title)").eq("id",id).maybeSingle();if(q.error)throw q.error;return q.data||null;}
@@ -28,8 +29,8 @@ router.post("/",requireUser,async(req,res)=>{try{
  const found=type==="FOUND";
  await notifyUser({
   userId:report.user_id,type:"AREA_ALERT_OBSERVATION",entityType:"observation",entityId:q.data.id,
-  titles:found?{no:"Mulig funn meldt",en:"Possible find reported"}:{no:"Ny observasjon meldt",en:"New observation reported"},
-  bodies:found?{no:"Gjenstanden kan være funnet. Åpne observasjonen for detaljer.",en:"The item may have been found. Open the observation for details."}:{no:"Gjenstanden kan være sett. Åpne observasjonen for detaljer.",en:"The item may have been seen. Open the observation for details."},
+  titles:localizedPair(found?"push.observationFound.title":"push.observationSeen.title"),
+  bodies:localizedPair(found?"push.observationFound.body":"push.observationSeen.body"),
   data:{observationId:q.data.id,reportId:campaign.report_id}
  });
  return res.json({ok:true,observation:q.data});
@@ -47,8 +48,8 @@ router.post("/:id/status",requireUser,async(req,res)=>{try{
  const u=await supaAdmin.from("area_alert_observations").update({status,updated_at:new Date().toISOString()}).eq("id",id).select("id,status").single();if(u.error)throw u.error;
  await notifyUser({
   userId:o.data.observer_user_id,type:"OBSERVATION_STATUS",entityType:"observation",entityId:id,
-  titles:status==="RELEVANT"?{no:"Opplysningen er vurdert som relevant",en:"Information marked as relevant"}:{no:"Opplysningen ble avvist",en:"Information dismissed"},
-  bodies:status==="RELEVANT"?{no:"Rapporteieren har markert opplysningen din som relevant.",en:"The report owner marked your information as relevant."}:{no:"Rapporteieren har vurdert opplysningen som ikke relevant.",en:"The report owner marked your information as not relevant."}
+  titles:localizedPair(status==="RELEVANT"?"push.observationRelevant.title":"push.observationDismissed.title"),
+  bodies:localizedPair(status==="RELEVANT"?"push.observationRelevant.body":"push.observationDismissed.body")
  });
  return res.json({ok:true,observation:u.data});
 }catch(e){return res.status(500).json({error:e?.message||"OBSERVATION_STATUS_FAILED"});}});

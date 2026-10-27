@@ -24,6 +24,7 @@ const supaAdmin =
 const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const { notifyUser } = require("../lib/userNotify");
+const { localizedPair } = require("../lib/messages");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -372,11 +373,8 @@ router.post("/:id/status", requireUser, async (req, res) => {
             type: "MATCH_CONFIRMED",
             entityType: "match",
             entityId: matchId,
-            titles: { no: "Treff bekreftet", en: "Match confirmed" },
-            bodies: {
-              no: "Motparten har bekreftet treffet. Åpne chat for å avtale videre.",
-              en: "The other party confirmed the match. Open chat to continue.",
-            },
+            titles: localizedPair("push.matchConfirmed.title"),
+            bodies: localizedPair("push.matchConfirmed.body"),
           });
         } catch (nErr) {
           console.warn(
@@ -423,11 +421,8 @@ router.post("/:id/messages", requireUser, async (req, res) => {
         type: "NEW_MESSAGE",
         entityType: "chat",
         entityId: m.id,
-        titles: { no: "Ny melding", en: "New message" },
-        bodies: {
-          no: "Du har fått en ny chatmelding.",
-          en: "You have a new chat message.",
-        },
+        titles: localizedPair("push.newMessage.title"),
+        bodies: localizedPair("push.newMessage.body"),
       });
     return res.json({ ok: true, message: ins.data });
   } catch (e) {

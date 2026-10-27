@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
+const { message } = require("../lib/messages");
 const { requireUser } = require("../mw/auth");
 
 const isExpoToken = (value) => /^ExponentPushToken\[[^\]]+\]$|^ExpoPushToken\[[^\]]+\]$/.test(String(value || ""));
@@ -100,8 +101,8 @@ router.post("/test", requireUser, async (req, res) => {
     const messages = installations.map(x => ({
       to: x.expo_push_token,
       sound: "default",
-      title: x.language === "en" ? "Lost or Found test" : "Test fra Lost or Found",
-      body: x.language === "en" ? "Push notifications are configured correctly." : "Pushvarsler er konfigurert riktig.",
+      title: message(x.language, "push.test.title"),
+      body: message(x.language, "push.test.body"),
       data: { targetKind: "notifications", notificationKey, type: "PUSH_TEST" },
     }));
     const response = await fetch("https://exp.host/--/api/v2/push/send", {

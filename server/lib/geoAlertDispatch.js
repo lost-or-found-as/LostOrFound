@@ -1,5 +1,6 @@
 "use strict";
 const { supaAdmin } = require("../supabaseClient");
+const { message } = require("./messages");
 
 async function expoSend(messages) {
   const response = await fetch("https://exp.host/--/api/v2/push/send", {
@@ -99,14 +100,10 @@ async function dispatchAreaAlertCampaign(campaignId) {
     const messages = accepted.map((candidate) => ({
       to: candidate.expo_push_token,
       sound: "default",
-      title:
-        candidate.language === "en"
-          ? "Lost item near you"
-          : "Mistet gjenstand i området ditt",
-      body:
-        candidate.language === "en"
-          ? `${candidate.report_title || "An item"} was reported lost near an area you follow.`
-          : `${candidate.report_title || "En gjenstand"} er meldt mistet nær et område du følger.`,
+      title: message(candidate.language, "push.areaAlert.title"),
+      body: message(candidate.language, "push.areaAlert.body", {
+        item: candidate.report_title || message(candidate.language, "push.areaAlert.itemFallback"),
+      }),
       data: {
         type: "AREA_ALERT",
         targetKind: "areaAlert",

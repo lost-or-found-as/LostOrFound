@@ -437,6 +437,18 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       });
     }
 
+    // T1.8E.5J: only orders that are still open can be activated. Expired, superseded and
+    // failed orders (for example PENDING orders expired by process_commerce_expiry) stop here.
+    if (!["PENDING", "AUTHORIZED", "PAID"].includes(String(order.status || "").toUpperCase())) {
+      console.info("[commerce][activation-refused-order-closed]", {
+        orderId: order.id,
+        reportId: order.report_id,
+        userId,
+        orderStatus: order.status,
+      });
+      return res.status(409).json({ error: "ORDER_NOT_ACTIVATABLE", orderStatus: order.status });
+    }
+
     const report = await ownedReport(order.report_id, userId);
     if (!report) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
     const now = new Date();
