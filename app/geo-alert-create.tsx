@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -30,7 +29,17 @@ import {
 import {
   activateTestReportOrder,
   createReportOrder,
+  fetchGeoAlertStatus,
 } from "../src/lib/reportCommerce";
+import {
+  areaAlertDateParts,
+  classifyAreaAlertError,
+  deriveAreaAlertView,
+  type AreaAlertErrorInfo,
+  type GeoAlertStatus,
+} from "../src/lib/areaAlertStatus";
+import { InlineNotice } from "../src/ui/InlineNotice";
+import { Ionicons } from "@expo/vector-icons";
 
 function tr(language: "no" | "en", key: TranslationKey): string {
   return language === "en" ? en[key] : no[key];
@@ -39,21 +48,12 @@ function tr(language: "no" | "en", key: TranslationKey): string {
 const RADII = [250, 500, 1000, 1500, 3000, 5000, 10000];
 const DURATION_HOURS = 168;
 const REMINDER_COUNT = 0;
-function areaAlertErrorMessage(language: "no" | "en", error: unknown): string {
-  const code = String((error as any)?.message ?? error ?? "").trim();
-  const keyByCode: Record<string, TranslationKey> = {
-    TEST_ACTIVATION_NOT_ALLOWED: "areaAlertCreate.testActivationNotAvailable",
-    GEO_ALERT_TEST_NOT_ALLOWED: "areaAlertCreate.testActivationNotAvailable",
-    PRODUCT_NOT_AVAILABLE: "areaAlertCreate.productNotAvailable",
-    ORDER_NOT_FOUND: "areaAlertCreate.orderNotFound",
-    REPORT_NOT_FOUND: "areaAlertCreate.reportNotFound",
-    GEO_ALERT_REPORT_LOCATION_REQUIRED: "areaAlertCreate.locationRequired",
-  };
-  return tr(
-    language,
-    keyByCode[code] ?? "areaAlertCreate.genericActivationError",
-  );
-}
+// T1.8E.5I: errors are shown in the screen (InlineNotice), never as native dialogs.
+type AreaAlertNotice = {
+  info: AreaAlertErrorInfo;
+  nothingOrdered: boolean;
+  retry: "calculate" | "activate";
+};
 
 function createClientRequestId(reportId: string) {
   return `geo-alert-${reportId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -63,7 +63,7 @@ export default function GeoAlertCreateScreen() {
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
   const requestIdRef = useRef<string | null>(null);
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const params = useLocalSearchParams<{
     reportId?: string;
     title?: string;
@@ -78,6 +78,9 @@ export default function GeoAlertCreateScreen() {
   const [activating, setActivating] = useState(false);
   const [result, setResult] = useState<GeoAlertPreviewResult | null>(null);
   const [activatedUntil, setActivatedUntil] = useState<string | null>(null);
+  const [status, setStatus] = useState<GeoAlertStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [notice, setNotice] = useState<AreaAlertNotice | null>(null);
   const validLocation = Number.isFinite(latitude) && Number.isFinite(longitude);
   const center = useMemo(
     () => ({ latitude, longitude }),
@@ -88,20 +91,31 @@ export default function GeoAlertCreateScreen() {
     [latitude, longitude],
   );
 
+  const loadStatus = useCallback(async () => {
+    if (!reportId) {
+      setStatusLoading(false);
+      return;
+    }
+    try {
+      setStatus(await fetchGeoAlertStatus(reportId));
+    } catch {
+      // The server still enforces the rules; without status the form stays available.
+      setStatus(null);
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [reportId]);
+
   useEffect(() => {
-    if (!validLocation)
-      Alert.alert(
-        tr(language, "areaAlertCreate.location.missing"),
-        tr(
-          language,
-          "areaAlertCreate.the.report.needs.a.valid.location.before.a.geo.a",
-        ),
-      );
-  }, [validLocation, language]);
+    void loadStatus();
+  }, [loadStatus]);
+
+  const view = useMemo(() => deriveAreaAlertView(status), [status]);
 
   useEffect(() => {
     setResult(null);
     setActivatedUntil(null);
+    setNotice(null);
     requestIdRef.current = null;
     if (validLocation) {
       const delta = Math.max(0.015, Math.min(1.2, radiusM / 18000));
@@ -116,6 +130,7 @@ export default function GeoAlertCreateScreen() {
     if (!reportId || !validLocation) return;
     try {
       setBusy(true);
+      setNotice(null);
       const next = await previewGeoAlert({
         reportId,
         radiusM,
@@ -126,10 +141,7 @@ export default function GeoAlertCreateScreen() {
       setResult(next);
       requestIdRef.current = createClientRequestId(reportId);
     } catch (e: any) {
-      Alert.alert(
-        tr(language, "areaAlertCreate.could.not.calculate"),
-        e?.message || String(e),
-      );
+      setNotice({ info: classifyAreaAlertError(e), nothingOrdered: true, retry: "calculate" });
     } finally {
       setBusy(false);
     }
@@ -137,8 +149,10 @@ export default function GeoAlertCreateScreen() {
 
   const createAndActivate = async () => {
     if (!result || !reportId || activating) return;
+    let orderCreated = false;
     try {
       setActivating(true);
+      setNotice(null);
       const clientRequestId =
         requestIdRef.current || createClientRequestId(reportId);
       requestIdRef.current = clientRequestId;
@@ -163,15 +177,20 @@ export default function GeoAlertCreateScreen() {
           reminderCount: REMINDER_COUNT,
         },
       });
+      orderCreated = true;
       const activated = await activateTestReportOrder(created.order.id);
       setActivatedUntil(
         String(activated.entitlement?.current_period_end || ""),
       );
     } catch (e: any) {
-      Alert.alert(
-        tr(language, "areaAlertCreate.could.not.create.area.alert"),
-        areaAlertErrorMessage(language, e),
-      );
+      const info = classifyAreaAlertError(e);
+      if (info.kind === "alreadyActive" || info.kind === "limitReached") {
+        // Not an error for the user: show the current status instead of the form.
+        setStatusLoading(true);
+        await loadStatus();
+        return;
+      }
+      setNotice({ info, nothingOrdered: !orderCreated, retry: "activate" });
     } finally {
       setActivating(false);
     }
@@ -195,6 +214,94 @@ export default function GeoAlertCreateScreen() {
       </View>
     );
   }
+
+  const header = (
+    <PremiumHeader
+      title={tr(language, "areaAlertCreate.notify.people.nearby")}
+      subtitle={String(params.title || "")}
+      onBack={() => router.back()}
+    />
+  );
+
+  if (statusLoading) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.safe}>
+          {header}
+          <View style={styles.center}>
+            <ActivityIndicator color={theme.colors.primary} />
+            <Text style={[styles.muted, styles.statusLoadingText]}>
+              {t("areaAlertCreate.checkingStatus")}
+            </Text>
+          </View>
+        </View>
+      </>
+    );
+  }
+
+  if (!activatedUntil && (view.kind === "live" || view.kind === "completed")) {
+    const live = view.kind === "live";
+    const until = areaAlertDateParts(status?.activeUntil || view.latest?.endsAt, language);
+    const lastOne = view.activationCount >= view.maxActivations;
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.safe}>
+          {header}
+          <ScrollView contentContainerStyle={styles.blockedContent}>
+            <View style={styles.blockedCard}>
+              <View style={[styles.blockedIcon, live ? styles.blockedIconLive : styles.blockedIconDone]}>
+                <Ionicons
+                  name={live ? "radio-outline" : "checkmark-done-outline"}
+                  size={28}
+                  color={live ? "#166534" : "#475569"}
+                />
+              </View>
+              <Text style={styles.blockedTitle}>
+                {live ? t("areaAlertCreate.alreadyActiveTitle") : t("areaAlertCreate.limitTitle")}
+              </Text>
+              <Text style={styles.blockedBody}>
+                {live
+                  ? lastOne
+                    ? t("areaAlertCreate.alreadyActiveLastBody")
+                    : t("areaAlertCreate.alreadyActiveBody")
+                  : t("areaAlertCreate.limitBody")}
+              </Text>
+              {live && (
+                <View style={styles.blockedGrid}>
+                  <View style={styles.blockedCell}>
+                    <Text style={styles.blockedCellLabel}>{t("areaAlertService.activeUntil")}</Text>
+                    <Text style={styles.blockedCellValue}>
+                      {until.date ? t("areaAlertService.dateAtTime", { date: until.date, time: until.time }) : ""}
+                    </Text>
+                  </View>
+                  <View style={styles.blockedCell}>
+                    <Text style={styles.blockedCellLabel}>{t("areaAlertCreate.remainingLabel")}</Text>
+                    <Text style={styles.blockedCellValue}>
+                      {view.daysLeft === 1
+                        ? t("areaAlertCreate.oneDayValue")
+                        : t("areaAlertCreate.daysValue", { count: view.daysLeft })}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+            <Pressable accessibilityRole="button" style={styles.primary} onPress={() => router.back()}>
+              <Text style={styles.primaryText}>{t("areaAlertCreate.backToCase")}</Text>
+            </Pressable>
+          </ScrollView>
+        </View>
+      </>
+    );
+  }
+
+  const noticeView = notice ? noticeContent(notice, t) : null;
+  const retryNotice = () => {
+    if (!notice) return;
+    if (notice.retry === "calculate") void calculate();
+    else void createAndActivate();
+  };
 
   return (
     <>
@@ -267,8 +374,8 @@ export default function GeoAlertCreateScreen() {
           </View>
 
           <Pressable
-            disabled={busy || activating}
-            style={[styles.primary, (busy || activating) && styles.disabled]}
+            disabled={busy || activating || (!!notice && !result)}
+            style={[styles.primary, (busy || activating || (!!notice && !result)) && styles.disabled]}
             onPress={calculate}
           >
             {busy ? (
@@ -279,6 +386,18 @@ export default function GeoAlertCreateScreen() {
               </Text>
             )}
           </Pressable>
+
+          {noticeView && !result && (
+            <InlineNotice
+              tone={noticeView.tone}
+              icon={noticeView.icon}
+              title={noticeView.title}
+              body={noticeView.body}
+              actionLabel={notice?.info.retryable ? t("errors.retry") : undefined}
+              onAction={retryNotice}
+              busy={busy}
+            />
+          )}
 
           {result && (
             <View style={styles.result}>
@@ -309,7 +428,18 @@ export default function GeoAlertCreateScreen() {
                   "areaAlertCreate.test.mode.no.real.payment.is.made.activation.cre",
                 )}
               </Text>
-              {!activatedUntil ? (
+              {noticeView && (
+                <InlineNotice
+                  tone={noticeView.tone}
+                  icon={noticeView.icon}
+                  title={noticeView.title}
+                  body={noticeView.body}
+                  actionLabel={notice?.info.retryable ? t("errors.retry") : undefined}
+                  onAction={retryNotice}
+                  busy={activating}
+                />
+              )}
+              {!activatedUntil && !noticeView ? (
                 <Pressable
                   disabled={activating}
                   style={[styles.activate, activating && styles.disabled]}
@@ -323,7 +453,7 @@ export default function GeoAlertCreateScreen() {
                     </Text>
                   )}
                 </Pressable>
-              ) : (
+              ) : activatedUntil ? (
                 <View style={styles.successBox}>
                   <Text style={styles.successTitle}>
                     {tr(language, "areaAlertCreate.area.alert.active")}
@@ -349,13 +479,33 @@ export default function GeoAlertCreateScreen() {
                     </Text>
                   </Pressable>
                 </View>
-              )}
+              ) : null}
             </View>
           )}
         </ScrollView>
       </View>
     </>
   );
+}
+
+type Translate = (key: TranslationKey, params?: Record<string, string | number | null | undefined>) => string;
+
+function noticeContent(notice: AreaAlertNotice, t: Translate) {
+  const nothing = notice.nothingOrdered ? ` ${t("areaAlertCreate.nothingOrdered")}` : "";
+  switch (notice.info.kind) {
+    case "network":
+      return { tone: "warning" as const, icon: "wifi-outline" as const, title: t("errors.networkTitle"), body: t("errors.networkBody") + nothing };
+    case "service":
+      return { tone: "warning" as const, icon: "cloud-offline-outline" as const, title: t("errors.serviceTitle"), body: t("errors.serviceBody") + nothing };
+    case "auth":
+      return { tone: "info" as const, icon: "lock-closed-outline" as const, title: t("errors.authTitle"), body: t("errors.authBody") };
+    case "notAvailable":
+      return { tone: "info" as const, icon: "information-circle-outline" as const, title: t("areaAlertCreate.errorNotAvailableTitle"), body: t("areaAlertCreate.errorNotAvailableBody") };
+    case "locationRequired":
+      return { tone: "info" as const, icon: "location-outline" as const, title: t("areaAlertCreate.errorLocationTitle"), body: t("areaAlertCreate.locationRequired") };
+    default:
+      return { tone: "error" as const, icon: "alert-circle-outline" as const, title: t("areaAlertCreate.errorUnknownTitle"), body: t("areaAlertCreate.errorUnknownBody") + nothing };
+  }
 }
 
 function Chip({
@@ -509,4 +659,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   secondaryText: { fontWeight: "900", color: "#166534" },
+  statusLoadingText: { marginTop: 12 },
+  blockedContent: { padding: 14, paddingBottom: 40, gap: 16 },
+  blockedCard: {
+    padding: 22,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
+    alignItems: "center",
+    gap: 12,
+    ...theme.shadow.card,
+  },
+  blockedIcon: { width: 56, height: 56, borderRadius: 999, alignItems: "center", justifyContent: "center" },
+  blockedIconLive: { backgroundColor: "#ECFDF5" },
+  blockedIconDone: { backgroundColor: "#F1F5F9" },
+  blockedTitle: { fontSize: 20, fontWeight: "900", color: theme.colors.text, textAlign: "center" },
+  blockedBody: { fontSize: 15, lineHeight: 22, fontWeight: "600", color: "#475569", textAlign: "center" },
+  blockedGrid: { flexDirection: "row", gap: 10, alignSelf: "stretch", marginTop: 4 },
+  blockedCell: { flex: 1, backgroundColor: "#F8FAFC", borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, gap: 2 },
+  blockedCellLabel: { fontSize: 12, fontWeight: "600", color: theme.colors.muted },
+  blockedCellValue: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
 });

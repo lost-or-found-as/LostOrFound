@@ -90,7 +90,67 @@ async function createGeoAlertEntitlement({
   return { entitlement };
 }
 
+// Statuses that count as a used activation (same set as geo_alert_activation_state).
+const COUNTED_STATUSES = ["ACTIVE", "GRACE", "PAUSED", "EXPIRED"];
+const LIVE_STATUSES = new Set(["ACTIVE", "GRACE", "PAUSED"]);
+
+/**
+ * T1.8E.5I: read-only area-alert status for one report, for the app's service card.
+ * Rules 1 and 2 come from geo_alert_activation_state so the app and the guard agree.
+ * "live" is decided by time, because expired rows are not always moved out of ACTIVE.
+ */
+async function getGeoAlertStatus(reportId, now = new Date()) {
+  const state = await getGeoAlertActivationState(reportId);
+
+  const { data: entitlements, error: entitlementError } = await supaAdmin
+    .from("report_entitlements")
+    .select("id,order_id,status,starts_at,current_period_end")
+    .eq("report_id", reportId)
+    .like("product_code", `${GEO_ALERT_PRODUCT_PREFIX}%`)
+    .in("status", COUNTED_STATUSES)
+    .order("starts_at", { ascending: true });
+  if (entitlementError) throw entitlementError;
+
+  const orderIds = (entitlements || []).map((row) => row.order_id).filter(Boolean);
+  let campaignsByOrder = new Map();
+  if (orderIds.length) {
+    const { data: campaigns, error: campaignError } = await supaAdmin
+      .from("geo_alert_campaigns")
+      .select("id,order_id,radius_m")
+      .in("order_id", orderIds);
+    if (campaignError) throw campaignError;
+    campaignsByOrder = new Map((campaigns || []).map((c) => [c.order_id, c]));
+  }
+
+  const nowMs = now.getTime();
+  const activations = (entitlements || []).map((row) => {
+    const campaign = campaignsByOrder.get(row.order_id) || null;
+    const endsAt = row.current_period_end || null;
+    return {
+      startsAt: row.starts_at || null,
+      endsAt,
+      live:
+        LIVE_STATUSES.has(String(row.status || "").toUpperCase()) &&
+        Boolean(endsAt) &&
+        new Date(endsAt).getTime() > nowMs,
+      radiusM: campaign?.radius_m != null ? Number(campaign.radius_m) : null,
+    };
+  });
+
+  const maxActivations = Number(state.maxActivations || 2);
+  const activationCount = Number(state.activationCount || 0);
+  return {
+    activeUntil: state.activeUntil,
+    activationCount,
+    maxActivations,
+    remaining: Math.max(0, maxActivations - activationCount),
+    canOrder: !state.activeUntil && activationCount < maxActivations,
+    activations,
+  };
+}
+
 module.exports = {
+  getGeoAlertStatus,
   GEO_ALERT_ALREADY_ACTIVE,
   GEO_ALERT_LIMIT_REACHED,
   isGeoAlertProduct,

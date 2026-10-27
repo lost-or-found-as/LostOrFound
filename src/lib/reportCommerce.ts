@@ -1,6 +1,7 @@
 import { API_BASE_URL } from "./config";
 import { supabase } from "./supabase";
 import type { GeoAlertQuoteInput, ReportProductCode } from "./reportProducts";
+import type { GeoAlertStatus } from "./areaAlertStatus";
 
 async function token() {
   const { data } = await supabase.auth.getSession();
@@ -15,7 +16,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, ...(init?.headers || {}) },
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error || `HTTP_${response.status}`);
+  if (!response.ok) {
+    // T1.8E.5I: keep the message (callers read it) and add the code, status and body.
+    const error = new Error(data?.error || `HTTP_${response.status}`) as Error & {
+      code?: string;
+      status?: number;
+      body?: unknown;
+    };
+    error.code = String(data?.error || `HTTP_${response.status}`);
+    error.status = response.status;
+    error.body = data;
+    throw error;
+  }
   return data as T;
 }
 export function fetchReportProductCatalog() {
@@ -36,6 +48,9 @@ export function createReportOrder(input: {
   geoAlert?: Record<string, unknown>;
 }) {
   return request<{ order: any; idempotentReplay: boolean }>("/orders", { method: "POST", body: JSON.stringify(input) });
+}
+export function fetchGeoAlertStatus(reportId: string) {
+  return request<GeoAlertStatus>(`/reports/${encodeURIComponent(reportId)}/geo-alert-status`);
 }
 export function fetchReportOrder(orderId: string) {
   return request<{ order: any }>(`/orders/${encodeURIComponent(orderId)}`);

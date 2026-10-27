@@ -19,6 +19,7 @@ const {
   getGeoAlertActivationState,
   geoAlertBlockReason,
   createGeoAlertEntitlement,
+  getGeoAlertStatus,
 } = require("../lib/geoAlertActivationGuard");
 const GEO_ALERT_DURATION_HOURS = 168;
 const GEO_ALERT_REMINDER_COUNT = 0;
@@ -102,6 +103,25 @@ function requestId(value) {
     throw new Error("CLIENT_REQUEST_ID_INVALID");
   return v;
 }
+
+// T1.8E.5I: area-alert status for the report owner (service card and order screen).
+router.get("/reports/:reportId/geo-alert-status", requireUser, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const reportId = String(req.params.reportId || "").trim();
+    const report = await ownedReport(reportId, userId);
+    if (!report) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
+    const status = await getGeoAlertStatus(reportId);
+    return res.json({ ok: true, reportId, ...status });
+  } catch (e) {
+    console.error("[geo-alert][status-failed]", {
+      reportId: req.params?.reportId || null,
+      errorCode: e?.code || null,
+      errorMessage: e?.message || String(e),
+    });
+    return res.status(500).json({ error: "GEO_ALERT_STATUS_FAILED" });
+  }
+});
 
 router.get("/my-purchases", requireUser, async (req, res) => {
   try {
