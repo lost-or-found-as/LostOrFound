@@ -14,6 +14,7 @@ const supaAdmin =
 
 const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
+const { getAreaAlertAccess } = require("../lib/areaAlertAccess");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -52,26 +53,8 @@ async function userOwnsReport(reportId, userId) {
 }
 
 async function userCanAccessAreaAlert(campaignId, userId) {
-  const { data: recipient, error: recipientError } = await supaAdmin
-    .from("geo_alert_recipients")
-    .select("campaign_id")
-    .eq("campaign_id", campaignId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (recipientError) throw recipientError;
-  if (!recipient) {
-    const { data: notification, error: notificationError } = await supaAdmin
-      .from("notifications")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("type", "AREA_ALERT")
-      .eq("entity_type", "area_alert_campaign")
-      .eq("entity_id", campaignId)
-      .maybeSingle();
-    if (notificationError) throw notificationError;
-    if (!notification) return null;
-    console.info("[geo-alert][AREA_ALERT_IN_APP_ACCESS]", { campaignId, userId });
-  }
+  const access = await getAreaAlertAccess(campaignId, userId);
+  if (!access.allowed) return null;
 
   const { data: campaign, error: campaignError } = await supaAdmin
     .from("geo_alert_campaigns")

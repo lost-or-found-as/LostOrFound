@@ -4,6 +4,7 @@ const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
 const { requireUser } = require("../mw/auth");
 const { dispatchAreaAlertCampaign } = require("../lib/geoAlertDispatch");
+const { getAreaAlertAccess } = require("../lib/areaAlertAccess");
 
 const testUsers = () => new Set(String(process.env.GEO_ALERT_TEST_USER_IDS || "").split(",").map(x => x.trim()).filter(Boolean));
 const testEnabled = () => String(process.env.GEO_ALERT_TEST_MODE || "").toLowerCase() === "true";
@@ -43,28 +44,8 @@ router.post("/:campaignId/test-dispatch", requireUser, async (req, res) => {
 router.get("/:campaignId/view", requireUser, async (req, res) => {
   try {
     const campaignId = String(req.params.campaignId || "").trim();
-    const { data: recipient, error: recipientError } = await supaAdmin
-      .from("geo_alert_recipients")
-      .select("campaign_id,status")
-      .eq("campaign_id", campaignId)
-      .eq("user_id", req.user.id)
-      .maybeSingle();
-    if (recipientError) throw recipientError;
-    let notificationAccess = false;
-    if (!recipient) {
-      const { data: notification, error: notificationError } = await supaAdmin
-        .from("notifications")
-        .select("id")
-        .eq("user_id", req.user.id)
-        .eq("type", "AREA_ALERT")
-        .eq("entity_type", "area_alert_campaign")
-        .eq("entity_id", campaignId)
-        .maybeSingle();
-      if (notificationError) throw notificationError;
-      notificationAccess = Boolean(notification);
-      console.info("[geo-alert][AREA_ALERT_NOTIFICATION_ACCESS]", { campaignId, userId: req.user.id, notificationAccess });
-      if (!notificationAccess) return res.status(404).json({ error: "AREA_ALERT_NOT_AVAILABLE" });
-    }
+    const access = await getAreaAlertAccess(campaignId, req.user.id);
+    if (!access.allowed) return res.status(404).json({ error: "AREA_ALERT_NOT_AVAILABLE" });
 
     const { data: campaign, error } = await supaAdmin
       .from("geo_alert_campaigns")
@@ -73,7 +54,7 @@ router.get("/:campaignId/view", requireUser, async (req, res) => {
       .maybeSingle();
     if (error) throw error;
     if (!campaign) return res.status(404).json({ error: "AREA_ALERT_NOT_AVAILABLE" });
-    return res.json({ ok: true, campaign, recipientStatus: recipient?.status || "IN_APP_ONLY" });
+    return res.json({ ok: true, campaign, recipientStatus: access.recipientStatus });
   } catch (e) {
     return res.status(500).json({ error: e?.message || "AREA_ALERT_VIEW_FAILED" });
   }
