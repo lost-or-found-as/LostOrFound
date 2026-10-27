@@ -46,3 +46,6 @@ temp/
 
 
 .env.local
+
+# Supabase CLI local state
+supabase/.temp/
