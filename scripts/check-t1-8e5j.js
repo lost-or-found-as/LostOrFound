@@ -11,7 +11,7 @@ const root = process.cwd();
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8").replace(/\r\n/g, "\n");
 const failures = [];
 const check = (ok, code) => { if (!ok) failures.push(code); };
-const sql = read("supabase/migrations/20261027_t1_8e5j_commerce_expiry_and_estimates.sql").replace(/--[^\n]*/g, "");
+const sql = read("supabase/legacy_migrations/20261027_t1_8e5j_commerce_expiry_and_estimates.sql").replace(/--[^\n]*/g, "");
 
 function body(name) {
   const m = sql.match(new RegExp(`create or replace function public\\.${name}\\([\\s\\S]*?as \\$function\\$([\\s\\S]*?)\\$function\\$;`, "i"));

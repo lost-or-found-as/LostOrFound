@@ -13,7 +13,7 @@ const failures = [];
 const check = (ok, code) => { if (!ok) failures.push(code); };
 
 // ---------------------------------------------------------------- migration
-const MIGRATION = "supabase/migrations/20261027_t1_8e5g1_area_alert_user_eligibility.sql";
+const MIGRATION = "supabase/legacy_migrations/20261027_t1_8e5g1_area_alert_user_eligibility.sql";
 const sql = read(MIGRATION);
 const stripComments = (s) => s.replace(/--[^\n]*/g, "");
 const code = stripComments(sql);

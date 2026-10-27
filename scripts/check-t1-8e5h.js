@@ -14,7 +14,7 @@ const failures = [];
 const check = (ok, code) => { if (!ok) failures.push(code); };
 
 // ---------------------------------------------------------------- migration
-const MIGRATION = "supabase/migrations/20261027_t1_8e5h_geo_alert_activation_rules.sql";
+const MIGRATION = "supabase/legacy_migrations/20261027_t1_8e5h_geo_alert_activation_rules.sql";
 const sql = noComments(read(MIGRATION));
 
 check(/^\s*begin;/i.test(sql) && /commit;\s*$/i.test(sql), "SQL_NOT_WRAPPED_IN_TRANSACTION");
