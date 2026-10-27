@@ -14,6 +14,12 @@ const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const { calculateGeoAlertQuote } = require("../lib/geoAlertPricing");
 const { dispatchAreaAlertCampaign } = require("../lib/geoAlertDispatch");
+const {
+  isGeoAlertProduct,
+  getGeoAlertActivationState,
+  geoAlertBlockReason,
+  createGeoAlertEntitlement,
+} = require("../lib/geoAlertActivationGuard");
 const GEO_ALERT_DURATION_HOURS = 168;
 const GEO_ALERT_REMINDER_COUNT = 0;
 const VALID_GEO_ALERT_RADII = new Set([
@@ -51,6 +57,24 @@ function geoAlertTestModeAllowed(userId) {
     geoAlertTestUsers().has(String(userId))
   );
 }
+// T1.8E.5H: an area-alert entitlement without a campaign must not stay live, otherwise it
+// would block the report (rule 1) without any alert having been sent.
+async function cancelGeoAlertEntitlement(entitlementId, order, userId, reason) {
+  const { error } = await supaAdmin
+    .from("report_entitlements")
+    .update({ status: "CANCELLED" })
+    .eq("id", entitlementId);
+  console.error("[geo-alert][entitlement-cancelled-after-failure]", {
+    orderId: order.id,
+    reportId: order.report_id,
+    userId,
+    entitlementId,
+    reason,
+    cancelErrorCode: error?.code || null,
+    cancelErrorMessage: error?.message || null,
+  });
+}
+
 async function ownedReport(reportId, userId) {
   const { data, error } = await supaAdmin
     .from("reports")
@@ -286,6 +310,16 @@ router.post("/orders", requireUser, async (req, res) => {
       .maybeSingle();
     if (existing) return res.json({ order: existing, idempotentReplay: true });
 
+    // T1.8E.5H: refuse a new area-alert order while one is live or the limit is reached.
+    if (isGeoAlertProduct(productCode)) {
+      const geoAlertState = await getGeoAlertActivationState(reportId);
+      const block = geoAlertBlockReason(geoAlertState);
+      if (block) {
+        console.info("[geo-alert][order-blocked]", { reportId, userId, ...block });
+        return res.status(409).json(block);
+      }
+    }
+
     const { data, error } = await supaAdmin
       .from("report_orders")
       .insert(payload)
@@ -400,24 +434,51 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
 
     const providerTransactionId =
       order.provider_transaction_id || `test_${crypto.randomUUID()}`;
-    const { data: entitlement, error: eErr } = await supaAdmin
-      .from("report_entitlements")
-      .insert({
-        user_id: userId,
-        report_id: order.report_id,
-        product_code: order.product_code,
-        order_id: order.id,
-        status: "ACTIVE",
-        starts_at: now.toISOString(),
-        current_period_end: periodEnd.toISOString(),
-        auto_renews: autoRenews,
+    let entitlement = null;
+    if (isGeoAlertProduct(order.product_code)) {
+      // T1.8E.5H: rules 1 and 2 are enforced atomically in the database.
+      const guarded = await createGeoAlertEntitlement({
+        orderId: order.id,
+        userId,
+        startsAt: now.toISOString(),
+        periodEnd: periodEnd.toISOString(),
         provider: "TEST",
-        provider_original_transaction_id: providerTransactionId,
+        providerTransactionId,
         metadata: { test_activation: true },
-      })
-      .select("*")
-      .single();
-    if (eErr) return res.status(400).json({ error: eErr.message });
+      });
+      if (guarded.rejection) {
+        console.info("[geo-alert][activation-blocked]", {
+          orderId: order.id,
+          reportId: order.report_id,
+          userId,
+          ...guarded.rejection,
+        });
+        return res.status(409).json(guarded.rejection);
+      }
+      if (guarded.error)
+        return res.status(400).json({ error: guarded.error.message || "GEO_ALERT_ENTITLEMENT_FAILED" });
+      entitlement = guarded.entitlement;
+    } else {
+      const { data: inserted, error: eErr } = await supaAdmin
+        .from("report_entitlements")
+        .insert({
+          user_id: userId,
+          report_id: order.report_id,
+          product_code: order.product_code,
+          order_id: order.id,
+          status: "ACTIVE",
+          starts_at: now.toISOString(),
+          current_period_end: periodEnd.toISOString(),
+          auto_renews: autoRenews,
+          provider: "TEST",
+          provider_original_transaction_id: providerTransactionId,
+          metadata: { test_activation: true },
+        })
+        .select("*")
+        .single();
+      if (eErr) return res.status(400).json({ error: eErr.message });
+      entitlement = inserted;
+    }
 
     if (order.product_code === "LONG_TERM_WATCH_ANNUAL") {
       const rp = order.request_payload || {};
@@ -476,10 +537,12 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
 
     if (order.product_code.startsWith("GEO_ALERT_TIER_")) {
       const g = order.request_payload?.geoAlert || {};
-      if (report.lat == null || report.lng == null)
+      if (report.lat == null || report.lng == null) {
+        await cancelGeoAlertEntitlement(entitlement.id, order, userId, "REPORT_LOCATION_REQUIRED");
         return res
           .status(400)
           .json({ error: "GEO_ALERT_REPORT_LOCATION_REQUIRED" });
+      }
       const campaignPoint =
         "SRID=4326;POINT(" +
         Number(report.lng) +
@@ -512,92 +575,23 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         .select("id")
         .single();
 
-      if (campaignError) {
-        if (String(campaignError.code || "") === "23505") {
-          const { data: existingCampaign, error: existingCampaignError } =
-            await supaAdmin
-              .from("geo_alert_campaigns")
-              .select("id,status,report_id")
-              .eq("report_id", order.report_id)
-              .maybeSingle();
-
-          if (existingCampaignError || !existingCampaign?.id) {
-            console.error("[geo-alert][existing-campaign-load-failed]", {
-              orderId: order.id,
-              reportId: order.report_id,
-              userId,
-              errorCode: existingCampaignError?.code || campaignError.code,
-              errorMessage: existingCampaignError?.message || campaignError.message,
-            });
-            return res.status(400).json({ error: "GEO_ALERT_CAMPAIGN_REUSE_FAILED" });
-          }
-
-          const { data: reactivatedCampaign, error: reactivationError } =
-            await supaAdmin
-              .from("geo_alert_campaigns")
-              .update({
-                order_id: order.id,
-                status: "ACTIVE",
-                geometry_type: "CIRCLE",
-                geometry: campaignPoint,
-                radius_m: Number(g.radiusM || 1500),
-                area_sq_km: Number(g.areaSqKm || 0.01),
-                population_density_band: String(
-                  g.populationDensityBand || "LOW",
-                ).toUpperCase(),
-                estimated_eligible_users: Number(g.estimatedEligibleUsers || 0),
-                duration_hours: GEO_ALERT_DURATION_HOURS,
-                reminder_count: GEO_ALERT_REMINDER_COUNT,
-                price_tier: order.product_code,
-                price_snapshot: order.price_snapshot || {},
-                starts_at: now.toISOString(),
-                ends_at: periodEnd.toISOString(),
-                activated_at: now.toISOString(),
-              })
-              .eq("id", existingCampaign.id)
-              .eq("report_id", order.report_id)
-              .select("id,status,report_id")
-              .single();
-
-          if (reactivationError || !reactivatedCampaign?.id) {
-            console.error("[geo-alert][existing-campaign-reactivation-failed]", {
-              orderId: order.id,
-              reportId: order.report_id,
-              userId,
-              campaignId: existingCampaign.id,
-              errorCode: reactivationError?.code || null,
-              errorMessage: reactivationError?.message || "Existing campaign could not be reactivated",
-              errorDetails: reactivationError?.details || null,
-              errorHint: reactivationError?.hint || null,
-            });
-            return res.status(400).json({ error: "GEO_ALERT_CAMPAIGN_REACTIVATION_FAILED" });
-          }
-
-          order.created_campaign_id = reactivatedCampaign.id;
-          console.info("[geo-alert][existing-campaign-reused]", {
-            orderId: order.id,
-            reportId: order.report_id,
-            userId,
-            campaignId: reactivatedCampaign.id,
-            previousStatus: existingCampaign.status,
-            currentStatus: reactivatedCampaign.status,
-          });
-        } else {
-          console.error("[geo-alert][campaign-create-failed]", {
-            orderId: order.id,
-            reportId: order.report_id,
-            userId,
-            productCode: order.product_code,
-            errorCode: campaignError.code || null,
-            errorMessage: campaignError.message || String(campaignError),
-            errorDetails: campaignError.details || null,
-            errorHint: campaignError.hint || null,
-          });
-          return res.status(400).json({ error: "GEO_ALERT_CAMPAIGN_CREATE_FAILED" });
-        }
-      } else {
-        order.created_campaign_id = createdCampaign.id;
+      // T1.8E.5H: every activation gets its own campaign. Rules 1 and 2 were enforced
+      // when the entitlement was created, so no campaign reuse is attempted here.
+      if (campaignError || !createdCampaign?.id) {
+        console.error("[geo-alert][campaign-create-failed]", {
+          orderId: order.id,
+          reportId: order.report_id,
+          userId,
+          productCode: order.product_code,
+          errorCode: campaignError?.code || null,
+          errorMessage: campaignError?.message || "Campaign was not created",
+          errorDetails: campaignError?.details || null,
+          errorHint: campaignError?.hint || null,
+        });
+        await cancelGeoAlertEntitlement(entitlement.id, order, userId, "CAMPAIGN_CREATE_FAILED");
+        return res.status(400).json({ error: "GEO_ALERT_CAMPAIGN_CREATE_FAILED" });
       }
+      order.created_campaign_id = createdCampaign.id;
     }
 
     const { data: updatedOrder, error: uErr } = await supaAdmin
@@ -627,15 +621,20 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         .status(400)
         .json({ error: "GEO_ALERT_ORDER_ACTIVATION_FAILED" });
     }
-    const { data: supersededOrders, error: supersedeError } = await supaAdmin
+    // T1.8E.5H: an area-alert activation supersedes every earlier live area-alert order for
+    // the report, regardless of tier. Other products keep exact product matching.
+    let supersedeQuery = supaAdmin
       .from("report_orders")
       .update({ status: "SUPERSEDED", updated_at: now.toISOString() })
       .eq("report_id", order.report_id)
       .eq("user_id", userId)
-      .eq("product_code", order.product_code)
       .eq("status", "ACTIVE")
-      .neq("id", order.id)
-      .select("id");
+      .neq("id", order.id);
+    supersedeQuery = isGeoAlertProduct(order.product_code)
+      ? supersedeQuery.like("product_code", "GEO_ALERT_TIER_%")
+      : supersedeQuery.eq("product_code", order.product_code);
+    const { data: supersededOrders, error: supersedeError } =
+      await supersedeQuery.select("id");
 
     if (supersedeError) {
       console.error("[geo-alert][previous-orders-supersede-failed]", {
