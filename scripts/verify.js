@@ -14,6 +14,7 @@ const root = path.resolve(__dirname, "..");
 const ACTIVE_CHECKS = [
   "check-i18n-parity.js",
   "check-migrations.js",
+  "check-t1-9a.js",
   "check-report-map-i18n.js",
   "check-t1-7d.js",
   "check-t1-7f.js",
