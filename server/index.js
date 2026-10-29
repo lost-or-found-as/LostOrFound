@@ -55,7 +55,9 @@ app.get("/payment-sheet", (_req, res) =>
   res.status(405).json({ ok: false, error: "Use POST /payment-sheet" })
 );
 
-app.post("/payment-sheet", async (req, res) => {
+// T1.9A: was reachable without login and created Stripe objects for anyone.
+const { requireUser: requirePaymentUser } = require("./mw/auth");
+app.post("/payment-sheet", requirePaymentUser, async (req, res) => {
   try {
     const { amountNok = 50 } = req.body || {};
     const customer = await stripe.customers.create();

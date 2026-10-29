@@ -44,6 +44,7 @@ const ACTIVE_CHECKS = [
   "test-t1-8e5h-activation.js",
   "test-t1-8e5i.js",
   "test-t1-8e5j.js",
+  "test-t1-9a-guest.js",
   "check-t1-8e5j.js",
 ];
 

@@ -1,6 +1,6 @@
 "use strict";
 const { Router } = require("express");
-const { requireUser } = require("../mw/auth");
+const { requireUserOrGuest } = require("../mw/auth");
 const router = Router();
 function withTimeout(promise, ms) {
   return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout (${ms}ms)`)), ms))]);
@@ -10,7 +10,7 @@ function apiKey(res) {
   if (!key) res.status(500).json({ error: "Missing GOOGLE_MAPS_API_KEY on server" });
   return key;
 }
-router.get("/reverse", requireUser, async (req, res) => {
+router.get("/reverse", requireUserOrGuest, async (req, res) => {
   try {
     const lat = Number(req.query.lat), lng = Number(req.query.lng);
     const language = String(req.query.language || "no");
@@ -25,7 +25,7 @@ router.get("/reverse", requireUser, async (req, res) => {
     return res.json({ label: street?.formatted_address || results?.[0]?.formatted_address || null, status: json?.status ?? null, error_message: json?.error_message ?? null });
   } catch (e) { return res.status(500).json({ error: e?.message || "Server error" }); }
 });
-router.get("/search", requireUser, async (req, res) => {
+router.get("/search", requireUserOrGuest, async (req, res) => {
   try {
     const q = String(req.query.q || "").trim();
     const language = String(req.query.language || "no");

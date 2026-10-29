@@ -14,6 +14,7 @@ const supaAdmin =
 
 const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
+const requireUserOrGuest = authModule.requireUserOrGuest;
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -371,7 +372,7 @@ function publicEditState(report) {
  * POST /reports
  * Create a report and refresh matching.
  */
-router.post("/", requireUser, async (req, res) => {
+router.post("/", requireUserOrGuest, async (req, res) => {
   try {
     const user = req.user;
     const {
@@ -553,6 +554,8 @@ router.post("/", requireUser, async (req, res) => {
       );
     }
 
+    // T1.9A: a guest only gets a receipt for the image upload, never match candidates.
+    if (req.isGuest) return res.json({ report: { id: data.id, type: data.type }, candidates: [] });
     return res.json({ report: data, candidates });
   } catch (e) {
     return res.status(500).json({ error: e?.message ?? "Server error" });

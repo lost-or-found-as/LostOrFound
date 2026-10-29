@@ -1,9 +1,9 @@
 "use strict";
 const { Router } = require("express");
 const { supaAdmin } = require("../supabaseClient");
-const { requireUser } = require("../mw/auth");
+const { requireUserOrGuest } = require("../mw/auth");
 const router = Router();
-router.post("/:id/images", requireUser, async (req, res) => {
+router.post("/:id/images", requireUserOrGuest, async (req, res) => {
   try {
     const reportId=req.params.id; const {path,sort_order=0}=req.body||{}; const user=req.user;
     if (!path || typeof path!=="string") return res.status(400).json({error:"path required"});

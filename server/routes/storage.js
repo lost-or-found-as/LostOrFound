@@ -4,25 +4,66 @@
 const { Router } = require("express");
 const { randomUUID } = require("crypto");
 const { supaAdmin } = require("../supabaseClient");
-const { requireUser } = require("../mw/auth");
+const { requireUser, requireUserOrGuest } = require("../mw/auth");
 
 const router = Router();
 const BUCKET = process.env.BUCKET_REPORT_IMAGES || "report-images";
+const IMAGE_PATH = /^reports\/([0-9a-f-]{36})\/[A-Za-z0-9._-]+$/i;
+
+// T1.9A: a user may see the images of a report they own, or of a report that is matched
+// against one of their own reports. Returns the subset of reportIds the user may view.
+async function viewableReportIds(userId, reportIds) {
+  const wanted = Array.from(new Set(reportIds));
+  if (!wanted.length) return new Set();
+  const { data: own, error: ownErr } = await supaAdmin
+    .from("reports").select("id").eq("user_id", userId).in("id", wanted);
+  if (ownErr) throw ownErr;
+  const allowed = new Set((own || []).map((r) => r.id));
+  const rest = wanted.filter((id) => !allowed.has(id));
+  if (!rest.length) return allowed;
+
+  const list = rest.join(",");
+  const { data: links, error: linkErr } = await supaAdmin
+    .from("matches").select("lost_id,found_id")
+    .or(`lost_id.in.(${list}),found_id.in.(${list})`);
+  if (linkErr) throw linkErr;
+  const partnerIds = Array.from(new Set((links || []).flatMap((m) => [m.lost_id, m.found_id])));
+  if (!partnerIds.length) return allowed;
+  const { data: mine, error: mineErr } = await supaAdmin
+    .from("reports").select("id").eq("user_id", userId).in("id", partnerIds);
+  if (mineErr) throw mineErr;
+  const myIds = new Set((mine || []).map((r) => r.id));
+  for (const m of links || []) {
+    if (myIds.has(m.found_id) && rest.includes(m.lost_id)) allowed.add(m.lost_id);
+    if (myIds.has(m.lost_id) && rest.includes(m.found_id)) allowed.add(m.found_id);
+  }
+  return allowed;
+}
+
+// "report-images/reports/<reportId>/<file>" -> { objectPath, reportId } or null.
+function parseImagePath(p) {
+  const value = String(p || "").trim();
+  if (!value.startsWith(`${BUCKET}/`)) return null;
+  const objectPath = value.slice(BUCKET.length + 1);
+  const m = IMAGE_PATH.exec(objectPath);
+  return m ? { objectPath, reportId: m[1].toLowerCase() } : null;
+}
 
 // POST /storage/signed-upload
 // body: { reportId: string(uuid), ext?: "jpg" | "png" ... }
-router.post("/signed-upload", requireUser, async (req, res) => {
+router.post("/signed-upload", requireUserOrGuest, async (req, res) => {
   try {
     const { reportId, ext = "jpg" } = req.body || {};
     if (!reportId || typeof reportId !== "string") {
       return res.status(400).json({ error: "reportId (uuid) required" });
     }
 
-    // Sjekk at report finnes
+    // The report must exist and belong to the caller (guest or registered).
     const { data: exists, error: qErr } = await supaAdmin
       .from("reports")
       .select("id")
       .eq("id", reportId)
+      .eq("user_id", req.user.id)
       .maybeSingle();
 
     if (qErr) return res.status(400).json({ error: qErr.message });
@@ -46,13 +87,12 @@ router.post("/signed-upload", requireUser, async (req, res) => {
 // GET /storage/signed-download?path=bucket/object/path.jpg
 router.get("/signed-download", requireUser, async (req, res) => {
   try {
-    const p = String(req.query.path || "");
-    if (!p.includes("/")) return res.status(400).json({ error: "path required" });
+    const parsed = parseImagePath(req.query.path);
+    if (!parsed) return res.status(400).json({ error: "INVALID_IMAGE_PATH" });
+    const allowed = await viewableReportIds(req.user.id, [parsed.reportId]);
+    if (!allowed.has(parsed.reportId)) return res.status(403).json({ error: "IMAGE_NOT_ALLOWED" });
 
-    const [bucket, ...rest] = p.split("/");
-    const objectPath = rest.join("/");
-
-    const { data, error } = await supaAdmin.storage.from(bucket).createSignedUrl(objectPath, 60 * 15);
+    const { data, error } = await supaAdmin.storage.from(BUCKET).createSignedUrl(parsed.objectPath, 60 * 15);
     if (error) return res.status(400).json({ error: error.message });
 
     return res.json({ url: data.signedUrl });
@@ -90,23 +130,28 @@ router.post("/signed-download-batch", requireUser, async (req, res) => {
     const urls = {};
     const errors = {};
 
+    const parsedByPath = new Map(uniq.map((p) => [p, parseImagePath(p)]));
+    const allowed = await viewableReportIds(
+      req.user.id,
+      Array.from(parsedByPath.values()).filter(Boolean).map((x) => x.reportId),
+    );
+
     await Promise.all(
       uniq.map(async (p) => {
         try {
-          if (!p.includes("/")) {
-            errors[p] = "Invalid path";
+          const parsed = parsedByPath.get(p);
+          if (!parsed) {
+            errors[p] = "INVALID_IMAGE_PATH";
             return;
           }
-          const [bucket, ...rest] = p.split("/");
-          const objectPath = rest.join("/");
-          if (!bucket || !objectPath) {
-            errors[p] = "Invalid path";
+          if (!allowed.has(parsed.reportId)) {
+            errors[p] = "IMAGE_NOT_ALLOWED";
             return;
           }
 
           const { data, error } = await supaAdmin.storage
-            .from(bucket)
-            .createSignedUrl(objectPath, ttl);
+            .from(BUCKET)
+            .createSignedUrl(parsed.objectPath, ttl);
 
           if (error) {
             errors[p] = error.message;
