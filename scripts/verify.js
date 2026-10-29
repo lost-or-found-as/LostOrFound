@@ -50,6 +50,7 @@ const ACTIVE_CHECKS = [
   "test-t1-9a-guest.js",
   "test-t1-9a-claim.js",
   "test-t1-9c-case-display.js",
+  "test-t1-9d-sentry.js",
   "check-t1-8e5j.js",
 ];
 

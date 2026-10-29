@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 import { API_BASE_URL } from "./config";
 import { isAnonymousUser } from "./authGate";
+import { reportHandledError } from "./sentry";
 
 const STORAGE_KEY = "lof.pendingGuestClaim.v1";
 const MIN_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
@@ -80,8 +81,10 @@ export function claimPendingGuestReports(accessToken: string): Promise<number> {
       }
       // A 4xx answer will not get better by retrying; a 5xx is retried at the next sign-in event.
       if (res.status < 500) await clearPending();
+      reportHandledError(new Error(`GUEST_CLAIM_HTTP_${res.status}`), "account.guest_claim", String(json?.error ?? res.status));
       return 0;
-    } catch {
+    } catch (e) {
+      reportHandledError(e, "account.guest_claim", "NETWORK");
       return 0;
     }
   })().finally(() => {

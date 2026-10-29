@@ -1269,4 +1269,7 @@ export const no: TranslationDictionary = {
   "cases.reported.on": "Registrert {{date}}",
   "cases.more.options": "Flere valg",
   "cases.menu.cancel": "Avbryt",
+  "profile.sentryTest": "Send testfeil til Sentry",
+  "profile.sentryTestSent": "Testfeilen er sendt. Den skal vises i Sentry innen ett minutt.",
+  "profile.sentryTestFailed": "Testfeilen ble ikke sendt. Feilrapportering er ikke aktiv i denne versjonen.",
 };

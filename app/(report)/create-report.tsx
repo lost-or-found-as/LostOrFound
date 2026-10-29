@@ -34,6 +34,7 @@ import {
 } from "../../src/lib/authGate";
 import { ensureProfileRow } from "../../src/lib/profile";
 import { isAnonymousUser } from "../../src/lib/authGate";
+import { reportHandledError } from "../../src/lib/sentry";
 import { reverseGeocodeToLabel } from "../../src/lib/reverseGeocode";
 import {
   CATEGORIES,
@@ -1482,6 +1483,7 @@ export default function CreateReportScreen() {
             log("uploads done", { ok, failed, failedDetails });
             if (failed > 0) {
               imageUploadHadFailure = true;
+              reportHandledError(new Error(String(failedDetails[0]?.reason ?? "IMAGE_UPLOAD_FAILED")), "report.image_upload");
               console.warn(
                 "[create-report] image upload failed",
                 failedDetails,
@@ -1513,6 +1515,10 @@ export default function CreateReportScreen() {
       } catch (e: any) {
         const code = String(e?.code || "").toUpperCase();
         const testOverrideAllowed = e?.testOverrideAllowed === true;
+        // T1.9D: rule and validation answers (4xx) are expected; everything else is reported.
+        if (!(e instanceof ReportApiError) || e.status >= 500) {
+          reportHandledError(e, isEditMode ? "report.edit" : "report.create", code || undefined);
+        }
 
         if (
           code === "LOST_REPORT_WEEKLY_LIMIT" &&

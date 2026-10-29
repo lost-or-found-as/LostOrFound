@@ -35,13 +35,21 @@ function redact(value: unknown): unknown {
   return result;
 }
 
+let sentryEnabled = false;
+
+export function isSentryEnabled() {
+  return sentryEnabled;
+}
+
 export function initializeSentry() {
   const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
   if (!dsn) {
-    if (__DEV__) console.warn("[Sentry] EXPO_PUBLIC_SENTRY_DSN is not configured.");
+    // T1.9D: visible in device logs for every build, not only in development.
+    console.warn("[Sentry] disabled: EXPO_PUBLIC_SENTRY_DSN is not configured for this build.");
     return;
   }
+  sentryEnabled = true;
 
   Sentry.init({
     dsn,
@@ -66,6 +74,32 @@ export function initializeSentry() {
       return event;
     },
   });
+}
+
+// T1.9D: report an error that the app handled itself (shown as a message, so it did not crash).
+// `area` names the feature in English (e.g. "report.create"); `code` is the technical error code.
+// The error message is sent, but never the request body or user data.
+export function reportHandledError(error: unknown, area: string, code?: string) {
+  if (!sentryEnabled) return;
+  const err = error instanceof Error ? error : new Error(String((error as any)?.message ?? error ?? "UNKNOWN"));
+  Sentry.withScope((scope) => {
+    scope.setTag("handled", "true");
+    scope.setTag("area", area);
+    if (code) scope.setTag("error.code", code);
+    scope.setLevel("warning");
+    Sentry.captureException(err);
+  });
+}
+
+// T1.9D: a deliberate test event to prove that this build reaches Sentry.
+export async function sendSentryTestEvent(): Promise<boolean> {
+  if (!sentryEnabled) return false;
+  Sentry.captureException(new Error(`SENTRY_TEST_EVENT ${new Date().toISOString()}`));
+  try {
+    return await Sentry.flush();
+  } catch {
+    return false;
+  }
 }
 
 export { Sentry };

@@ -1,43 +1,13 @@
 import React from "react";
-import { Stack, usePathname, useRouter } from "expo-router";
-import { Pressable, Text } from "react-native";
-import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
-import { I18nProvider, useI18n } from "../src/i18n/I18nProvider";
+import { Stack } from "expo-router";
+import { AuthProvider } from "../src/contexts/AuthContext";
+import { I18nProvider } from "../src/i18n/I18nProvider";
+// T1.9A: the shared header action shows "Log in" (not "Log out") for guests.
+import { AuthHeaderAction } from "../src/ui/AuthHeaderAction";
 import { ReportDraftProvider } from "../src/contexts/ReportDraftContext";
 import { initializeSentry, Sentry } from "../src/lib/sentry";
 import { usePushNotificationNavigation } from "../src/lib/pushNotifications";
 initializeSentry();
-function HeaderRight() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { session, loading, signOut } = useAuth();
-  const { t } = useI18n();
-  if (loading) return null;
-  const goLogin = () =>
-    router.push({
-      pathname: "/(auth)/login",
-      params: { returnTo: pathname ?? "/start" },
-    });
-  const logout = async () => {
-    await signOut();
-    router.replace("/(auth)/login");
-  };
-  if (!session)
-    return (
-      <Pressable onPress={goLogin} style={{ paddingHorizontal: 12 }}>
-        <Text style={{ color: "#1a73e8", fontWeight: "700" }}>
-          {t("common.login")}
-        </Text>
-      </Pressable>
-    );
-  return (
-    <Pressable onPress={logout} style={{ paddingHorizontal: 12 }}>
-      <Text style={{ color: "#1a73e8", fontWeight: "700" }}>
-        {t("common.logout")}
-      </Text>
-    </Pressable>
-  );
-}
 function PushBridge() {
   usePushNotificationNavigation();
   return null;
@@ -48,7 +18,7 @@ function RootLayout() {
       <AuthProvider>
         <ReportDraftProvider>
           <PushBridge />
-          <Stack screenOptions={{ headerRight: () => <HeaderRight /> }}>
+          <Stack screenOptions={{ headerRight: () => <AuthHeaderAction /> }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="(report)" options={{ headerShown: false }} />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />

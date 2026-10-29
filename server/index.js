@@ -20,9 +20,18 @@ if (!STRIPE_SECRET_KEY) {
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
+// T1.9D: error reporting to Sentry (no-op without SENTRY_DSN).
+const { initSentry, sentryResponseMonitor, captureServerException } = require("./lib/sentry");
+initSentry();
+process.on("unhandledRejection", (reason) => {
+  console.error("[server] unhandledRejection", reason);
+  captureServerException(reason instanceof Error ? reason : new Error(String(reason)), { kind: "unhandledRejection" });
+});
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
+app.use(sentryResponseMonitor);
 
 // Enkel request-logg
 app.use((req, _res, next) => {

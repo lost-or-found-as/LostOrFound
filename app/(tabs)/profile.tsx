@@ -1,5 +1,5 @@
 // app/(tabs)/profile.tsx
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,8 @@ import { useAuth } from "../../src/contexts/AuthContext";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { isAnonymousUser } from "../../src/lib/authGate";
 import { theme } from "../../src/ui/theme";
+import { InlineNotice } from "../../src/ui/InlineNotice";
+import { sendSentryTestEvent } from "../../src/lib/sentry";
 
 export default function ProfileTab() {
   const router = useRouter();
@@ -17,6 +19,13 @@ export default function ProfileTab() {
 
   const isGuest = isAnonymousUser(user as any);
   const email = session?.user?.email;
+  // T1.9D: test builds (staging) can prove that errors reach Sentry.
+  const isTestBuild = process.env.EXPO_PUBLIC_APP_ENV === "staging";
+  const [sentryTest, setSentryTest] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const runSentryTest = async () => {
+    setSentryTest("sending");
+    setSentryTest((await sendSentryTestEvent()) ? "sent" : "failed");
+  };
 
   const logout = async () => {
     await signOut();
@@ -120,6 +129,21 @@ export default function ProfileTab() {
               <Ionicons name="information-circle-outline" size={20} color="#1D4ED8" />
               <Text style={styles.claimNoteText}>{t("guest.profileClaimNote")}</Text>
             </View>
+          </>
+        )}
+
+        {isTestBuild && !isGuest && (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.secondary}
+              disabled={sentryTest === "sending"}
+              onPress={runSentryTest}
+            >
+              <Text style={styles.secondaryText}>{t("profile.sentryTest")}</Text>
+            </Pressable>
+            {sentryTest === "sent" && <InlineNotice tone="info" icon="checkmark-circle-outline" title={t("profile.sentryTestSent")} />}
+            {sentryTest === "failed" && <InlineNotice tone="error" title={t("profile.sentryTestFailed")} />}
           </>
         )}
 

@@ -29,6 +29,7 @@ import { AuthHeaderAction } from "../src/ui/AuthHeaderAction";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { caseAttributes, caseTitle, formatCaseDate } from "../src/lib/caseDisplay";
+import { reportHandledError } from "../src/lib/sentry";
 import {
   activateTestReportOrder,
   createReportOrder,
@@ -286,7 +287,8 @@ function MyReportsScreen() {
       setMatchCountByReport(matchCounts);
       setReports(sortReportsByActivity(reps, activity));
     } catch (e) {
-      console.warn(t("cases.could.not.load.cases.unread"), e);
+      console.warn("[my-reports] could not load cases", e);
+      reportHandledError(e, "cases.load");
       setReports([]);
       setUnreadByReport({});
       setActivityByReport({});

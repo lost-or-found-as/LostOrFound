@@ -1274,6 +1274,9 @@ export const en = {
   "cases.reported.on": "Reported {{date}}",
   "cases.more.options": "More options",
   "cases.menu.cancel": "Cancel",
+  "profile.sentryTest": "Send test error to Sentry",
+  "profile.sentryTestSent": "The test error was sent. It should appear in Sentry within a minute.",
+  "profile.sentryTestFailed": "The test error was not sent. Error reporting is not active in this build.",
 } as const;
 
 export type TranslationKey = keyof typeof en;
