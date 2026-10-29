@@ -41,6 +41,11 @@ check(fs.existsSync(path.join(root, "app/found-receipt.tsx")), "RECEIPT_SCREEN_M
 const tabs = read("app/(tabs)/_layout.tsx");
 check(/if \(!session \|\| isGuest\)/.test(tabs), "GUEST_UNREAD_FETCH_NOT_SKIPPED");
 
+const header = read("src/ui/AuthHeaderAction.tsx");
+check(/if \(!session \|\| isGuest\)/.test(header) && !/"Logg ut"|"Log out"/.test(header), "GUEST_CAN_LOG_OUT_FROM_HEADER");
+check(/\{isGuest \? null : user \?/.test(read("app/(tabs)/profile.tsx")), "GUEST_CAN_LOG_OUT_FROM_PROFILE");
+check(/await rememberGuestForClaim\(\);\s*\n\s*const \{ error \} = await supabase\.auth\.signOut\(\);/.test(auth), "GUEST_NOT_REMEMBERED_ON_SIGN_OUT");
+
 // No user-facing literals in the new guest screens.
 for (const f of ["src/ui/AccountRequired.tsx", "app/found-receipt.tsx"]) {
   const s = read(f);

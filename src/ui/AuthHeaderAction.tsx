@@ -4,24 +4,27 @@ import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../i18n/I18nProvider";
 import { theme } from "./theme";
+import { isAnonymousUser } from "../lib/authGate";
 
 export function AuthHeaderAction() {
   const router = useRouter();
   const pathname = usePathname();
   const { session, loading, signOut } = useAuth();
-  const { language } = useI18n();
+  const { t } = useI18n();
+  // T1.9A: a guest has nothing to log out of; logging out would lose their found reports.
+  const isGuest = isAnonymousUser(session?.user as any);
 
   if (loading) return null;
 
   const goLogin = () => {
     router.push({
       pathname: "/(auth)/login",
-      params: { returnTo: pathname ?? "/start" },
+      params: { mode: "login", returnTo: pathname ?? "/start" },
     });
   };
 
   const onPressAuth = async () => {
-    if (!session) {
+    if (!session || isGuest) {
       goLogin();
       return;
     }
@@ -33,13 +36,7 @@ export function AuthHeaderAction() {
     }
   };
 
-  const label = session
-    ? language === "en"
-      ? "Log out"
-      : "Logg ut"
-    : language === "en"
-      ? "Log in"
-      : "Logg inn";
+  const label = session && !isGuest ? t("profile.logout") : t("profile.login");
 
   return (
     <Pressable

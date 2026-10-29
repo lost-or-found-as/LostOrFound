@@ -802,7 +802,9 @@ function MyReportsScreen() {
               : t("cases.case.history")
           }
           onBack={() => {
-            router.replace("/(tabs)");
+            // Return to where the user came from (e.g. Profile); home only when opened directly.
+            if (router.canGoBack()) router.back();
+            else router.replace("/(tabs)");
           }}
           right={<AuthHeaderAction />}
         />

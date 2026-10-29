@@ -136,7 +136,7 @@ export default function ProfileTab() {
           ))}
         </View>
 
-        {user ? (
+        {isGuest ? null : user ? (
           <Pressable style={styles.logout} onPress={logout}>
             <Text style={styles.logoutText}>{t("profile.logout")}</Text>
           </Pressable>

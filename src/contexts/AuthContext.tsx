@@ -171,6 +171,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = useCallback(async () => {
     setLoading(true);
     try {
+      // T1.9A safety net: if a guest session ends anyway, the next sign-in on this phone
+      // (while the guest token is still valid, about one hour) still moves the found reports.
+      await rememberGuestForClaim();
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       applySession(null);
