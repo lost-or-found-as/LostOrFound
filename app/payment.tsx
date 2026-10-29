@@ -1,10 +1,11 @@
-﻿import { useEffect, useState } from "react";
+﻿import { requireAccount } from "../src/ui/AccountRequired";
+import { useEffect, useState } from "react";
 import { View, Text, Button, ActivityIndicator, Alert } from "react-native";
 import { useStripe } from "@stripe/stripe-react-native";
 import { API_BASE_URL } from "../src/lib/config";
 
 import { useI18n } from "../src/i18n/I18nProvider";
-export default function PaymentScreen() {
+function PaymentScreen() {
   const { t } = useI18n();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [loading, setLoading] = useState(false);
@@ -90,3 +91,6 @@ export default function PaymentScreen() {
     </View>
   );
 }
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(PaymentScreen);

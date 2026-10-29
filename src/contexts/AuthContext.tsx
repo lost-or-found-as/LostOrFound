@@ -11,6 +11,7 @@ import React, {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { ensureProfileRow } from "../lib/profile";
+import { claimPendingGuestReports, rememberGuestForClaim } from "../lib/guestClaim";
 
 export type AuthCtx = {
   user: User | null;
@@ -98,6 +99,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return;
       applySession(nextSession ?? null);
+      // T1.9A: move found reports from an earlier guest session on this phone.
+      if (nextSession?.user && !isAnonymousUser(nextSession.user)) {
+        void claimPendingGuestReports(nextSession.access_token);
+      }
       setInitialized(true);
       setLoading(false);
     });
@@ -116,6 +121,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     setLoading(true);
     try {
+      await rememberGuestForClaim();
       await signOutIfAnonymousSession();
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -143,6 +149,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     setLoading(true);
     try {
+      await rememberGuestForClaim();
       await signOutIfAnonymousSession();
 
       const { data, error } = await supabase.auth.signUp({

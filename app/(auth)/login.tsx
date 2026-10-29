@@ -19,6 +19,7 @@ import { useAuth } from "../../src/contexts/AuthContext";
 import { supabase } from "../../src/lib/supabase";
 import { ensureProfileRow } from "../../src/lib/profile";
 import { useI18n } from "../../src/i18n/I18nProvider";
+import { rememberGuestForClaim } from "../../src/lib/guestClaim";
 
 type OAuthStartResult = {
   data?: { url?: string | null } | null;
@@ -56,11 +57,11 @@ function isLostIntent(intent?: string, upgrade?: string, returnTo?: string) {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ returnTo?: string; intent?: string; upgrade?: string }>();
+  const params = useLocalSearchParams<{ returnTo?: string; intent?: string; upgrade?: string; mode?: string }>();
   const { signInWithPassword, signUpWithPassword, refresh } = useAuth();
   const { language, t } = useI18n();
 
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup">(params?.mode === "signup" ? "signup" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -132,6 +133,7 @@ export default function LoginScreen() {
     async (provider: "apple" | "google") => {
       try {
         setBusy(provider);
+        await rememberGuestForClaim();
         const res = (await withTimeout<OAuthStartResult>(
           supabase.auth.signInWithOAuth({
             provider,

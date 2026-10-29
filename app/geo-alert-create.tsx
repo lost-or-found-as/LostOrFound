@@ -1,3 +1,4 @@
+import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -59,7 +60,7 @@ function createClientRequestId(reportId: string) {
   return `geo-alert-${reportId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export default function GeoAlertCreateScreen() {
+function GeoAlertCreateScreen() {
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
   const requestIdRef = useRef<string | null>(null);
@@ -681,3 +682,6 @@ const styles = StyleSheet.create({
   blockedCellLabel: { fontSize: 12, fontWeight: "600", color: theme.colors.muted },
   blockedCellValue: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(GeoAlertCreateScreen);

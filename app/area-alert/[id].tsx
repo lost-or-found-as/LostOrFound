@@ -1,3 +1,4 @@
+import { requireAccount } from "../../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -8,7 +9,7 @@ import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
 import { categoryLabel, colorLabel, itemLabel, reportSummary } from "../../src/lib/localizedReport";
 
-export default function AreaAlertDetails() {
+function AreaAlertDetails() {
   const router = useRouter();
   const { language, t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -69,3 +70,6 @@ export default function AreaAlertDetails() {
 }
 
 const styles = StyleSheet.create({safe:{flex:1,backgroundColor:theme.colors.bg},center:{flex:1,alignItems:"center",justifyContent:"center"},content:{padding:14,paddingBottom:40},muted:{color:theme.colors.muted,fontWeight:"700"},hero:{padding:18,borderRadius:18,backgroundColor:"#EFF6FF",borderWidth:1,borderColor:"#93C5FD"},eyebrow:{fontSize:11,fontWeight:"900",color:"#1D4ED8"},title:{marginTop:7,fontSize:23,fontWeight:"900",color:theme.colors.text},meta:{marginTop:6,fontWeight:"700",color:theme.colors.muted},card:{marginTop:12,padding:16,borderRadius:18,backgroundColor:theme.colors.card,borderWidth:1,borderColor:theme.colors.border},h2:{fontSize:17,fontWeight:"900",color:theme.colors.text},body:{marginTop:10,lineHeight:21,fontWeight:"600",color:theme.colors.text},row:{marginTop:10,fontWeight:"700",color:theme.colors.text},actions:{marginTop:12,flexDirection:"row",gap:8},secondaryButton:{flex:1,minHeight:48,borderRadius:14,borderWidth:1,borderColor:theme.colors.primary,alignItems:"center",justifyContent:"center",backgroundColor:theme.colors.card},secondaryButtonText:{fontWeight:"900",color:theme.colors.primary,textAlign:"center"},primaryButton:{flex:1,minHeight:48,borderRadius:14,alignItems:"center",justifyContent:"center",backgroundColor:theme.colors.primary},primaryButtonText:{fontWeight:"900",color:"#fff",textAlign:"center"},info:{marginTop:12,padding:14,borderRadius:14,backgroundColor:"#F8FAFC",borderWidth:1,borderColor:theme.colors.border},infoText:{fontWeight:"700",lineHeight:19,color:theme.colors.muted}});
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(AreaAlertDetails);

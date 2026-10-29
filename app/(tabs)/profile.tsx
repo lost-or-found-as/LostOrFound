@@ -61,6 +61,11 @@ export default function ProfileTab() {
     },
   ];
 
+  // T1.9A: guests only get language and help; everything else needs an account.
+  const visibleRows = isGuest
+    ? rows.filter((row) => row.title === t("profile.language") || row.title === t("profile.how"))
+    : rows;
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -86,28 +91,47 @@ export default function ProfileTab() {
         </View>
 
         {isGuest && (
-          <Pressable
-            style={styles.primary}
-            onPress={() =>
-              router.push({
-                pathname: "/(auth)/login",
-                params: { returnTo: "/(tabs)/profile" },
-              })
-            }
-          >
-            <Text style={styles.primaryText}>{t("profile.loginCreate")}</Text>
-          </Pressable>
+          <>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.primary}
+              onPress={() =>
+                router.push({
+                  pathname: "/(auth)/login",
+                  params: { mode: "signup", returnTo: "/(tabs)/profile" },
+                })
+              }
+            >
+              <Text style={styles.primaryText}>{t("guest.createAccount")}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.secondary}
+              onPress={() =>
+                router.push({
+                  pathname: "/(auth)/login",
+                  params: { mode: "login", returnTo: "/(tabs)/profile" },
+                })
+              }
+            >
+              <Text style={styles.secondaryText}>{t("guest.haveAccount")}</Text>
+            </Pressable>
+            <View style={styles.claimNote}>
+              <Ionicons name="information-circle-outline" size={20} color="#1D4ED8" />
+              <Text style={styles.claimNoteText}>{t("guest.profileClaimNote")}</Text>
+            </View>
+          </>
         )}
 
         <View style={styles.menuCard}>
-          {rows.map((row, index) => (
+          {visibleRows.map((row, index) => (
             <React.Fragment key={row.title}>
               <Pressable style={styles.row} onPress={row.onPress}>
                 <Ionicons name={row.icon} size={23} color={theme.colors.primary} />
                 <Text style={styles.rowTitle}>{row.title}</Text>
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.muted} />
               </Pressable>
-              {index < rows.length - 1 && <View style={styles.divider} />}
+              {index < visibleRows.length - 1 && <View style={styles.divider} />}
             </React.Fragment>
           ))}
         </View>
@@ -210,6 +234,35 @@ const styles = StyleSheet.create({
   primaryText: {
     color: "#FFFFFF",
     fontWeight: "900",
+  },
+  secondary: {
+    marginTop: 10,
+    paddingVertical: 15,
+    borderRadius: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
+  },
+  secondaryText: {
+    color: theme.colors.text,
+    fontWeight: "900",
+  },
+  claimNote: {
+    marginTop: 14,
+    flexDirection: "row",
+    gap: 10,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
+  },
+  claimNoteText: {
+    flex: 1,
+    color: "#1E40AF",
+    fontWeight: "600",
+    lineHeight: 20,
   },
   logout: {
     marginTop: 20,

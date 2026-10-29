@@ -1,5 +1,6 @@
 // app/my-reports.tsx
 // Mine saker (language package A)
+import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ScrollView,
@@ -399,7 +400,7 @@ function sortReportsByActivity(
   });
 }
 
-export default function MyReportsScreen() {
+function MyReportsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     section?: string;
@@ -1491,3 +1492,6 @@ const successStyles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(MyReportsScreen);

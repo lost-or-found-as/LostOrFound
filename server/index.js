@@ -211,6 +211,15 @@ try {
   console.warn("[BOOT] /observation-chat NOT mounted:", e?.message || e);
 }
 
+// ---- Mount /account ----
+try {
+  const accountRoutes = require("./routes/account");
+  app.use("/account", accountRoutes);
+  console.log("[BOOT] Mounted /account routes");
+} catch (e) {
+  console.warn("[BOOT] /account NOT mounted:", e?.message || e);
+}
+
 // ---- Mount /resolutions ----
 try { const resolutionRoutes=require("./routes/resolutions"); app.use("/resolutions",resolutionRoutes); console.log("[BOOT] Mounted /resolutions routes"); } catch(e){ console.warn("[BOOT] /resolutions NOT mounted:",e?.message||e); }
 

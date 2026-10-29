@@ -1,3 +1,4 @@
+import { requireAccount } from "../src/ui/AccountRequired";
 import React, {
   useCallback,
   useEffect,
@@ -96,7 +97,7 @@ const circleBounds = (center: Point, radiusMeters: number): Point[] => {
   ];
 };
 
-export default function AlertAreaEditorScreen() {
+function AlertAreaEditorScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language, t } = useI18n();
@@ -960,3 +961,6 @@ const styles = StyleSheet.create({
   link: { color: theme.colors.primary, fontWeight: "900" },
   delete: { color: theme.colors.danger, fontWeight: "900" },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(AlertAreaEditorScreen);

@@ -1,6 +1,7 @@
 // app/match.tsx
 // Match list: premium header, latest-message status, sender, and unread indicator.
 // Behavior: reportId identifies the current case; chat opens only when status is CONFIRMED.
+import { requireAccount } from "../src/ui/AccountRequired";
 import React, {
   useCallback,
   useEffect,
@@ -730,7 +731,7 @@ async function getSignedUrlsBatch(paths: string[], token: string) {
   if (!r.ok) throw new Error(data?.error ?? "Kunne ikke hente signed URLs");
   return (data?.urls ?? {}) as Record<string, string>;
 }
-export default function MatchScreen() {
+function MatchScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { language } = useI18n();
@@ -1328,3 +1329,6 @@ const styles = StyleSheet.create({
   },
   chatBtnTxt: { color: "#fff", fontWeight: "900", fontSize: 12 },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(MatchScreen);

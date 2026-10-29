@@ -33,6 +33,7 @@ import {
   ensureLostAuthenticated,
 } from "../../src/lib/authGate";
 import { ensureProfileRow } from "../../src/lib/profile";
+import { isAnonymousUser } from "../../src/lib/authGate";
 import { reverseGeocodeToLabel } from "../../src/lib/reverseGeocode";
 import {
   CATEGORIES,
@@ -599,6 +600,21 @@ export default function CreateReportScreen() {
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState<number>(0);
   const [savedType, setSavedType] = useState<ReportType>("LOST");
+  // T1.9A: a guest gets a receipt screen instead of the "view matches" dialog.
+  const savedSummaryRef = useRef<{ title: string; images: number }>({ title: "", images: 0 });
+  const showSaved = useCallback(async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (isAnonymousUser(data.session?.user as any)) {
+        router.replace({
+          pathname: "/found-receipt",
+          params: { title: savedSummaryRef.current.title, images: String(savedSummaryRef.current.images) },
+        });
+        return;
+      }
+    } catch {}
+    setSavedOpen(true);
+  }, [router]);
   const savedTypeLabel =
     savedType === "FOUND"
       ? t("report.create.found.item")
@@ -1199,7 +1215,7 @@ export default function CreateReportScreen() {
       setPendingImages([]);
       setSavedReportId(retryReportId);
       setSavedCount(0);
-      setSavedOpen(true);
+      await showSaved();
     } catch (error: any) {
       Alert.alert(
         t("report.create.the.image.could.not.be.uploaded.2"),
@@ -1208,7 +1224,7 @@ export default function CreateReportScreen() {
     } finally {
       setUploading(false);
     }
-  }, [language, retryImageUris, retryReportId, uploading]);
+  }, [language, retryImageUris, retryReportId, uploading, showSaved]);
 
   const submitRef = useRef<
     (options?: {
@@ -1409,6 +1425,7 @@ export default function CreateReportScreen() {
           throw apiError;
         }
         log("POST /reports ok", data);
+        savedSummaryRef.current = { title: String(body?.title ?? ""), images: pendingImages.length };
         const reportId: string | null = data?.report?.id ?? data?.id ?? null;
         let count = data?.candidates?.length ?? 0;
         let imageUploadHadFailure = false;
@@ -1491,7 +1508,7 @@ export default function CreateReportScreen() {
           setSavedType(type);
           setSavedReportId(reportId ? String(reportId) : null);
           setSavedCount(Number(count) || 0);
-          setSavedOpen(true);
+          await showSaved();
         }
       } catch (e: any) {
         const code = String(e?.code || "").toUpperCase();

@@ -2,6 +2,7 @@
 // Stable real-time chat: subscribe only after all postgres_changes callbacks are registered.
 // Prevents the crash caused by adding postgres_changes callbacks after subscribe().
 
+import { requireAccount } from "../../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -56,7 +57,7 @@ function dateDividerLabel(iso: string, language: "no" | "en") {
   }).format(date);
 }
 
-export default function ChatScreen() {
+function ChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -260,3 +261,6 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   safe:{flex:1,backgroundColor:theme.colors.bg},compactHeader:{flexDirection:"row",alignItems:"center",paddingHorizontal:14,paddingTop:4,paddingBottom:10,borderBottomWidth:1,borderBottomColor:"#EEF2F6"},backBtn:{width:42,height:42,borderRadius:21,alignItems:"center",justifyContent:"center",backgroundColor:theme.colors.card,borderWidth:1,borderColor:theme.colors.border},backText:{color:theme.colors.text,fontSize:20,fontWeight:"900"},headerText:{marginLeft:12},headerTitle:{color:theme.colors.text,fontSize:20,fontWeight:"900"},headerSubtitle:{marginTop:1,color:theme.colors.muted,fontSize:12,fontWeight:"700"},keyboardArea:{flex:1},messageList:{flex:1},messageContent:{flexGrow:1,justifyContent:"flex-end",paddingHorizontal:14,paddingTop:12,paddingBottom:10},center:{flex:1,alignItems:"center",justifyContent:"center"},muted:{marginTop:8,color:theme.colors.muted,fontWeight:"700"},emptyWrap:{flex:1,minHeight:220,alignItems:"center",justifyContent:"center",paddingHorizontal:30},emptyTitle:{color:theme.colors.text,fontSize:17,fontWeight:"900"},emptyBody:{marginTop:6,color:theme.colors.muted,fontSize:14,fontWeight:"600",textAlign:"center"},dateDividerRow:{alignItems:"center",marginTop:8,marginBottom:10},dateDivider:{paddingHorizontal:11,paddingVertical:5,borderRadius:999,backgroundColor:"#E9EEF5"},dateDividerText:{color:"#64748B",fontSize:11,fontWeight:"800"},msgRow:{flexDirection:"row",marginBottom:7},msgRowMine:{justifyContent:"flex-end",paddingLeft:54},msgRowOther:{justifyContent:"flex-start",paddingRight:54},bubble:{maxWidth:"86%",minWidth:66,borderRadius:17,paddingHorizontal:12,paddingTop:8,paddingBottom:6},bubbleMe:{backgroundColor:theme.colors.primary,borderBottomRightRadius:5},bubbleOther:{backgroundColor:theme.colors.card,borderWidth:1,borderColor:theme.colors.border,borderBottomLeftRadius:5},body:{fontSize:15.5,fontWeight:"600",lineHeight:20},bodyMe:{color:"#FFF"},bodyOther:{color:theme.colors.text},time:{marginTop:2,fontSize:9.5,fontWeight:"700",alignSelf:"flex-end"},timeMe:{color:"rgba(255,255,255,0.70)"},timeOther:{color:theme.colors.muted},resolutionWrap:{paddingHorizontal:12,paddingTop:8},resolveBtn:{minHeight:42,borderRadius:12,backgroundColor:"#15803D",alignItems:"center",justifyContent:"center"},resolveText:{color:"#fff",fontWeight:"900"},pendingText:{padding:10,textAlign:"center",fontWeight:"800",color:"#92400E",backgroundColor:"#FFFBEB",borderRadius:10},resolutionActions:{flexDirection:"row",gap:8},acceptBtn:{flex:1,minHeight:42,borderRadius:12,backgroundColor:"#15803D",alignItems:"center",justifyContent:"center"},acceptText:{color:"#fff",fontWeight:"900"},declineBtn:{flex:1,minHeight:42,borderRadius:12,borderWidth:1,borderColor:"#DC2626",alignItems:"center",justifyContent:"center"},declineText:{color:"#DC2626",fontWeight:"900"},composerWrap:{flexDirection:"row",alignItems:"flex-end",gap:8,paddingHorizontal:12,paddingTop:9,borderTopWidth:1,borderTopColor:theme.colors.border,backgroundColor:theme.colors.bg},inputShell:{flex:1,minHeight:44,maxHeight:120,borderRadius:17,borderWidth:1,borderColor:theme.colors.border,backgroundColor:theme.colors.card,justifyContent:"center"},input:{minHeight:42,maxHeight:116,paddingHorizontal:13,paddingTop:10,paddingBottom:9,color:theme.colors.text,fontSize:16,fontWeight:"600"},sendBtn:{minWidth:66,height:44,paddingHorizontal:14,borderRadius:15,alignItems:"center",justifyContent:"center",backgroundColor:theme.colors.primary},sendBtnDisabled:{opacity:.42},sendTxt:{color:"#FFF",fontWeight:"900",fontSize:14},pressed:{opacity:.82}
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(ChatScreen);

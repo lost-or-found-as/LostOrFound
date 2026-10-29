@@ -1,8 +1,9 @@
+import { requireAccount } from "../../src/ui/AccountRequired";
 import React, { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { theme } from "../../src/ui/theme";
-export default function MatchComparisonRedirect() {
+function MatchComparisonRedirect() {
   const router = useRouter();
   const { matchId } = useLocalSearchParams<{ matchId?: string | string[] }>();
   const resolvedMatchId = Array.isArray(matchId) ? matchId[0] : matchId;
@@ -26,3 +27,6 @@ export default function MatchComparisonRedirect() {
     </>
   );
 }
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(MatchComparisonRedirect);

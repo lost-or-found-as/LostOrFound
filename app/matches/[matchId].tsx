@@ -1,6 +1,7 @@
 // app/matches/[matchId].tsx
 // Match details v2: shows the latest message, sender, and chat unread indicator.
 // Always shows latest-message status; chat opens only when status is CONFIRMED.
+import { requireAccount } from "../../src/ui/AccountRequired";
 import React, {
   useCallback,
   useEffect,
@@ -520,7 +521,7 @@ async function getSignedUrlsBatch(paths: string[], token: string) {
   if (!r.ok) throw new Error(data?.error ?? "Kunne ikke hente signed URLs");
   return (data?.urls ?? {}) as Record<string, string>;
 }
-export default function MatchDetailsScreen() {
+function MatchDetailsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { language } = useI18n();
@@ -1332,3 +1333,6 @@ const styles = StyleSheet.create({
   vsMidTxt: { fontWeight: "900", color: "#111" },
   vsHint: { marginTop: 8, color: "#666", fontWeight: "600" },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(MatchDetailsScreen);

@@ -1,4 +1,5 @@
 // app/commerce-test.tsx
+import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -49,7 +50,7 @@ function pretty(value: unknown) {
   }
 }
 
-export default function CommerceTestScreen() {
+function CommerceTestScreen() {
   const router = useRouter();
   const [reports, setReports] = useState<LostReport[]>([]);
   const [selectedReportId, setSelectedReportId] = useState("");
@@ -387,3 +388,6 @@ const styles = StyleSheet.create({
   logTitle: { fontWeight: "900", fontSize: 12 },
   logDetails: { color: theme.colors.text, marginTop: 6, fontSize: 11, lineHeight: 15, fontFamily: "Courier" },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(CommerceTestScreen);

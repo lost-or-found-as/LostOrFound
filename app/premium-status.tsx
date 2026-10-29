@@ -1,4 +1,5 @@
 // app/premium-status.tsx
+import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
@@ -16,7 +17,7 @@ function loadPurchasesModule(): any | null {
   }
 }
 
-export default function MyPurchasesScreen() {
+function MyPurchasesScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const purchases = useMemo(() => loadPurchasesModule(), []);
@@ -107,3 +108,6 @@ const styles = StyleSheet.create({
   buttonText: { color: "#fff", fontWeight: "900" },
   disabled: { opacity: 0.55 },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(MyPurchasesScreen);

@@ -1,4 +1,5 @@
 // app/reports/mine.tsx
+import { requireAccount } from "../../src/ui/AccountRequired";
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -22,7 +23,7 @@ type Report = {
   created_at: string;
 };
 
-export default function MyReportsScreen() {
+function MyReportsScreen() {
   const router = useRouter();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,3 +131,6 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
   },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(MyReportsScreen);

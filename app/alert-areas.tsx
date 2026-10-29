@@ -1,3 +1,4 @@
+import { requireAccount } from "../src/ui/AccountRequired";
 import React, {
   useCallback,
   useEffect,
@@ -84,7 +85,7 @@ const circleBounds = (p: Point, r: number) => {
     { latitude: p.latitude, longitude: p.longitude - b },
   ];
 };
-export default function AlertAreasScreen() {
+function AlertAreasScreen() {
   const router = useRouter(),
     insets = useSafeAreaInsets(),
     { language, t } = useI18n(),
@@ -745,3 +746,6 @@ const s = StyleSheet.create({
     lineHeight: 16,
   },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(AlertAreasScreen);

@@ -8,6 +8,7 @@ import { useI18n } from "../../src/i18n/I18nProvider";
 import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
 import { theme } from "../../src/ui/theme";
+import { isAnonymousUser } from "../../src/lib/authGate";
 
 async function getUnreadCount(token: string): Promise<number> {
   const response = await fetch(`${API_BASE_URL}/notifications/unread-count`, {
@@ -24,6 +25,20 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const { session } = useAuth();
   const { t } = useI18n();
+  const isGuest = isAnonymousUser(session?.user as any);
+
+  // T1.9A: guests see a small lock on features that need an account.
+  const withLock = (icon: React.ReactNode) =>
+    isGuest ? (
+      <View>
+        {icon}
+        <View style={styles.lock}>
+          <Ionicons name="lock-closed" size={10} color="#FFFFFF" />
+        </View>
+      </View>
+    ) : (
+      icon
+    );
   const [unreadCount, setUnreadCount] = useState(0);
 
   const refreshUnreadCount = useCallback(async () => {
@@ -41,12 +56,12 @@ export default function TabsLayout() {
   }, []);
 
   useEffect(() => {
-    if (!session) {
+    if (!session || isGuest) {
       setUnreadCount(0);
       return;
     }
     refreshUnreadCount();
-  }, [session, pathname, refreshUnreadCount]);
+  }, [session, isGuest, pathname, refreshUnreadCount]);
 
   return (
     <Tabs
@@ -74,7 +89,7 @@ export default function TabsLayout() {
         options={{
           title: t("tabs.cases"),
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "folder-open" : "folder-open-outline"} color={color} size={size} />
+            withLock(<Ionicons name={focused ? "folder-open" : "folder-open-outline"} color={color} size={size} />)
           ),
         }}
       />
@@ -111,7 +126,7 @@ export default function TabsLayout() {
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
           tabBarBadgeStyle: styles.badge,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="notifications-outline" color={color} size={size} />
+            withLock(<Ionicons name="notifications-outline" color={color} size={size} />)
           ),
         }}
       />
@@ -159,6 +174,19 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: theme.colors.card,
     ...theme.shadow.card,
+  },
+  lock: {
+    position: "absolute",
+    top: -3,
+    right: -7,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#475569",
+    borderWidth: 2,
+    borderColor: theme.colors.card,
+    alignItems: "center",
+    justifyContent: "center",
   },
   badge: {
     backgroundColor: "#DC2626",

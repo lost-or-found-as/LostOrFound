@@ -1,3 +1,4 @@
+import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -22,7 +23,7 @@ import {
   type PushPermissionState,
 } from "../src/lib/pushNotifications";
 
-export default function PushSettingsScreen() {
+function PushSettingsScreen() {
   const router = useRouter();
   const { language, t } = useI18n();
   const [busy, setBusy] = useState(false);
@@ -355,3 +356,6 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(PushSettingsScreen);

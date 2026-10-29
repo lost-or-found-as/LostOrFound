@@ -1,3 +1,4 @@
+import { requireAccount } from "../../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -64,7 +65,7 @@ function human(v: any, l: "no" | "en", t: Translate) {
     .toLowerCase()
     .replace(/^./, (x) => x.toUpperCase());
 }
-export default function Screen() {
+function Screen() {
   const router = useRouter(),
     { id } = useLocalSearchParams<{ id: string }>(),
     { language, t } = useI18n();
@@ -606,3 +607,6 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(Screen);

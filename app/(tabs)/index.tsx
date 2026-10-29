@@ -38,6 +38,53 @@ export default function DashboardScreen() {
     });
   };
 
+  // T1.9A: guests see the found report first; lost reports need an account.
+  const lostCard = (
+    <Pressable
+      style={({ pressed }) => [styles.actionCard, styles.lostCard, pressed && styles.pressed]}
+      onPress={openLost}
+      accessibilityRole="button"
+      accessibilityLabel={t("dashboard.lostCta")}
+    >
+      <View style={[styles.iconCircle, styles.lostIcon]}>
+        <Ionicons name="search-outline" size={28} color="#B45309" />
+      </View>
+      <View style={styles.actionText}>
+        <View style={styles.titleRow}>
+          <Text style={styles.actionTitle}>{t("dashboard.lostTitle")}</Text>
+          {isGuest && (
+            <View style={styles.lockPill}>
+              <Ionicons name="lock-closed" size={12} color="#475569" />
+              <Text style={styles.lockPillText}>{t("guest.locked")}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.actionBody}>{isGuest ? t("guest.homeLostBody") : t("dashboard.lostBody")}</Text>
+        <Text style={styles.actionLink}>{isGuest ? t("guest.homeLostCta") : t("dashboard.lostCta")}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={23} color="#B45309" />
+    </Pressable>
+  );
+
+  const foundCard = (
+    <Pressable
+      style={({ pressed }) => [styles.actionCard, styles.foundCard, isGuest && styles.guestPrimaryCard, pressed && styles.pressed]}
+      onPress={openFound}
+      accessibilityRole="button"
+      accessibilityLabel={t("dashboard.foundCta")}
+    >
+      <View style={[styles.iconCircle, styles.foundIcon]}>
+        <Ionicons name="checkmark-circle-outline" size={28} color="#15803D" />
+      </View>
+      <View style={styles.actionText}>
+        <Text style={styles.actionTitle}>{t("dashboard.foundTitle")}</Text>
+        <Text style={styles.actionBody}>{isGuest ? t("guest.homeFoundBody") : t("dashboard.foundBody")}</Text>
+        <Text style={styles.actionLink}>{isGuest ? t("guest.homeFoundCta") : t("dashboard.foundCta")}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={23} color="#15803D" />
+    </Pressable>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -57,48 +104,21 @@ export default function DashboardScreen() {
           <AuthHeaderAction />
         </View>
 
-        {isGuest && (
-          <View style={styles.guestCard}>
-            <Ionicons name="information-circle-outline" size={22} color="#9A3412" />
-            <Text style={styles.guestText}>{t("dashboard.guestNotice")}</Text>
-          </View>
-        )}
-
         <Text style={styles.sectionTitle}>{t("dashboard.whatToDo")}</Text>
 
-        <Pressable
-          style={({ pressed }) => [styles.actionCard, styles.lostCard, pressed && styles.pressed]}
-          onPress={openLost}
-          accessibilityRole="button"
-          accessibilityLabel={t("dashboard.lostCta")}
-        >
-          <View style={[styles.iconCircle, styles.lostIcon]}>
-            <Ionicons name="search-outline" size={28} color="#B45309" />
-          </View>
-          <View style={styles.actionText}>
-            <Text style={styles.actionTitle}>{t("dashboard.lostTitle")}</Text>
-            <Text style={styles.actionBody}>{t("dashboard.lostBody")}</Text>
-            <Text style={styles.actionLink}>{t("dashboard.lostCta")}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={23} color="#B45309" />
-        </Pressable>
+        {isGuest ? (
+          <>
+            {foundCard}
+            {lostCard}
+          </>
+        ) : (
+          <>
+            {lostCard}
+            {foundCard}
+          </>
+        )}
 
-        <Pressable
-          style={({ pressed }) => [styles.actionCard, styles.foundCard, pressed && styles.pressed]}
-          onPress={openFound}
-          accessibilityRole="button"
-          accessibilityLabel={t("dashboard.foundCta")}
-        >
-          <View style={[styles.iconCircle, styles.foundIcon]}>
-            <Ionicons name="checkmark-circle-outline" size={28} color="#15803D" />
-          </View>
-          <View style={styles.actionText}>
-            <Text style={styles.actionTitle}>{t("dashboard.foundTitle")}</Text>
-            <Text style={styles.actionBody}>{t("dashboard.foundBody")}</Text>
-            <Text style={styles.actionLink}>{t("dashboard.foundCta")}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={23} color="#15803D" />
-        </Pressable>
+        {isGuest && <Text style={styles.guestFootnote}>{t("guest.homeFootnote")}</Text>}
 
         <Text style={styles.safety}>{t("dashboard.safety")}</Text>
       </ScrollView>
@@ -107,6 +127,19 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  titleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  lockPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: theme.colors.chipBg,
+  },
+  lockPillText: { color: "#475569", fontSize: 12, fontWeight: "800" },
+  guestPrimaryCard: { borderWidth: 2, borderColor: theme.colors.primary },
+  guestFootnote: { marginTop: 4, color: theme.colors.muted, fontSize: 13, lineHeight: 19, fontWeight: "600" },
   safe: {
     flex: 1,
     backgroundColor: theme.colors.bg,

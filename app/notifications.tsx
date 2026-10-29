@@ -1,5 +1,6 @@
 // app/notifications.tsx
 // In-app notification feed with read state, validated deep links, and deletion of unavailable targets.
+import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -201,7 +202,7 @@ function invalidReasonLabel(n: Notif, language: "no" | "en", t: Translate) {
   return t("notifications.unavailable");
 }
 
-export default function NotificationsScreen() {
+function NotificationsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
   const { language, t } = useI18n();
@@ -836,3 +837,6 @@ const styles = StyleSheet.create({
   footerTxtDanger: { color: "#DC2626" },
   footerTxtDisabled: { color: "#94A3B8" },
 });
+
+// T1.9A: registered accounts only; guests see the account-required screen.
+export default requireAccount(NotificationsScreen);
