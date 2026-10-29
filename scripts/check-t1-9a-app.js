@@ -27,7 +27,9 @@ const gate = read("src/ui/AccountRequired.tsx");
 check(gate.includes('t("guest.requiredTitle")') && gate.includes('mode: "signup"'), "ACCOUNT_REQUIRED_VIEW_INCOMPLETE");
 
 const auth = read("src/contexts/AuthContext.tsx");
-check((auth.match(/await rememberGuestForClaim\(\);\s*\n\s*await signOutIfAnonymousSession\(\);/g) || []).length === 2, "GUEST_NOT_REMEMBERED_BEFORE_EMAIL_LOGIN");
+check((auth.match(/await rememberGuestForClaim\(\);/g) || []).length === 2, "GUEST_NOT_REMEMBERED_BEFORE_EMAIL_LOGIN");
+// Signing the guest out first revokes its token on the server, so the claim would be refused.
+check(!/signOutIfAnonymousSession/.test(auth), "GUEST_SIGNED_OUT_BEFORE_LOGIN");
 check(/claimPendingGuestReports\(nextSession\.access_token\)/.test(auth), "CLAIM_NOT_RUN_AFTER_LOGIN");
 check(/await rememberGuestForClaim\(\);\s*\n\s*const res = \(await withTimeout<OAuthStartResult>/.test(read("app/(auth)/login.tsx")), "GUEST_NOT_REMEMBERED_BEFORE_OAUTH");
 
@@ -44,7 +46,6 @@ check(/if \(!session \|\| isGuest\)/.test(tabs), "GUEST_UNREAD_FETCH_NOT_SKIPPED
 const header = read("src/ui/AuthHeaderAction.tsx");
 check(/if \(!session \|\| isGuest\)/.test(header) && !/"Logg ut"|"Log out"/.test(header), "GUEST_CAN_LOG_OUT_FROM_HEADER");
 check(/\{isGuest \? null : user \?/.test(read("app/(tabs)/profile.tsx")), "GUEST_CAN_LOG_OUT_FROM_PROFILE");
-check(/await rememberGuestForClaim\(\);\s*\n\s*const \{ error \} = await supabase\.auth\.signOut\(\);/.test(auth), "GUEST_NOT_REMEMBERED_ON_SIGN_OUT");
 
 // No user-facing literals in the new guest screens.
 for (const f of ["src/ui/AccountRequired.tsx", "app/found-receipt.tsx"]) {

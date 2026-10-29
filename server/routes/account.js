@@ -27,8 +27,14 @@ router.post("/claim-guest-reports", requireUser, async (req, res) => {
 
     const { data, error } = await supaAdmin.auth.getUser(guestAccessToken);
     const guest = data?.user;
-    if (error || !guest) return res.status(400).json({ error: "GUEST_TOKEN_INVALID" });
-    if (!isAnonymousUser(guest)) return res.status(400).json({ error: "NOT_A_GUEST_SESSION" });
+    if (error || !guest) {
+      console.warn(`[account] claim refused for ${req.user.id}: GUEST_TOKEN_INVALID (${error?.message ?? "no user"})`);
+      return res.status(400).json({ error: "GUEST_TOKEN_INVALID" });
+    }
+    if (!isAnonymousUser(guest)) {
+      console.warn(`[account] claim refused for ${req.user.id}: NOT_A_GUEST_SESSION`);
+      return res.status(400).json({ error: "NOT_A_GUEST_SESSION" });
+    }
     if (guest.id === req.user.id) return res.json({ moved: 0 });
 
     let moved = 0;

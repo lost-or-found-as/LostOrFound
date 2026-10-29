@@ -39,12 +39,6 @@ function isAnonymousUser(user: any): boolean {
   );
 }
 
-async function signOutIfAnonymousSession() {
-  const { data } = await supabase.auth.getSession();
-  if (data.session?.user && isAnonymousUser(data.session.user)) {
-    await supabase.auth.signOut();
-  }
-}
 
 async function ensureProfileBestEffort(session: Session | null) {
   const uid = session?.user?.id;
@@ -121,8 +115,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     setLoading(true);
     try {
+      // T1.9A: keep the guest session alive on the server. Signing it out would revoke the
+      // token that proves which found reports to move; the new sign-in replaces it locally.
       await rememberGuestForClaim();
-      await signOutIfAnonymousSession();
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
@@ -149,8 +144,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     setLoading(true);
     try {
+      // T1.9A: keep the guest session alive on the server. Signing it out would revoke the
+      // token that proves which found reports to move; the new sign-in replaces it locally.
       await rememberGuestForClaim();
-      await signOutIfAnonymousSession();
 
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
@@ -171,9 +167,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = useCallback(async () => {
     setLoading(true);
     try {
-      // T1.9A safety net: if a guest session ends anyway, the next sign-in on this phone
-      // (while the guest token is still valid, about one hour) still moves the found reports.
-      await rememberGuestForClaim();
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       applySession(null);
