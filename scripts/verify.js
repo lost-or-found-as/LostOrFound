@@ -17,6 +17,7 @@ const ACTIVE_CHECKS = [
   "check-t1-9a.js",
   "check-t1-9b.js",
   "check-t1-9a-app.js",
+  "check-t1-9c.js",
   "check-report-map-i18n.js",
   "check-t1-7d.js",
   "check-t1-7f.js",
@@ -48,6 +49,7 @@ const ACTIVE_CHECKS = [
   "test-t1-8e5j.js",
   "test-t1-9a-guest.js",
   "test-t1-9a-claim.js",
+  "test-t1-9c-case-display.js",
   "check-t1-8e5j.js",
 ];
 

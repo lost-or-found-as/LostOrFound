@@ -1271,6 +1271,9 @@ export const en = {
   "guest.receiptFollowTitle": "Want to follow the case?",
   "guest.receiptFollowBody": "Create an account or log in on this phone, and the found item comes with you. Then the owner can contact you in the app, and you can receive a finder's reward.",
   "guest.receiptDone": "Done",
+  "cases.reported.on": "Reported {{date}}",
+  "cases.more.options": "More options",
+  "cases.menu.cancel": "Cancel",
 } as const;
 
 export type TranslationKey = keyof typeof en;

@@ -23,11 +23,12 @@ import { API_BASE_URL } from "../src/lib/config";
 import { theme } from "../src/ui/theme";
 import { getLastSeenMap } from "../src/lib/unread";
 import { useAuth } from "../src/contexts/AuthContext";
-import { SUBCATEGORIES, OBJECT_LABELS_EN } from "../src/lib/categories";
 import { shortPlace } from "../src/lib/places";
 import { PremiumHeader } from "../src/ui/PremiumHeader";
 import { AuthHeaderAction } from "../src/ui/AuthHeaderAction";
 import { useI18n } from "../src/i18n/I18nProvider";
+import { Ionicons } from "@expo/vector-icons";
+import { caseAttributes, caseTitle, formatCaseDate } from "../src/lib/caseDisplay";
 import {
   activateTestReportOrder,
   createReportOrder,
@@ -71,252 +72,6 @@ type MessageInsert = {
   created_at: string;
 };
 
-function colorLabel(v?: string | null, language: "no" | "en" = "no") {
-  if (!v) return null;
-  const noMap: Record<string, string> = {
-    black: "Svart",
-    white: "Hvit",
-    gray: "Grå",
-    grey: "Grå",
-    red: "Rød",
-    orange: "Oransje",
-    yellow: "Gul",
-    green: "Grønn",
-    blue: "Blå",
-    purple: "Lilla",
-    brown: "Brun",
-    pink: "Rosa",
-    beige: "Beige",
-    gold: "Gull",
-    silver: "Sølv",
-  };
-  const enMap: Record<string, string> = {
-    black: "Black",
-    white: "White",
-    gray: "Gray",
-    red: "Red",
-    orange: "Orange",
-    yellow: "Yellow",
-    green: "Green",
-    blue: "Blue",
-    purple: "Purple",
-    brown: "Brown",
-    pink: "Pink",
-    beige: "Beige",
-    gold: "Gold",
-    silver: "Silver",
-    grey: "Gray",
-  };
-  const map = language === "en" ? enMap : noMap;
-  return map[String(v).toLowerCase()] ?? v;
-}
-
-function titleCase(s?: string | null) {
-  if (!s) return null;
-  const t = s.trim();
-  if (!t) return null;
-  return t
-    .toLowerCase()
-    .split(" ")
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-const SUBCATEGORY_LABELS_EN: Record<string, string> = {
-  ...OBJECT_LABELS_EN,
-  KEYCHAIN: "Keychain",
-  GLASSES_CASE: "Glasses case",
-  ACCESS_CARD: "Access card",
-  TRAVEL_CARD: "Travel card",
-  STUDENT_CARD: "Student card",
-  MEDICATION: "Medication",
-  TOILETRY_BAG: "Toiletry bag",
-  CHARGING_CASE: "Charging case",
-  CHARGER: "Charger",
-  CHARGING_CABLE: "Charging cable",
-  SPEAKER: "Speaker",
-  GAME_CONSOLE: "Game console",
-  STYLUS: "Stylus",
-  GPS_DEVICE: "GPS",
-  TRACKER_TAG: "Tracker tag",
-  PHONE_CASE: "Phone case",
-  SPORTS_BAG: "Sports bag",
-  CAMERA_BAG: "Camera bag",
-  TOOL_BAG: "Tool bag",
-  SHOPPING_BAG: "Shopping bag",
-  SWEATER: "Sweater",
-  TROUSERS: "Trousers",
-  DRESS: "Dress",
-  SHIRT: "Shirt",
-  CAP: "Cap",
-  BOOTS: "Boots",
-  WEDDING_RING: "Wedding ring",
-  ENGAGEMENT_RING: "Engagement ring",
-  SIGNET_RING: "Signet ring",
-  PENDANT: "Pendant",
-  BROOCH: "Brooch",
-  CUFFLINKS: "Cufflinks",
-  MEASURING_TOOL: "Measuring tool",
-  POWER_TOOL: "Power tool",
-  BIKE_HELMET: "Bike helmet",
-  VEHICLE_ACCESSORY: "Vehicle accessory",
-  PADEL_RACKET: "Padel racket",
-  GOLF_CLUB: "Golf club",
-  GOLF_BAG: "Golf bag",
-  HIKING_BACKPACK: "Hiking backpack",
-  SLEEPING_BAG: "Sleeping bag",
-  MUSICAL_INSTRUMENT: "Musical instrument",
-  NOTEBOOK: "Notebook",
-  CRAFT_ITEM: "Craft item",
-  STROLLER: "Stroller",
-  STUFFED_TOY: "Stuffed toy",
-  PACIFIER: "Pacifier",
-  LUNCH_BOX: "Lunch box",
-  TOY: "Toy",
-  CHILD_BACKPACK: "Child backpack",
-  OTHER_CHILDREN: "Other child/family item",
-  GUINEA_PIG: "Guinea pig",
-  TURTLE: "Turtle",
-  REPTILE: "Reptile",
-
-  KEYS: "Keys",
-  WALLET: "Wallet",
-  MOBILE_PHONE: "Mobile phone",
-  SUNGLASSES: "Sunglasses",
-  GLASSES: "Glasses",
-  BANK_CARD: "Bank card",
-  ID_CARD: "ID card",
-  PASSPORT: "Passport",
-  DRIVER_LICENSE: "Driver license",
-  HEARING_AID: "Hearing aid",
-  OTHER_PERSONAL: "Other personal item",
-  HEADPHONES: "Headphones / AirPods",
-  SMARTWATCH: "Smartwatch",
-  TABLET: "Tablet",
-  LAPTOP: "Laptop",
-  POWERBANK: "Power bank",
-  CAMERA: "Camera",
-  OTHER_ELECTRONICS: "Other electronics",
-  BACKPACK: "Backpack",
-  HANDBAG: "Handbag",
-  SUITCASE: "Suitcase",
-  GYM_BAG: "Gym bag",
-  LAPTOP_BAG: "Laptop bag",
-  SHOULDER_BAG: "Shoulder bag",
-  DOCUMENT_BRIEFCASE: "Document case",
-  SCHOOL_BAG: "School bag",
-  TRAVEL_LUGGAGE: "Travel luggage",
-  TOTE_BAG: "Tote bag",
-  OTHER_BAGS: "Other bag/luggage",
-  JACKET: "Jacket",
-  HAT: "Hat",
-  GLOVES: "Gloves",
-  SCARF: "Scarf",
-  BELT: "Belt",
-  SHOES: "Shoes",
-  UMBRELLA: "Umbrella",
-  OTHER_CLOTHING: "Other clothing/accessory",
-  RING: "Ring",
-  EARRINGS: "Earrings",
-  NECKLACE: "Necklace",
-  BRACELET: "Bracelet",
-  WATCH: "Watch",
-  OTHER_JEWELRY: "Other jewelry",
-  TOOLS: "Tools",
-  OTHER_TOOLS: "Other tools",
-  CAR_KEYS: "Car keys",
-  BICYCLE: "Bicycle",
-  SCOOTER: "Scooter",
-  OTHER_VEHICLE: "Other vehicle/transport",
-  FOOTBALL: "Football",
-  TENNIS_RACKET: "Tennis racket",
-  FISHING_ROD: "Fishing rod",
-  HEADLAMP: "Headlamp",
-  CAMPING_GEAR: "Camping gear",
-  SKIS: "Skis",
-  SNOWBOARD: "Snowboard",
-  HELMET: "Helmet",
-  GOGGLES: "Goggles",
-  WATER_BOTTLE: "Water bottle",
-  OTHER_SPORT: "Other sport/outdoor item",
-  BOOK: "Book",
-  OTHER_HOBBY: "Other culture/hobby item",
-  DOG: "Dog",
-  CAT: "Cat",
-  BIRD: "Bird",
-  RABBIT: "Rabbit",
-  OTHER_PET: "Other pet",
-  CUSTOM: "Custom",
-};
-
-function subcategoryLabel(
-  cat?: string,
-  sub?: string,
-  language: "no" | "en" = "no",
-) {
-  if (!cat || !sub) return null;
-  if (language === "en") return SUBCATEGORY_LABELS_EN[sub] ?? sub;
-  const list = (SUBCATEGORIES as any)[cat] ?? [];
-  return list.find((x: any) => x.value === sub)?.label ?? sub;
-}
-
-function objectPhrase(r: Report, language: "no" | "en", t: Translate) {
-  const sub = subcategoryLabel(r.category, r.subcategory_key, language);
-  const color = colorLabel(r.color, language);
-  if (!sub) return r.title || t("cases.item");
-  if (!color) return sub.toLowerCase();
-  if (language === "en") return `${color.toLowerCase()} ${sub.toLowerCase()}`;
-  const metal = String(r.color || "").toLowerCase();
-  const compounds: Record<string, Record<string, string>> = {
-    gold: {
-      RING: "gullring",
-      WEDDING_RING: "gullgiftering",
-      ENGAGEMENT_RING: "gullforlovelsesring",
-      SIGNET_RING: "gullsignetring",
-      WATCH: "gullklokke",
-      BRACELET: "gullarmbånd",
-      NECKLACE: "gullhalskjede",
-      EARRINGS: "gulløredobber",
-      PENDANT: "gullanheng",
-      BROOCH: "gullbrosje",
-      CUFFLINKS: "gullmansjettknapper",
-    },
-    silver: {
-      RING: "sølvring",
-      WEDDING_RING: "sølvgiftering",
-      ENGAGEMENT_RING: "sølvforlovelsesring",
-      SIGNET_RING: "sølvsignetring",
-      WATCH: "sølvklokke",
-      BRACELET: "sølvarmbånd",
-      NECKLACE: "sølvhalskjede",
-      EARRINGS: "sølvøredobber",
-      PENDANT: "sølvanheng",
-      BROOCH: "sølvbrosje",
-      CUFFLINKS: "sølvmansjettknapper",
-    },
-    bronze: {
-      RING: "bronsering",
-      WATCH: "bronseklokke",
-      BRACELET: "bronsearmbånd",
-      NECKLACE: "bronsehalskjede",
-      PENDANT: "bronseanheng",
-    },
-  };
-  return (
-    compounds[metal]?.[String(r.subcategory_key || "").toUpperCase()] ||
-    `${color.toLowerCase()} ${sub.toLowerCase()}`
-  );
-}
-function prettyReportTitle(r: Report, language: "no" | "en", t: Translate) {
-  const typ = r.type === "LOST" ? t("cases.lost") : t("cases.found");
-  const core = objectPhrase(r, language, t);
-  const brand = titleCase(r.brand);
-  const tail = brand ? ` (${brand})` : "";
-  const placeShort = shortPlace(r.location_label);
-  const place = placeShort ? ` ${t("cases.in")} ${placeShort}` : "";
-  return `${typ}: ${core}${tail}${place}`;
-}
 
 function reportStatusInfo(r: Report, language: "no" | "en", t: Translate) {
   if ((r as any).status === "ARCHIVED" || (r as any).archived_at)
@@ -426,6 +181,7 @@ function MyReportsScreen() {
     kind: "extend" | "reactivateLost" | "close" | "delete";
     report: Report;
   } | null>(null);
+  const [menuReport, setMenuReport] = useState<Report | null>(null);
   const [reactivatingReportId, setReactivatingReportId] = useState<
     string | null
   >(null);
@@ -870,162 +626,101 @@ function MyReportsScreen() {
               const latestChatId = act?.match_id;
               const count = matchCountByReport[r.id] ?? 0;
               return (
-                <View
+                <Pressable
                   key={r.id}
-                  style={[
+                  onPress={() => openReport(r)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${caseTitle(r, language)}, ${t("cases.view.report")}`}
+                  style={({ pressed }) => [
                     styles.card,
                     params.reportId === r.id && styles.cardFocused,
+                    pressed && styles.cardPressed,
                   ]}
                 >
-                  <View style={styles.cardTopRow}>
-                    <Text
-                      style={[
-                        styles.kindBadge,
-                        r.type === "FOUND" && styles.kindBadgeFound,
-                      ]}
-                    >
-                      {r.type === "LOST"
-                        ? t("cases.lost.2")
-                        : t("cases.found.2")}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.statusBadge,
-                        isExpired && styles.statusExpired,
-                        isClosed && styles.statusClosed,
-                      ]}
-                    >
-                      {statusInfo.label}
-                    </Text>
+                  <View style={styles.cardHead}>
+                    <View style={[styles.typeTile, r.type === "FOUND" ? styles.typeTileFound : styles.typeTileLost]}>
+                      <Ionicons
+                        name={r.type === "FOUND" ? "checkmark-circle-outline" : "search-outline"}
+                        size={24}
+                        color={r.type === "FOUND" ? "#15803D" : "#B45309"}
+                      />
+                    </View>
+                    <View style={styles.cardHeadText}>
+                      <View style={styles.cardTopRow}>
+                        <Text style={[styles.kindBadge, r.type === "FOUND" && styles.kindBadgeFound]}>
+                          {r.type === "LOST" ? t("cases.lost.2") : t("cases.found.2")}
+                        </Text>
+                        <Text style={[styles.statusText, isExpired && styles.statusExpired, isClosed && styles.statusClosed]}>
+                          {statusInfo.label}
+                        </Text>
+                      </View>
+                      <Text style={styles.title} numberOfLines={2}>
+                        {caseTitle(r, language)}
+                      </Text>
+                      {!!caseAttributes(r, language) && (
+                        <Text style={styles.attributes}>{caseAttributes(r, language)}</Text>
+                      )}
+                    </View>
                   </View>
-                  <Text style={styles.title}>
-                    {prettyReportTitle(r, language, t).replace(
-                      /^Lost:\s*|^Found:\s*|^Mistet:\s*|^Funnet:\s*/i,
-                      "",
+
+                  <View style={styles.details}>
+                    {!!shortPlace(r.location_label) && (
+                      <View style={styles.detailRow}>
+                        <Ionicons name="location-outline" size={16} color="#64748B" />
+                        <Text style={styles.detailText} numberOfLines={1}>{shortPlace(r.location_label)}</Text>
+                      </View>
                     )}
-                  </Text>
-                  <Text style={styles.meta}>
-                    {t("cases.reported")}{" "}
-                    {new Date(r.created_at).toLocaleDateString()}
-                  </Text>
-                  {!!r.brand?.trim() && (
-                    <Text style={styles.brandLine}>
-                      {t("cases.brand")}: {titleCase(r.brand)}
-                    </Text>
-                  )}
-                  {r.type === "FOUND" && (
-                    <Text style={styles.extensionInfo}>
-                      {t("cases.extended.count", {
-                        count: Number(r.extension_count || 0),
-                      })}
-                    </Text>
-                  )}
-                  {act && (
-                    <Text style={styles.lastLine} numberOfLines={2}>
-                      {t("cases.latest.chat")}:{" "}
-                      {actFromMe ? t("cases.you") : t("cases.other.party")} ·{" "}
-                      {formatTime(act.at)} · {shortMessage(act.body)}
-                    </Text>
-                  )}
-                  {unreadByReport[r.id] && (
-                    <Text style={styles.unread}>
-                      ● {t("cases.new.message")}
-                    </Text>
-                  )}
-                  <View style={styles.primaryActions}>
-                    {latestChatId && (
-                      <Pressable
-                        style={styles.primaryBtn}
-                        onPress={() => router.push(`/chat/${latestChatId}`)}
-                      >
-                        <Text style={styles.primaryBtnText}>
-                          {t("cases.open.chat")}
-                        </Text>
-                      </Pressable>
-                    )}
-                    {count > 0 ? (
-                      <Pressable
-                        style={[
-                          styles.primaryBtn,
-                          latestChatId && styles.secondaryPrimary,
-                        ]}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/match",
-                            params: { reportId: r.id },
-                          })
-                        }
-                      >
-                        <Text
-                          style={[
-                            styles.primaryBtnText,
-                            latestChatId && styles.secondaryPrimaryText,
-                          ]}
-                        >
-                          {t("cases.view.matches.count", { count })}
-                        </Text>
-                      </Pressable>
-                    ) : (
-                      <View style={styles.noMatches}>
-                        <Text style={styles.noMatchesText}>
-                          {t("cases.no.matches.yet")}
+                    <View style={styles.detailRow}>
+                      <Ionicons name="calendar-outline" size={16} color="#64748B" />
+                      <Text style={styles.detailText}>
+                        {t("cases.reported.on", { date: formatCaseDate(r.created_at, language) })}
+                      </Text>
+                    </View>
+                    {act && (
+                      <View style={styles.detailRow}>
+                        <Ionicons name="chatbubble-outline" size={16} color={unreadByReport[r.id] ? "#1D4ED8" : "#64748B"} />
+                        <Text style={[styles.detailText, unreadByReport[r.id] && styles.unreadText]} numberOfLines={1}>
+                          {unreadByReport[r.id] ? `${t("cases.new.message")} · ` : ""}
+                          {actFromMe ? t("cases.you") : t("cases.other.party")}: {shortMessage(act.body)} · {formatTime(act.at)}
                         </Text>
                       </View>
                     )}
                   </View>
-                  <View style={styles.secondaryActions}>
-                    <Pressable onPress={() => openReport(r)}>
-                      <Text style={styles.viewLink}>
-                        {t("cases.view.report")}
-                      </Text>
-                    </Pressable>
-                    {!isClosed && (
-                      <Pressable onPress={() => editReport(r)}>
-                        <Text style={styles.secondaryLink}>
-                          {isExpired
-                            ? t("cases.edit.details")
-                            : t("cases.edit")}
-                        </Text>
-                      </Pressable>
-                    )}
-                    {canExtendFound(r) && (
-                      <Pressable onPress={() => confirmExtendFound(r)}>
-                        <Text style={styles.extendLink}>
-                          {isExpired
-                            ? t("cases.reactivate")
-                            : t("cases.extend")}
-                        </Text>
-                      </Pressable>
-                    )}
-                    {r.type === "LOST" && isExpired && !isClosed && (
+
+                  <View style={styles.primaryActions}>
+                    {count > 0 ? (
                       <Pressable
-                        disabled={reactivatingReportId === r.id}
-                        onPress={() =>
-                          setConfirmDialog({
-                            kind: "reactivateLost",
-                            report: r,
-                          })
-                        }
+                        accessibilityRole="button"
+                        style={styles.primaryBtn}
+                        onPress={() => router.push({ pathname: "/match", params: { reportId: r.id } })}
                       >
-                        <Text style={styles.extendLink}>
-                          {reactivatingReportId === r.id
-                            ? t("cases.reactivating")
-                            : t("cases.reactivate.30.days")}
-                        </Text>
+                        <Text style={styles.primaryBtnText}>{t("cases.view.matches.count", { count })}</Text>
+                      </Pressable>
+                    ) : (
+                      <View style={styles.noMatches}>
+                        <Text style={styles.noMatchesText}>{t("cases.no.matches.yet")}</Text>
+                      </View>
+                    )}
+                    {latestChatId && (
+                      <Pressable
+                        accessibilityRole="button"
+                        style={styles.outlineBtn}
+                        onPress={() => router.push(`/chat/${latestChatId}`)}
+                      >
+                        <Text style={styles.outlineBtnText}>{t("cases.open.chat")}</Text>
                       </Pressable>
                     )}
-                    {!isClosed && !(r.type === "LOST" && isExpired) && (
-                      <Pressable onPress={() => confirmClose(r)}>
-                        <Text style={styles.secondaryLink}>
-                          {t("cases.close")}
-                        </Text>
-                      </Pressable>
-                    )}
-                    <Pressable onPress={() => confirmDelete(r)}>
-                      <Text style={styles.deleteLink}>{t("cases.delete")}</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("cases.more.options")}
+                      style={styles.moreBtn}
+                      hitSlop={6}
+                      onPress={() => setMenuReport(r)}
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.text} />
                     </Pressable>
                   </View>
-                </View>
+                </Pressable>
               );
             })}
             <Pressable style={styles.reloadBtn} onPress={load}>
@@ -1034,6 +729,59 @@ function MyReportsScreen() {
           </ScrollView>
         )}
       </View>
+      <Modal
+        transparent
+        visible={!!menuReport}
+        animationType="slide"
+        onRequestClose={() => setMenuReport(null)}
+      >
+        <Pressable style={sheetStyles.backdrop} onPress={() => setMenuReport(null)} accessibilityLabel={t("cases.menu.cancel")}>
+          {menuReport && (() => {
+            const r = menuReport;
+            const isClosed = r.status === "CLOSED" || !!r.closed_at;
+            const isExpired = r.status === "EXPIRED" || (!!r.visible_until && Date.parse(r.visible_until) <= Date.now());
+            // Close the sheet first; iOS cannot show the confirmation dialog while it is closing.
+            const run = (action: () => void) => {
+              setMenuReport(null);
+              setTimeout(action, 350);
+            };
+            const items: { key: string; icon: React.ComponentProps<typeof Ionicons>["name"]; label: string; onPress: () => void; danger?: boolean }[] = [
+              { key: "view", icon: "eye-outline", label: t("cases.view.report"), onPress: () => run(() => openReport(r)) },
+            ];
+            if (!isClosed) items.push({ key: "edit", icon: "create-outline", label: isExpired ? t("cases.edit.details") : t("cases.edit"), onPress: () => run(() => editReport(r)) });
+            if (canExtendFound(r)) items.push({ key: "extend", icon: "refresh-outline", label: isExpired ? t("cases.reactivate") : t("cases.extend"), onPress: () => run(() => confirmExtendFound(r)) });
+            if (r.type === "LOST" && isExpired && !isClosed) items.push({ key: "reactivate", icon: "refresh-outline", label: t("cases.reactivate.30.days"), onPress: () => run(() => setConfirmDialog({ kind: "reactivateLost", report: r })) });
+            if (!isClosed && !(r.type === "LOST" && isExpired)) items.push({ key: "close", icon: "checkmark-circle-outline", label: t("cases.close"), onPress: () => run(() => confirmClose(r)) });
+            items.push({ key: "delete", icon: "trash-outline", label: t("cases.delete"), danger: true, onPress: () => run(() => confirmDelete(r)) });
+            return (
+              <Pressable style={sheetStyles.sheet} onPress={() => {}} accessibilityViewIsModal>
+                <View style={sheetStyles.handle} />
+                <Text style={sheetStyles.title} numberOfLines={2}>{caseTitle(r, language)}</Text>
+                <Text style={sheetStyles.subtitle}>
+                  {r.type === "LOST" ? t("cases.lost") : t("cases.found")}
+                  {r.type === "FOUND" ? ` · ${t("cases.extended.count", { count: Number(r.extension_count || 0) })}` : ""}
+                </Text>
+                {items.map((item) => (
+                  <React.Fragment key={item.key}>
+                    {item.danger && <View style={sheetStyles.divider} />}
+                    <Pressable
+                      accessibilityRole="button"
+                      style={({ pressed }) => [sheetStyles.item, pressed && sheetStyles.itemPressed]}
+                      onPress={item.onPress}
+                    >
+                      <Ionicons name={item.icon} size={21} color={item.danger ? "#B91C1C" : theme.colors.text} />
+                      <Text style={[sheetStyles.itemText, item.danger && sheetStyles.itemDanger]}>{item.label}</Text>
+                    </Pressable>
+                  </React.Fragment>
+                ))}
+                <Pressable accessibilityRole="button" style={sheetStyles.cancel} onPress={() => setMenuReport(null)}>
+                  <Text style={sheetStyles.cancelText}>{t("cases.menu.cancel")}</Text>
+                </Pressable>
+              </Pressable>
+            );
+          })()}
+        </Pressable>
+      </Modal>
       <Modal
         transparent
         visible={!!confirmDialog}
@@ -1153,32 +901,31 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   sectionTabs: {
     flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 4,
-    backgroundColor: theme.colors.bg,
+    gap: 4,
+    marginHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 6,
+    padding: 4,
+    borderRadius: 14,
+    backgroundColor: theme.colors.chipBg,
   },
   sectionTab: {
     flex: 1,
-    minHeight: 42,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.card,
+    minHeight: 40,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
   sectionTabActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.card,
+    ...theme.shadow.card,
   },
   sectionTabText: {
-    color: theme.colors.muted,
-    fontWeight: "900",
-    fontSize: 13,
+    color: "#475569",
+    fontWeight: "700",
+    fontSize: 15,
   },
-  sectionTabTextActive: { color: "#FFF" },
+  sectionTabTextActive: { color: theme.colors.text, fontWeight: "800" },
   center: {
     flex: 1,
     alignItems: "center",
@@ -1196,23 +943,58 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   cardFocused: { borderColor: theme.colors.primary, borderWidth: 2 },
+  cardPressed: { backgroundColor: "#F8FAFC" },
+  cardHead: { flexDirection: "row", gap: 12 },
+  cardHeadText: { flex: 1, minWidth: 0, gap: 4 },
+  typeTile: { width: 52, height: 52, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  typeTileFound: { backgroundColor: "#ECFDF3" },
+  typeTileLost: { backgroundColor: "#FEF3C7" },
   cardTopRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     alignItems: "center",
-    marginBottom: 12,
+    gap: 6,
+  },
+  statusText: { color: "#475569", fontSize: 12, fontWeight: "700" },
+  attributes: { color: "#475569", fontSize: 14, fontWeight: "600" },
+  details: { marginTop: 12, gap: 6 },
+  detailRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  detailText: { flex: 1, color: "#475569", fontSize: 14, fontWeight: "600" },
+  unreadText: { color: "#1D4ED8", fontWeight: "800" },
+  outlineBtn: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    backgroundColor: theme.colors.card,
+  },
+  outlineBtnText: { color: theme.colors.primary, fontWeight: "800", fontSize: 15 },
+  moreBtn: {
+    width: 44,
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.card,
   },
   kindBadge: {
     overflow: "hidden",
     borderRadius: 999,
-    backgroundColor: "#FFF1F2",
-    color: "#BE123C",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: "#FEF3C7",
+    color: "#92400E",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     fontSize: 11,
     fontWeight: "900",
+    letterSpacing: 0.6,
   },
-  kindBadgeFound: { backgroundColor: "#ECFDF3", color: "#15803D" },
+  kindBadgeFound: { backgroundColor: "#DCFCE7", color: "#166534" },
   statusBadge: {
     overflow: "hidden",
     borderRadius: 999,
@@ -1223,8 +1005,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
   },
-  statusExpired: { backgroundColor: "#FFF7ED", color: "#B45309" },
-  statusClosed: { backgroundColor: "#F1F5F9", color: "#475569" },
+  statusExpired: { color: "#B45309" },
+  statusClosed: { color: "#64748B" },
   title: {
     color: theme.colors.text,
     fontSize: 18,
@@ -1262,17 +1044,17 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: 12,
   },
-  primaryActions: { flexDirection: "row", gap: 8, marginTop: 13 },
+  primaryActions: { flexDirection: "row", gap: 8, marginTop: 14 },
   primaryBtn: {
     flex: 1,
-    minHeight: 42,
-    borderRadius: 13,
+    minHeight: 44,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: theme.colors.primary,
     paddingHorizontal: 10,
   },
-  primaryBtnText: { color: "#FFF", fontWeight: "900", fontSize: 13 },
+  primaryBtnText: { color: "#FFF", fontWeight: "800", fontSize: 15 },
   secondaryPrimary: {
     backgroundColor: "#EEF2FF",
     borderWidth: 1,
@@ -1280,8 +1062,8 @@ const styles = StyleSheet.create({
   },
   secondaryPrimaryText: { color: theme.colors.primary },
   noMatches: {
-    alignSelf: "flex-start",
-    minHeight: 38,
+    flex: 1,
+    minHeight: 44,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -1290,7 +1072,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
-  noMatchesText: { color: theme.colors.muted, fontWeight: "800", fontSize: 12 },
+  noMatchesText: { color: "#64748B", fontWeight: "700", fontSize: 14 },
   secondaryActions: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1497,3 +1279,34 @@ const successStyles = StyleSheet.create({
 
 // T1.9A: registered accounts only; guests see the account-required screen.
 export default requireAccount(MyReportsScreen);
+
+const sheetStyles = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(15,23,42,0.45)" },
+  sheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 34,
+    gap: 4,
+  },
+  handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 999, backgroundColor: "#CBD5E1", marginBottom: 10 },
+  title: { color: theme.colors.text, fontSize: 18, fontWeight: "900", paddingHorizontal: 4 },
+  subtitle: { color: "#475569", fontSize: 14, fontWeight: "600", paddingHorizontal: 4, marginBottom: 8 },
+  item: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, borderRadius: 12 },
+  itemPressed: { backgroundColor: "#F1F5F9" },
+  itemText: { color: theme.colors.text, fontSize: 16, fontWeight: "700" },
+  itemDanger: { color: "#B91C1C", fontWeight: "800" },
+  divider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 4 },
+  cancel: {
+    marginTop: 8,
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelText: { color: theme.colors.text, fontSize: 16, fontWeight: "800" },
+});

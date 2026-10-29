@@ -1266,4 +1266,7 @@ export const no: TranslationDictionary = {
   "guest.receiptFollowTitle": "Vil du følge saken?",
   "guest.receiptFollowBody": "Opprett konto eller logg inn på denne telefonen, så blir funnet med. Da kan eieren ta kontakt med deg i appen, og du kan få finnerlønn.",
   "guest.receiptDone": "Ferdig",
+  "cases.reported.on": "Registrert {{date}}",
+  "cases.more.options": "Flere valg",
+  "cases.menu.cancel": "Avbryt",
 };
