@@ -8,15 +8,23 @@
 //   optional: $env:PROBE_EMAIL / $env:PROBE_PASSWORD for a registered staging account
 //   node scripts/security-probe.js
 //
-// Safety: refuses to run against anything but the staging project. Write probes use random
-// user ids, so they cannot touch real users; a successful write leaves a row titled SECURITY_PROBE.
+// Safety: runs against staging by default. Production is only allowed with
+// PROBE_TARGET=production, and only after the T1.9A migration is applied there (before it,
+// a write probe could succeed and leave a row titled SECURITY_PROBE). Write probes use random
+// user ids, so they cannot touch real users. The guest probe creates one anonymous user.
 
 const STAGING_URL = "https://lxctyscebfwgzdbpeury.supabase.co";
-const url = (process.env.PROBE_SUPABASE_URL || STAGING_URL).replace(/\/$/, "");
+const PRODUCTION_URL = "https://kidcobjojqcwbtntkxbp.supabase.co";
+const target = String(process.env.PROBE_TARGET || "staging").toLowerCase();
+const url = target === "production" ? PRODUCTION_URL : STAGING_URL;
 const key = process.env.PROBE_ANON_KEY || "";
 
-if (url !== STAGING_URL) {
-  console.error(`PROBE_REFUSED: only ${STAGING_URL} is allowed.`);
+if (target !== "staging" && target !== "production") {
+  console.error("PROBE_REFUSED: PROBE_TARGET must be staging or production.");
+  process.exit(2);
+}
+if (process.env.PROBE_SUPABASE_URL) {
+  console.error("PROBE_REFUSED: set PROBE_TARGET instead of PROBE_SUPABASE_URL.");
   process.exit(2);
 }
 if (!key) {
@@ -87,7 +95,7 @@ async function commonProbes(who, token) {
 }
 
 async function main() {
-  console.log(`Probing ${url}\n`);
+  console.log(`Probing ${target.toUpperCase()} ${url}\n`);
 
   // 1. Not signed in.
   await commonProbes("not signed in", null);
