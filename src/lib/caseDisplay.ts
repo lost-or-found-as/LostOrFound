@@ -73,12 +73,9 @@ export function caseTitle(r: CaseLike, language: AppLanguage): string {
   return sentenceCase(r.title);
 }
 
-// "Flerfarget" / "Rød og gul · Pandora" (colour is left out when it is part of the title)
-export function caseAttributes(r: CaseLike, language: AppLanguage): string {
-  const parts: string[] = [];
-  // T1.9F: main and secondary colour together, "Rød og gul". The main colour is left out when
-  // it is part of the title (Gullring).
-  const main = r.color && !compoundTitle(r, language) ? colorLabel(r.color, language) : "";
+// Main and secondary colour as one phrase: "Rød og gul". `main` is the already-named main colour
+// (empty when it is left out).
+function colorsText(main: string, r: CaseLike, language: AppLanguage): string {
   const secondKey = reportSecondaryColor(r);
   const second =
     secondKey && secondKey !== String(r.color ?? "").trim().toLowerCase() ? colorLabel(secondKey, language) : "";
@@ -86,7 +83,22 @@ export function caseAttributes(r: CaseLike, language: AppLanguage): string {
     main && second
       ? translate(language, "catalog.colorPair", { first: main, second: second.toLocaleLowerCase() })
       : main || second;
-  if (colors) parts.push(sentenceCase(colors));
+  return sentenceCase(colors);
+}
+
+// T1.9G: both colours for the details card, "Rød og gul" (also when the colour is in the title).
+export function caseColors(r: CaseLike, language: AppLanguage): string {
+  return colorsText(r.color ? colorLabel(r.color, language) : "", r, language);
+}
+
+// "Flerfarget" / "Rød og gul · Pandora" (colour is left out when it is part of the title)
+export function caseAttributes(r: CaseLike, language: AppLanguage): string {
+  const parts: string[] = [];
+  // T1.9F: main and secondary colour together, "Rød og gul". The main colour is left out when
+  // it is part of the title (Gullring).
+  const main = r.color && !compoundTitle(r, language) ? colorLabel(r.color, language) : "";
+  const colors = colorsText(main, r, language);
+  if (colors) parts.push(colors);
   const brand = titleCaseWords(r.brand);
   if (brand) parts.push(brand);
   return parts.join(" · ");

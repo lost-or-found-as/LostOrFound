@@ -38,9 +38,9 @@ import { REPORT_PRODUCT_CODES } from "../src/lib/reportProducts";
 import { userErrorMessage } from "../src/lib/userError";
 import { formatMoney, formatTime as formatClock } from "../src/i18n/formatters";
 import { STORED_MONEY_CURRENCY } from "../src/lib/market";
+import { canExtendFound, REACTIVATION_TEST_PRICE } from "../src/lib/reportLifecycle";
 
 // Test price shown in the reactivation dialog until RevenueCat supplies the store price.
-const REACTIVATION_TEST_PRICE = 99;
 
 type Report = {
   id: string;
@@ -101,20 +101,6 @@ function reportStatusInfo(r: Report, language: "no" | "en", t: Translate) {
   }
   return { label: t("cases.active") };
 }
-function canExtendFound(r: Report) {
-  if (
-    r.type !== "FOUND" ||
-    r.closed_at ||
-    r.status === "CLOSED" ||
-    r.status === "ARCHIVED"
-  )
-    return false;
-  if (Number(r.extension_count || 0) >= 2) return false;
-  const until = Date.parse(r.visible_until || "");
-  if (!Number.isFinite(until)) return true;
-  return until - Date.now() <= 7 * 24 * 60 * 60 * 1000;
-}
-
 function lifecycleErrorCopy(code: string | undefined, t: (key: any) => string) {
   switch (String(code || "").toUpperCase()) {
     case "FOUND_EXTENSION_TOO_EARLY":

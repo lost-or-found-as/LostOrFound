@@ -66,8 +66,9 @@ check(/<InlineNotice/.test(create), "CREATE_NO_INLINE_NOTICE");
 
 check(/useFocusEffect\(/.test(details) && /fetchGeoAlertStatus\(String\(id\)\)/.test(details), "DETAILS_NO_STATUS_REFRESH");
 check(/<AreaAlertServiceCard view=\{geoView\}/.test(details), "DETAILS_NO_SERVICE_CARD");
-check(/geoView\.kind === "none" && \(/.test(details), "DETAILS_CTA_NOT_LIMITED_TO_NONE");
-check(/!String\(e\?\.product_code \|\| ""\)\.startsWith\("GEO_ALERT_TIER_"\)/.test(details), "DETAILS_SERVICES_COUNT_INCLUDES_AREA_ALERT");
+check(/geoView\.kind === "none" && !expired && \(/.test(details), "DETAILS_CTA_NOT_LIMITED_TO_NONE");
+// T1.9G: the separate "Tilleggstjenester" card was removed; the area alert has its own card.
+check(!/caseDetail\.additional\.services/.test(details), "DETAILS_SERVICES_CARD_STILL_SHOWN");
 check(/t\("caseDetail\.loadingReport"\)/.test(details), "DETAILS_LOADING_TEXT_NOT_LOCALIZED");
 check(/name="report-details\/\[id\]"/.test(layout) && !/Saksdetaljer/.test(layout), "LAYOUT_REPORT_DETAILS_NOT_REGISTERED_CLEANLY");
 

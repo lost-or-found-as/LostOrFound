@@ -46,7 +46,7 @@ function isAllowedStatus(s) {
 }
 
 const MATCH_SELECT = `
-     id, score, status, reasons,
+     id, score, status, reasons, created_at,
      lost:lost_id (
        id, user_id, type, category, subcategory_key, title, description, color, secondary_color, brand,
        occurred_at, created_at, lat, lng, location_label,
@@ -230,6 +230,35 @@ function enrichMatchColorInfo(match) {
   );
   return { ...match, score, reasons };
 }
+// T1.9G: the matches the owner of a report sees, filtered and enriched the same way for the
+// match list (GET /matches) and the case activity (GET /reports/:id/activity).
+// Returns null when the report does not exist or belongs to someone else.
+async function loadReportMatches(reportId, userId) {
+  const { data: report, error: rErr } = await supaAdmin
+    .from("reports")
+    .select("id, type, user_id")
+    .eq("id", reportId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (rErr) throw rErr;
+  if (!report) return null;
+
+  const isLost = report.type === "LOST";
+  const { data: matches, error: mErr } = await supaAdmin
+    .from("matches")
+    .select(MATCH_SELECT)
+    .or(isLost ? `lost_id.eq.${reportId}` : `found_id.eq.${reportId}`)
+    .order("score", { ascending: false });
+  if (mErr) throw mErr;
+
+  const filtered = (matches || [])
+    .filter((m) => isActiveReport(m?.lost) && isActiveReport(m?.found))
+    .filter((m) => isTimeCompatible(m?.lost, m?.found))
+    .map(enrichMatchAreaInfo)
+    .map(enrichMatchColorInfo);
+  return { report, matches: filtered };
+}
+
 // GET /matches?reportId=...
 router.get("/", requireUser, async (req, res) => {
   try {
@@ -237,33 +266,9 @@ router.get("/", requireUser, async (req, res) => {
     const reportId = String(req.query.reportId || "");
     if (!reportId) return res.status(400).json({ error: "reportId required" });
 
-    const { data: report, error: rErr } = await supaAdmin
-      .from("reports")
-      .select("id, type, user_id")
-      .eq("id", reportId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (rErr || !report)
-      return res.status(404).json({ error: "Report not found" });
-
-    const isLost = report.type === "LOST";
-
-    const { data: matches, error: mErr } = await supaAdmin
-      .from("matches")
-      .select(MATCH_SELECT)
-      .or(isLost ? `lost_id.eq.${reportId}` : `found_id.eq.${reportId}`)
-      .order("score", { ascending: false });
-
-    if (mErr) return res.status(400).json({ error: mErr.message });
-
-    const filtered = (matches || [])
-      .filter((m) => isActiveReport(m?.lost) && isActiveReport(m?.found))
-      .filter((m) => isTimeCompatible(m?.lost, m?.found))
-      .map(enrichMatchAreaInfo)
-      .map(enrichMatchColorInfo);
-
-    return res.json({ matches: filtered });
+    const loaded = await loadReportMatches(reportId, user.id);
+    if (!loaded) return res.status(404).json({ error: "Report not found" });
+    return res.json({ matches: loaded.matches });
   } catch (e) {
     return res.status(500).json({ error: e?.message ?? "Server error" });
   }
@@ -430,3 +435,4 @@ router.post("/:id/messages", requireUser, async (req, res) => {
   }
 });
 module.exports = router;
+module.exports.loadReportMatches = loadReportMatches;

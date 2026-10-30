@@ -21,6 +21,16 @@ export function formatTemplate(template: string, params?: TranslateParams) {
   });
 }
 
+// T1.9G: singular forms. When params.count is 1 and the key has a "<key>_one" variant, that
+// variant is used ("1 mulig treff" / "3 mulige treff"). Norwegian and English only need one and
+// other; a language with more plural forms can extend this with Intl.PluralRules.
+function pluralKey(key: TranslationKey, params?: TranslateParams): TranslationKey {
+  if (params?.count !== 1) return key;
+  const one = `${key}_one` as TranslationKey;
+  return one in en ? one : key;
+}
+
 export function translate(language: Lang, key: TranslationKey, params?: TranslateParams) {
-  return formatTemplate(dictionaries[language]?.[key] ?? en[key] ?? String(key), params);
+  const k = pluralKey(key, params);
+  return formatTemplate(dictionaries[language]?.[k] ?? en[k] ?? String(k), params);
 }
