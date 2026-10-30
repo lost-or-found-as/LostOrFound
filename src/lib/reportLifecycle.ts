@@ -12,6 +12,11 @@ export const FOUND_EXTENSION_WINDOW_DAYS = 7;
 export const FOUND_MAX_EXTENSIONS = 2;
 // Test price shown before a test-mode reactivation, in STORED_MONEY_CURRENCY. Store prices replace it.
 export const REACTIVATION_TEST_PRICE = 99;
+// T1.9H: a LOST case gets 30 days twice; after that it can become a historic case.
+export const LOST_MAX_EXTENSIONS = 2;
+// A loss at least this old is offered as historic from the start (same rule on the server).
+export const HISTORIC_FROM_START_DAYS = 365;
+export const LONG_TERM_YEAR_OPTIONS = [1, 2, 3] as const;
 
 export type LifecycleReport = {
   id: string;
@@ -21,6 +26,7 @@ export type LifecycleReport = {
   closed_at?: string | null;
   archived_at?: string | null;
   extension_count?: number | null;
+  occurred_at?: string | null;
 };
 
 export function isReportClosed(r: LifecycleReport): boolean {
@@ -51,6 +57,30 @@ export function canExtendFound(r: LifecycleReport, now = Date.now()): boolean {
 
 export function canReactivateLost(r: LifecycleReport, now = Date.now()): boolean {
   return String(r.type || "").toUpperCase() === "LOST" && isReportExpired(r, now) && !isReportClosed(r);
+}
+
+/** A historic period can be bought (or renewed) for any LOST case that is not closed. */
+export function canBuyLongTerm(r: LifecycleReport): boolean {
+  return String(r.type || "").toUpperCase() === "LOST" && !isReportClosed(r);
+}
+
+export function isHistoricFromStart(r: LifecycleReport, now = Date.now()): boolean {
+  const when = Date.parse(r.occurred_at || "");
+  return Number.isFinite(when) && now - when >= HISTORIC_FROM_START_DAYS * DAY_MS;
+}
+
+/** Test-mode purchase of a historic period (real store payment comes later). */
+export async function buyLongTermRequest(id: string, years: number) {
+  const clientRequestId = `long-term-${id}-${years}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const created = await createReportOrder({
+    reportId: id,
+    productCode: "LONG_TERM_WATCH",
+    longTerm: { years },
+    clientRequestId,
+    platform: "TEST",
+    provider: "TEST",
+  });
+  return activateTestReportOrder(created.order.id);
 }
 
 async function reportRequest(path: string, method: "POST" | "DELETE") {

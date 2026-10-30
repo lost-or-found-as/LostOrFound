@@ -38,7 +38,8 @@ export function quoteGeoAlert(reportId: string, input: GeoAlertQuoteInput) {
 }
 export function createReportOrder(input: {
   reportId: string;
-  productCode: ReportProductCode | "GEO_ALERT";
+  // T1.9H: "LONG_TERM_WATCH" with longTerm.years; the server picks the product variant.
+  productCode: ReportProductCode | "GEO_ALERT" | "LONG_TERM_WATCH";
   clientRequestId: string;
   platform: "IOS" | "ANDROID" | "WEB" | "TEST";
   provider: "APPLE" | "GOOGLE" | "REVENUECAT" | "STRIPE" | "TEST";
@@ -46,8 +47,26 @@ export function createReportOrder(input: {
   occurredYear?: number | null;
   occurredMonth?: number | null;
   geoAlert?: Record<string, unknown>;
+  longTerm?: { years: number };
 }) {
   return request<{ order: any; idempotentReplay: boolean }>("/orders", { method: "POST", body: JSON.stringify(input) });
+}
+// T1.9H: price for keeping a LOST case as a historic case.
+export type LongTermQuote = {
+  reportId: string;
+  renew: boolean;
+  years: number;
+  productCode: string;
+  creditedExtensions: number;
+  baseAmountOre: number;
+  creditOre: number;
+  amountOre: number;
+  currency: string;
+  startsAt: string;
+  endsAt: string;
+};
+export function quoteLongTermWatch(reportId: string, years: number) {
+  return request<{ quote: LongTermQuote }>("/long-term/quote", { method: "POST", body: JSON.stringify({ reportId, years }) });
 }
 export function fetchGeoAlertStatus(reportId: string) {
   return request<GeoAlertStatus>(`/reports/${encodeURIComponent(reportId)}/geo-alert-status`);

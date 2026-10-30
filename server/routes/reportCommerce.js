@@ -21,6 +21,17 @@ const {
   createGeoAlertEntitlement,
   getGeoAlertStatus,
 } = require("../lib/geoAlertActivationGuard");
+const {
+  LONG_TERM_REQUEST_CODE,
+  normalizeYears,
+  longTermProductCode,
+  isLongTermProduct,
+  extensionCredits,
+  longTermEligibility,
+  longTermPeriod,
+  longTermQuote,
+  isLiveWatch,
+} = require("../lib/longTermWatch");
 const GEO_ALERT_DURATION_HOURS = 168;
 const GEO_ALERT_REMINDER_COUNT = 0;
 const VALID_GEO_ALERT_RADII = new Set([
@@ -97,6 +108,55 @@ async function activeProduct(code) {
   if (error) throw error;
   return data || null;
 }
+// T1.9H: what a historic-case price depends on: the running watch, paid extensions and
+// whether the case has had a historic period before (credit is given once).
+async function loadLongTermContext(reportId, userId) {
+  const [watchResult, ordersResult] = await Promise.all([
+    supaAdmin
+      .from("long_term_watches")
+      .select("id, status, current_period_end, entitlement_id")
+      .eq("report_id", reportId)
+      .maybeSingle(),
+    supaAdmin
+      .from("report_orders")
+      .select("product_code, status, paid_at, refunded_at")
+      .eq("report_id", reportId)
+      .eq("user_id", userId),
+  ]);
+  if (watchResult.error) throw watchResult.error;
+  if (ordersResult.error) throw ordersResult.error;
+  const orders = ordersResult.data || [];
+  const hadLongTermBefore = orders.some(
+    (o) => String(o.product_code || "").startsWith("LONG_TERM_WATCH") && !!o.paid_at && !o.refunded_at,
+  );
+  return {
+    watch: watchResult.data || null,
+    credits: extensionCredits(orders, hadLongTermBefore),
+    hadLongTermBefore,
+  };
+}
+
+async function resolveLongTermProduct(report, userId, yearsInput) {
+  const years = normalizeYears(yearsInput);
+  const context = await loadLongTermContext(report.id, userId);
+  const eligibility = longTermEligibility(report, context.watch);
+  if (!eligibility.ok) return { error: eligibility.error };
+  const credits = eligibility.renew ? 0 : context.credits;
+  const [product, fullYearProduct] = await Promise.all([
+    activeProduct(longTermProductCode(years, credits)),
+    activeProduct(longTermProductCode(years, 0)),
+  ]);
+  if (!product || !fullYearProduct) return { error: "PRODUCT_NOT_AVAILABLE" };
+  const period = longTermPeriod(years, context.watch);
+  return {
+    years,
+    credits,
+    renew: eligibility.renew,
+    product,
+    quote: longTermQuote({ years, credits, product, fullYearProduct, period }),
+  };
+}
+
 function requestId(value) {
   const v = typeof value === "string" ? value.trim() : "";
   if (v.length < 12 || v.length > 120)
@@ -202,6 +262,28 @@ router.get("/catalog", requireUser, async (req, res) => {
   }
 });
 
+// T1.9H: price for keeping a LOST case as a historic case for 1, 2 or 3 years.
+router.post("/long-term/quote", requireUser, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const reportId = String(req.body?.reportId || "");
+    const report = await ownedReport(reportId, userId);
+    if (!report) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
+    const resolved = await resolveLongTermProduct(report, userId, req.body?.years);
+    if (resolved.error)
+      return res.status(resolved.error === "PRODUCT_NOT_AVAILABLE" ? 409 : 400).json({ error: resolved.error });
+    return res.json({
+      quote: { reportId, renew: resolved.renew, ...resolved.quote },
+      note: "TEST_PRICE_NOT_FOR_STORE_RELEASE",
+    });
+  } catch (e) {
+    const code = String(e?.code || e?.message || "");
+    if (code === "INVALID_LONG_TERM_YEARS") return res.status(400).json({ error: code });
+    console.error("[long-term][quote-failed]", { errorCode: e?.code || null, errorMessage: e?.message || String(e) });
+    return res.status(500).json({ error: "LONG_TERM_QUOTE_FAILED" });
+  }
+});
+
 router.post("/geo-alert/quote", requireUser, async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -294,6 +376,20 @@ router.post("/orders", requireUser, async (req, res) => {
       priceSnapshot = geoQuote.priceSnapshot;
     }
 
+    // T1.9H: the app asks for LONG_TERM_WATCH and a number of years; the server picks the
+    // product variant (with or without credit for paid extensions).
+    let longTermRequest = null;
+    if (productCode === LONG_TERM_REQUEST_CODE) {
+      const resolved = await resolveLongTermProduct(report, userId, req.body?.longTerm?.years);
+      if (resolved.error)
+        return res.status(resolved.error === "PRODUCT_NOT_AVAILABLE" ? 409 : 400).json({ error: resolved.error });
+      productCode = resolved.product.code;
+      priceSnapshot = { long_term: resolved.quote };
+      longTermRequest = { years: resolved.years, credits: resolved.credits, renew: resolved.renew };
+    } else if (isLongTermProduct(productCode)) {
+      return res.status(400).json({ error: "LONG_TERM_PRODUCT_REQUIRES_YEARS" });
+    }
+
     const product = await activeProduct(productCode);
     if (!product)
       return res.status(404).json({ error: "PRODUCT_NOT_AVAILABLE" });
@@ -319,6 +415,7 @@ router.post("/orders", requireUser, async (req, res) => {
         occurredYear: req.body?.occurredYear || null,
         occurredMonth: req.body?.occurredMonth || null,
         geoAlert: normalizedGeoAlert || req.body?.geoAlert || null,
+        longTerm: longTermRequest,
       },
     };
 
@@ -348,9 +445,9 @@ router.post("/orders", requireUser, async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
     return res.status(201).json({ order: data, idempotentReplay: false });
   } catch (e) {
-    const code = String(e?.message || "");
+    const code = String(e?.code || e?.message || "");
     return res
-      .status(code === "CLIENT_REQUEST_ID_INVALID" ? 400 : 500)
+      .status(code === "CLIENT_REQUEST_ID_INVALID" || code === "INVALID_LONG_TERM_YEARS" ? 400 : 500)
       .json({ error: code || "Server error" });
   }
 });
@@ -454,6 +551,7 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
     const now = new Date();
     let periodEnd = null;
     let autoRenews = false;
+    let longTermStart = null;
     if (order.product_code === "LONG_TERM_WATCH_ANNUAL") {
       periodEnd = new Date(now);
       periodEnd.setUTCFullYear(periodEnd.getUTCFullYear() + 1);
@@ -462,6 +560,13 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       periodEnd = new Date(now.getTime() + 30 * 86400000);
     } else if (order.product_code.startsWith("GEO_ALERT_TIER_")) {
       periodEnd = new Date(now.getTime() + GEO_ALERT_DURATION_HOURS * 3600000);
+    } else if (isLongTermProduct(order.product_code)) {
+      // T1.9H: a renewal continues from the end of the running period.
+      const context = await loadLongTermContext(order.report_id, userId);
+      const years = Number(order.request_payload?.longTerm?.years || 0) || 1;
+      const period = longTermPeriod(years, context.watch, now.getTime());
+      longTermStart = new Date(period.startsAt);
+      periodEnd = new Date(period.endsAt);
     } else return res.status(400).json({ error: "UNSUPPORTED_PRODUCT" });
 
     const providerTransactionId =
@@ -499,7 +604,7 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
           product_code: order.product_code,
           order_id: order.id,
           status: "ACTIVE",
-          starts_at: now.toISOString(),
+          starts_at: (longTermStart || now).toISOString(),
           current_period_end: periodEnd.toISOString(),
           auto_renews: autoRenews,
           provider: "TEST",
@@ -540,6 +645,73 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         })
         .eq("id", order.report_id)
         .eq("user_id", userId);
+    }
+
+    if (isLongTermProduct(order.product_code)) {
+      // T1.9H: the case stays active (and in matching at any age) until the watch ends.
+      const { data: existingWatch } = await supaAdmin
+        .from("long_term_watches")
+        .select("starts_at, status, current_period_end")
+        .eq("report_id", order.report_id)
+        .maybeSingle();
+      const keepStart = isLiveWatch(existingWatch, now.getTime()) && existingWatch?.starts_at;
+      const watchResult = await supaAdmin.from("long_term_watches").upsert(
+        {
+          user_id: userId,
+          report_id: order.report_id,
+          entitlement_id: entitlement.id,
+          status: "ACTIVE",
+          loss_date_precision: report.occurred_precision || "EXACT",
+          loss_year: report.occurred_year || null,
+          loss_month: report.occurred_month || null,
+          starts_at: keepStart ? existingWatch.starts_at : now.toISOString(),
+          current_period_end: periodEnd.toISOString(),
+          next_match_scan_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        },
+        { onConflict: "report_id" },
+      );
+      if (watchResult.error) {
+        console.error("[long-term][watch-upsert-failed]", {
+          orderId: order.id,
+          reportId: order.report_id,
+          errorCode: watchResult.error.code || null,
+          errorMessage: watchResult.error.message || String(watchResult.error),
+        });
+        return res.status(400).json({ error: "LONG_TERM_ACTIVATION_FAILED" });
+      }
+      const reportUpdate = await supaAdmin
+        .from("reports")
+        .update({
+          status: "ACTIVE",
+          visible_until: periodEnd.toISOString(),
+          archived_at: null,
+          long_term_candidate: true,
+        })
+        .eq("id", order.report_id)
+        .eq("user_id", userId);
+      if (reportUpdate.error) {
+        console.error("[long-term][report-update-failed]", {
+          orderId: order.id,
+          reportId: order.report_id,
+          errorCode: reportUpdate.error.code || null,
+          errorMessage: reportUpdate.error.message || String(reportUpdate.error),
+        });
+        return res.status(400).json({ error: "LONG_TERM_ACTIVATION_FAILED" });
+      }
+      try {
+        // Compare with every active find, not only the last 30 days.
+        await supaAdmin.rpc("refresh_matches_for_report", {
+          p_report_id: order.report_id,
+          p_candidate_limit: 50,
+          p_max_distance_m: 3000,
+          p_max_age_days: 365,
+          p_min_score: 65,
+          p_time_buffer_hours: 48,
+        });
+      } catch (e) {
+        console.warn("[long-term] match refresh failed", e?.message || e);
+      }
     }
 
     if (order.product_code === "REPORT_REACTIVATION") {
@@ -665,8 +837,11 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
     supersedeQuery = isGeoAlertProduct(order.product_code)
       ? supersedeQuery.like("product_code", "GEO_ALERT_TIER_%")
       : supersedeQuery.eq("product_code", order.product_code);
-    const { data: supersededOrders, error: supersedeError } =
-      await supersedeQuery.select("id");
+    // T1.9H: historic periods add up (a renewal follows the running period), so they never
+    // supersede each other.
+    const { data: supersededOrders, error: supersedeError } = isLongTermProduct(order.product_code)
+      ? { data: [], error: null }
+      : await supersedeQuery.select("id");
 
     if (supersedeError) {
       console.error("[geo-alert][previous-orders-supersede-failed]", {

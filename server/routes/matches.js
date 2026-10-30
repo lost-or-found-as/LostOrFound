@@ -214,8 +214,10 @@ function enrichMatchColorInfo(match) {
   const sharedColor =
     lostColors.find((value) => foundColors.includes(value)) || null;
   let reasons = Array.isArray(match.reasons) ? match.reasons.slice() : [];
-  const previousColorMatch =
-    reasons.find((entry) => entry?.k === "color_match")?.v === true;
+  // T1.9H: the database stores 1/0 and now compares both colours itself, so a colour it has
+  // already scored is not added again here.
+  const storedColorMatch = reasons.find((entry) => entry?.k === "color_match")?.v;
+  const previousColorMatch = storedColorMatch === true || Number(storedColorMatch) === 1;
   reasons = upsertReason(reasons, "color_match", !!sharedColor);
   if (sharedColor)
     reasons = upsertReason(reasons, "matched_color", sharedColor);

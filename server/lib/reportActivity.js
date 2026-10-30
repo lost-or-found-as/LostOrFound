@@ -3,6 +3,8 @@
 // Pure (no database access) so it can be tested directly.
 "use strict";
 
+const { isLiveWatch, isLongTermProduct, yearsOfProduct, EXTENSION_PRODUCT_CODE } = require("./longTermWatch");
+
 // T1.9G: score from which a match counts as strong (the "good" and "excellent" levels in the app).
 const STRONG_MATCH_SCORE = 70;
 const OPEN_MATCH_STATUSES = new Set(["NEW", "SEEN"]);
@@ -19,7 +21,7 @@ function latestIso(values) {
 }
 
 // Pure: builds the summary and the newest-first event list from loaded rows. Exported for tests.
-function buildReportActivity({ report, matches, confirmations, lastMessages, unreadByMatch, observations, campaigns, orders }) {
+function buildReportActivity({ report, matches, confirmations, lastMessages, unreadByMatch, observations, campaigns, orders, longTermWatch, now = Date.now() }) {
   const open = (matches || []).filter((m) => OPEN_MATCH_STATUSES.has(String(m?.status || "").toUpperCase()));
   const confirmed = (matches || []).filter((m) => CONFIRMED_MATCH_STATUSES.has(String(m?.status || "").toUpperCase()));
   const lastByMatch = new Map((lastMessages || []).map((x) => [String(x.conversation_id), x]));
@@ -66,7 +68,8 @@ function buildReportActivity({ report, matches, confirmations, lastMessages, unr
   for (const c of campaigns || [])
     if (c.activated_at) events.push({ type: "AREA_ALERT_SENT", at: c.activated_at, radiusM: Number(c.radius_m || 0) || null });
   for (const o of orders || [])
-    if (String(o.product_code) === "REPORT_REACTIVATION" && o.paid_at) events.push({ type: "REACTIVATED", at: o.paid_at });
+    if (String(o.product_code) === EXTENSION_PRODUCT_CODE && o.paid_at) events.push({ type: "REACTIVATED", at: o.paid_at });
+    else if (isLongTermProduct(o.product_code) && o.paid_at) events.push({ type: "LONG_TERM", at: o.paid_at, years: yearsOfProduct(o.product_code) });
   if (report.last_extended_at && String(report.type).toUpperCase() === "FOUND")
     events.push({ type: "EXTENDED", at: report.last_extended_at });
   if (report.closed_at) events.push({ type: "CLOSED", at: report.closed_at });
@@ -85,6 +88,9 @@ function buildReportActivity({ report, matches, confirmations, lastMessages, unr
       unreadMessages: Object.values(unread).reduce((sum, n) => sum + Number(n || 0), 0),
       chatMatchId,
       newObservations: (observations || []).filter((o) => String(o.status || "").toUpperCase() === "NEW").length,
+      // T1.9H: lifecycle facts for the historic-case offer.
+      paidExtensions: (orders || []).filter((o) => String(o.product_code) === EXTENSION_PRODUCT_CODE && o.paid_at && !o.refunded_at).length,
+      longTermUntil: isLiveWatch(longTermWatch, now) ? longTermWatch.current_period_end || null : null,
     },
     events: sorted,
   };

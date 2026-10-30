@@ -168,7 +168,7 @@ router.get("/:id/activity", requireUser, async (req, res) => {
     const confirmed = confirmedRows || [];
     const confirmedIds = confirmed.map((m) => String(m.id));
 
-    const [confirmationsResult, lastResult, readsResult, observationsResult, campaignsResult, ordersResult] = await Promise.all([
+    const [confirmationsResult, lastResult, readsResult, observationsResult, campaignsResult, ordersResult, watchResult] = await Promise.all([
       confirmedIds.length
         ? supaAdmin.from("notifications").select("entity_id, created_at").eq("type", "MATCH_CONFIRMED").in("entity_id", confirmedIds)
         : Promise.resolve({ data: [] }),
@@ -180,9 +180,10 @@ router.get("/:id/activity", requireUser, async (req, res) => {
         : Promise.resolve({ data: [] }),
       supaAdmin.from("area_alert_observations").select("id, observation_type, status, created_at").eq("report_id", reportId),
       supaAdmin.from("geo_alert_campaigns").select("id, radius_m, activated_at").eq("report_id", reportId),
-      supaAdmin.from("report_orders").select("product_code, paid_at").eq("report_id", reportId).eq("user_id", userId).not("paid_at", "is", null),
+      supaAdmin.from("report_orders").select("product_code, paid_at, refunded_at").eq("report_id", reportId).eq("user_id", userId).not("paid_at", "is", null),
+      supaAdmin.from("long_term_watches").select("status, current_period_end").eq("report_id", reportId).maybeSingle(),
     ]);
-    for (const r of [confirmationsResult, lastResult, readsResult, observationsResult, campaignsResult, ordersResult])
+    for (const r of [confirmationsResult, lastResult, readsResult, observationsResult, campaignsResult, ordersResult, watchResult])
       if (r.error) throw r.error;
 
     // Unread: messages from the other party after this user last opened the chat.
@@ -223,6 +224,7 @@ router.get("/:id/activity", requireUser, async (req, res) => {
         observations: observationsResult.data || [],
         campaigns: campaignsResult.data || [],
         orders: ordersResult.data || [],
+        longTermWatch: watchResult.data || null,
       }),
     });
   } catch (e) {

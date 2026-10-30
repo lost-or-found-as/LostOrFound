@@ -23,12 +23,14 @@ import {
 } from "../../src/lib/areaAlertStatus";
 import { AreaAlertServiceCard } from "../../src/ui/AreaAlertServiceCard";
 import { InlineNotice } from "../../src/ui/InlineNotice";
-import { formatDistance, formatLocalizedDateTime, formatMoney, formatTimeAgo } from "../../src/i18n/formatters";
+import { formatDate, formatDistance, formatLocalizedDateTime, formatMoney, formatTimeAgo } from "../../src/i18n/formatters";
+import { LongTermSheet } from "../../src/ui/LongTermSheet";
 import { STORED_MONEY_CURRENCY } from "../../src/lib/market";
 import { reportDescriptionText } from "../../src/lib/reportDescription";
 import { caseColors, caseTitle } from "../../src/lib/caseDisplay";
 import { userErrorMessage } from "../../src/lib/userError";
 import {
+  canBuyLongTerm,
   canExtendFound,
   canReactivateLost,
   closeReportRequest,
@@ -77,6 +79,7 @@ function Screen() {
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [longTermOpen, setLongTermOpen] = useState(false);
 
   const load = useCallback(
     async (quiet = false) => {
@@ -194,9 +197,12 @@ function Screen() {
   const expired = isReportExpired(r);
   const daysLeft = reportDaysLeft(r);
   const title = caseTitle(r, language) || t("caseDetail.item");
+  const longTermUntil = lost && !closed ? activity.summary.longTermUntil : null;
   const statusLabel = closed
     ? t("cases.closed")
-    : expired
+    : longTermUntil
+      ? t("caseDetail.historicUntil", { date: formatDate(longTermUntil, language) })
+      : expired
       ? t("cases.expired")
       : daysLeft != null
         ? t("cases.active.days.left", { count: daysLeft })
@@ -206,6 +212,7 @@ function Screen() {
   const category = categoryName(r.category, language);
   const description = reportDescriptionText(r.description);
   const step = nextStep(r, activity.summary);
+  const stepParams = step.dateIso ? { ...step.params, date: formatDate(step.dateIso, language) } : step.params;
   const timeline = activity.events.filter((e) => e.type !== "CREATED").length > 0 ? activity.events : [];
   const showAreaAlert = lost && r.lat != null && r.lng != null && !closed;
 
@@ -223,6 +230,7 @@ function Screen() {
     else if (step.action === "openMatches") openMatches();
     else if (step.action === "reactivateLost") setConfirm("reactivate");
     else if (step.action === "extendFound") setConfirm("extend");
+    else if (step.action === "longTerm") setLongTermOpen(true);
   };
 
   const openEvent = (event: ActivityEvent) => {
@@ -283,6 +291,14 @@ function Screen() {
     });
   if (canReactivateLost(r))
     menuItems.push({ key: "reactivate", icon: "refresh-outline", label: t("cases.reactivate.30.days"), onPress: () => fromMenu(() => setConfirm("reactivate")) });
+  if (canBuyLongTerm(r))
+    menuItems.push({
+      key: "longTerm",
+      icon: "hourglass-outline",
+      label: longTermUntil ? t("caseDetail.menu.renewLongTerm") : t("caseDetail.menu.makeHistoric"),
+      hint: longTermUntil ? t("caseDetail.historicUntil", { date: formatDate(longTermUntil, language) }) : t("caseDetail.menu.makeHistoricHint"),
+      onPress: () => fromMenu(() => setLongTermOpen(true)),
+    });
   if (!closed && !(lost && expired))
     menuItems.push({
       key: "close",
@@ -334,7 +350,7 @@ function Screen() {
           ) : null}
           <View style={s.badges}>
             <Text style={[s.badge, lost ? s.badgeLost : s.badgeFound]}>{lost ? t("caseDetail.lost") : t("caseDetail.found")}</Text>
-            <Text style={[s.badge, closed || expired ? s.badgeMuted : s.badgeActive]}>{statusLabel}</Text>
+            <Text style={[s.badge, longTermUntil ? s.badgeHistoric : closed || expired ? s.badgeMuted : s.badgeActive]}>{statusLabel}</Text>
           </View>
           <Text style={s.title}>{title}</Text>
           <Text style={s.meta}>{[r.location_label, r.occurred_at ? formatLocalizedDateTime(r.occurred_at, language) : ""].filter(Boolean).join(" · ")}</Text>
@@ -352,8 +368,8 @@ function Screen() {
         {/* Neste steg */}
         <View style={[s.step, step.tone === "dark" ? s.stepDark : s.stepPlain]}>
           <Text style={[s.stepEyebrow, step.tone === "dark" && s.onDarkMuted]}>{t("caseDetail.next.eyebrow")}</Text>
-          <Text style={[s.stepTitle, step.tone === "dark" && s.onDark]}>{t(step.titleKey, step.params)}</Text>
-          <Text style={[s.stepBody, step.tone === "dark" && s.onDarkSoft]}>{t(step.bodyKey, step.params)}</Text>
+          <Text style={[s.stepTitle, step.tone === "dark" && s.onDark]}>{t(step.titleKey, stepParams)}</Text>
+          <Text style={[s.stepBody, step.tone === "dark" && s.onDarkSoft]}>{t(step.bodyKey, stepParams)}</Text>
           {step.kind === "matches" && (
             <View style={s.chips}>
               {activity.summary.strongMatches > 0 && (
@@ -502,6 +518,16 @@ function Screen() {
         onConfirm={() => void runConfirm()}
       />
 
+      <LongTermSheet
+        visible={longTermOpen}
+        reportId={String(r.id)}
+        onClose={() => setLongTermOpen(false)}
+        onDone={() => {
+          setLongTermOpen(false);
+          void load(true);
+        }}
+      />
+
       <ImageViewing images={imgs} imageIndex={0} visible={viewer && imgs.length > 0} onRequestClose={() => setViewer(false)} />
     </View>
   );
@@ -550,6 +576,7 @@ const s = StyleSheet.create({
   badgeFound: { backgroundColor: "#EFF6FF", color: "#1E3A8A" },
   badgeActive: { backgroundColor: "#ECFDF5", color: "#15803D" },
   badgeMuted: { backgroundColor: "#F1F5F9", color: theme.colors.textSecondary },
+  badgeHistoric: { backgroundColor: "#EDE9FE", color: "#4C1D95" },
   title: { marginTop: 13, fontSize: 26, fontWeight: "900", color: theme.colors.text },
   meta: { marginTop: 6, color: theme.colors.textSecondary, fontWeight: "700", lineHeight: 20 },
   reward: {

@@ -4,14 +4,19 @@
 import { API_BASE_URL } from "./config";
 import { supabase } from "./supabase";
 import {
+  canBuyLongTerm,
   canExtendFound,
   canReactivateLost,
+  isHistoricFromStart,
+  LOST_MAX_EXTENSIONS,
   isReportClosed,
   isReportExpired,
   reportDaysLeft,
   type LifecycleReport,
 } from "./reportLifecycle";
 import type { TranslationKey } from "../i18n/locales/en";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type ActivitySummary = {
   possibleMatches: number;
@@ -21,6 +26,9 @@ export type ActivitySummary = {
   unreadMessages: number;
   chatMatchId: string | null;
   newObservations: number;
+  // T1.9H
+  paidExtensions: number;
+  longTermUntil: string | null;
 };
 
 export type ActivityEvent =
@@ -32,6 +40,7 @@ export type ActivityEvent =
   | { type: "AREA_ALERT_SENT"; at: string; radiusM: number | null }
   | { type: "REACTIVATED"; at: string }
   | { type: "EXTENDED"; at: string }
+  | { type: "LONG_TERM"; at: string; years: number | null }
   | { type: "CLOSED"; at: string };
 
 export type ReportActivity = { summary: ActivitySummary; events: ActivityEvent[] };
@@ -45,6 +54,8 @@ export const EMPTY_ACTIVITY: ReportActivity = {
     unreadMessages: 0,
     chatMatchId: null,
     newObservations: 0,
+    paidExtensions: 0,
+    longTermUntil: null,
   },
   events: [],
 };
@@ -64,17 +75,21 @@ export async function fetchReportActivity(reportId: string): Promise<ReportActiv
   return { summary: { ...EMPTY_ACTIVITY.summary, ...(body?.summary || {}) }, events: Array.isArray(body?.events) ? body.events : [] };
 }
 
-export type NextStepAction = "openChat" | "openMatches" | "reactivateLost" | "extendFound" | null;
+export type NextStepAction = "openChat" | "openMatches" | "reactivateLost" | "extendFound" | "longTerm" | null;
+// A historic case can be renewed from this many days before it ends.
+export const LONG_TERM_RENEW_WINDOW_DAYS = 30;
 export type NextStepTone = "dark" | "plain";
 
 export type NextStep = {
-  kind: "closed" | "unreadChat" | "chat" | "matches" | "expired" | "expiring" | "searching";
+  kind: "closed" | "unreadChat" | "chat" | "matches" | "historic" | "expired" | "historicOffer" | "expiring" | "searching";
   tone: NextStepTone;
   titleKey: TranslationKey;
   bodyKey: TranslationKey;
   params: Record<string, number>;
   action: NextStepAction;
   actionKey: TranslationKey | null;
+  // Date the screen formats into the {{date}} parameter (end of a historic period).
+  dateIso?: string;
 };
 
 /** What the owner should do next with the case, most important first. */
@@ -122,13 +137,43 @@ export function nextStep(report: LifecycleReport, summary: ActivitySummary, now 
       { count: summary.possibleMatches },
     );
 
+  // T1.9H: a running historic period.
+  const longTermEnd = Date.parse(summary.longTermUntil || "");
+  if (lost && Number.isFinite(longTermEnd) && longTermEnd > now) {
+    const renewSoon = longTermEnd - now <= LONG_TERM_RENEW_WINDOW_DAYS * DAY_MS;
+    return {
+      ...step(
+        "historic",
+        "plain",
+        "caseDetail.next.historicTitle",
+        renewSoon ? "caseDetail.next.historicBodyEnding" : "caseDetail.next.historicBody",
+        renewSoon ? "longTerm" : null,
+        renewSoon ? "caseDetail.next.renewLongTerm" : null,
+      ),
+      dateIso: summary.longTermUntil as string,
+    };
+  }
+
   if (isReportExpired(report, now)) {
-    if (canReactivateLost(report, now))
+    // A lost case gets 30 days twice; after that the next step is a historic case.
+    if (canReactivateLost(report, now) && summary.paidExtensions < LOST_MAX_EXTENSIONS && !isHistoricFromStart(report, now))
       return step("expired", "plain", "caseDetail.next.expiredTitle", "caseDetail.next.expiredBodyLost", "reactivateLost", "caseDetail.next.reactivate");
+    if (lost && canBuyLongTerm(report))
+      return step(
+        "expired",
+        "plain",
+        "caseDetail.next.expiredTitle",
+        isHistoricFromStart(report, now) ? "caseDetail.next.historicOfferBody" : "caseDetail.next.expiredBodyLostFinal",
+        "longTerm",
+        "caseDetail.next.makeHistoric",
+      );
     if (canExtendFound(report, now))
       return step("expired", "plain", "caseDetail.next.expiredTitle", "caseDetail.next.expiredBodyFound", "extendFound", "caseDetail.next.extendFound");
     return step("expired", "plain", "caseDetail.next.expiredTitle", "caseDetail.next.expiredBodyFinal");
   }
+
+  if (lost && canBuyLongTerm(report) && isHistoricFromStart(report, now))
+    return step("historicOffer", "plain", "caseDetail.next.historicOfferTitle", "caseDetail.next.historicOfferBody", "longTerm", "caseDetail.next.makeHistoric");
 
   if (canExtendFound(report, now))
     return step("expiring", "plain", "caseDetail.next.expiringTitle", "caseDetail.next.expiringBodyFound", "extendFound", "caseDetail.next.extendFound", {
@@ -178,6 +223,8 @@ export function activityText(event: ActivityEvent, reportType: string | null | u
       return { key: "caseDetail.activity.reactivated", params: {}, tone: "plain" };
     case "EXTENDED":
       return { key: "caseDetail.activity.extended", params: {}, tone: "plain" };
+    case "LONG_TERM":
+      return { key: "caseDetail.activity.longTerm", params: { count: event.years ?? 1 }, tone: "plain" };
     case "CLOSED":
       return { key: "caseDetail.activity.closed", params: {}, tone: "plain" };
   }
