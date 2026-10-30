@@ -34,6 +34,11 @@ export type ReportDraft = {
   brand?: string;
   rewardNOK?: string;
   occurredAtISO?: string;
+  // T1.9K (new registration): how precisely the date is known, and where a found item is now.
+  occurredPrecision?: "EXACT" | "MONTH" | "YEAR";
+  custody?: "WITH_FINDER" | "LEFT_AT_PLACE" | "HANDED_IN" | "";
+  custodyPlace?: string;
+  locationLabel?: string;
 
   location: ReportLocation | null;
   searchAreas: SearchArea[];

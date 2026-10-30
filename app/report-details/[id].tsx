@@ -52,6 +52,7 @@ import {
   type ReportActivity,
 } from "../../src/lib/reportActivity";
 import { BottomSheet, Button, ConfirmSheet, IconButton, InfoButton, ScreenHeader } from "../../src/ui/kit";
+import { custodyText } from "../../src/lib/custodyDisplay";
 
 type D = {
   report: any;
@@ -411,6 +412,7 @@ function Screen() {
           <Row label={t("caseDetail.object")} value={[title, category].filter(Boolean).join(" · ")} />
           <Row label={t("caseDetail.color")} value={colors} />
           <Row label={t("caseDetail.brand")} value={r.brand} />
+          <Row label={t("custody.label")} value={custodyText(r.custody, r.custody_place, t)} />
           {!!description && (
             <>
               <View style={s.divider} />

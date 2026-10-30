@@ -25,6 +25,7 @@ const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const { notifyUser } = require("../lib/userNotify");
 const { localizedPair } = require("../lib/messages");
+const { redactCustodyForViewer } = require("../lib/reportCustody");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -52,7 +53,7 @@ const MATCH_SELECT = `
        occurred_at, created_at, lat, lng, location_label,
        radius_m, search_radius_m, area_radius_m, location_radius_m,
        status, visible_until, closed_at, archived_at,
-       reward_ore,
+       reward_ore, custody, custody_place,
        report_images ( id, path, sort_order, created_at )
      ),
      found:found_id (
@@ -60,7 +61,7 @@ const MATCH_SELECT = `
        occurred_at, created_at, lat, lng, location_label,
        radius_m, search_radius_m, area_radius_m, location_radius_m,
        status, visible_until, closed_at, archived_at,
-       reward_ore,
+       reward_ore, custody, custody_place,
        report_images ( id, path, sort_order, created_at )
      )
     `;
@@ -257,7 +258,9 @@ async function loadReportMatches(reportId, userId) {
     .filter((m) => isActiveReport(m?.lost) && isActiveReport(m?.found))
     .filter((m) => isTimeCompatible(m?.lost, m?.found))
     .map(enrichMatchAreaInfo)
-    .map(enrichMatchColorInfo);
+    .map(enrichMatchColorInfo)
+    // T1.9K: the hand-in place is shown only after the owner has confirmed the match.
+    .map((m) => redactCustodyForViewer(m, userId));
   return { report, matches: filtered };
 }
 
@@ -304,7 +307,7 @@ router.get("/:id", requireUser, async (req, res) => {
     }
 
     return res.json({
-      match: enrichMatchColorInfo(enrichMatchAreaInfo(match)),
+      match: redactCustodyForViewer(enrichMatchColorInfo(enrichMatchAreaInfo(match)), user.id),
     });
   } catch (e) {
     return res.status(500).json({ error: e?.message ?? "Server error" });

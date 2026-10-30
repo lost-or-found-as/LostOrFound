@@ -16,6 +16,7 @@ const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const requireUserOrGuest = authModule.requireUserOrGuest;
 const { normalizeSecondaryColor } = require("../lib/colorKeys");
+const { normalizeCustody, normalizeOccurredPrecision } = require("../lib/reportCustody");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -400,6 +401,9 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       search_areas = [],
       test_override_weekly_limit = false,
       client_request_id = null,
+      custody = null,
+      custody_place = null,
+      occurred_precision = null,
     } = req.body || {};
 
     if (!type || !category || !title || !occurred_at) {
@@ -418,6 +422,16 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       normalizedSecondaryColor = normalizeSecondaryColor(secondary_color);
     } catch {
       return res.status(400).json({ error: "INVALID_SECONDARY_COLOR" });
+    }
+
+    // T1.9K: where a found item is now, and how precisely the date is known.
+    let custodyFields;
+    let precisionFields;
+    try {
+      custodyFields = normalizeCustody(normalizedType, custody, custody_place);
+      precisionFields = normalizeOccurredPrecision(occurred_precision, occurred_at);
+    } catch (fieldErr) {
+      return res.status(400).json({ error: fieldErr?.code || "INVALID_INPUT" });
     }
 
     const normalizedClientRequestId =
@@ -499,6 +513,8 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       area_radius_m: toIntegerOrNull(area_radius_m),
       location_radius_m: toIntegerOrNull(location_radius_m),
       search_areas: normalizeSearchAreas(search_areas),
+      ...custodyFields,
+      ...precisionFields,
     };
 
     const { data, error } = await supaAdmin
@@ -585,7 +601,7 @@ router.get("/mine", requireUser, async (req, res) => {
     const { data, error } = await supaAdmin
       .from("reports")
       .select(
-        "id, type, category, subcategory_key, subcategory_custom, title, created_at, occurred_at, color, secondary_color, brand, lat, lng, location_label, radius_m, search_radius_m, area_radius_m, location_radius_m, status, visible_until, closed_at, archived_at, last_extended_at, extension_count, critical_edit_count, last_critical_edit_at, edit_locked_until",
+        "id, type, category, subcategory_key, subcategory_custom, title, created_at, occurred_at, color, secondary_color, brand, lat, lng, location_label, radius_m, search_radius_m, area_radius_m, location_radius_m, status, visible_until, closed_at, archived_at, last_extended_at, extension_count, critical_edit_count, last_critical_edit_at, edit_locked_until, custody",
       )
       .eq("user_id", user.id)
       .is("deleted_at", null)
@@ -630,6 +646,16 @@ router.patch("/:id", requireUser, async (req, res) => {
         return res.status(400).json({ error: "INVALID_SECONDARY_COLOR" });
       }
       throw patchErr;
+    }
+    // T1.9K: custody and date precision depend on the stored type and the new date.
+    try {
+      const body = req.body || {};
+      if ("custody" in body || "custody_place" in body)
+        Object.assign(patch, normalizeCustody(existing.type, body.custody, body.custody_place));
+      if ("occurred_precision" in body)
+        Object.assign(patch, normalizeOccurredPrecision(body.occurred_precision, patch.occurred_at || existing.occurred_at));
+    } catch (fieldErr) {
+      return res.status(400).json({ error: fieldErr?.code || "INVALID_INPUT" });
     }
     if (Object.keys(patch).length === 0) {
       return res.status(400).json({ error: "No editable fields provided" });

@@ -8,8 +8,23 @@ import { PremiumHeader } from "../src/ui/PremiumHeader";
 import { AuthHeaderAction } from "../src/ui/AuthHeaderAction";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { isAnonymousUser } from "../src/lib/authGate";
+import { useNewRegistration } from "../src/lib/newRegistration";
+import { RegisterChoice } from "../src/ui/RegisterChoice";
 
 export default function StartScreen() {
+  // T1.9K: Profil → "Prøv ny registrering" shows the new start instead.
+  const [newRegistration] = useNewRegistration();
+  if (newRegistration)
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <RegisterChoice />
+      </>
+    );
+  return <CurrentStartScreen />;
+}
+
+function CurrentStartScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useI18n();

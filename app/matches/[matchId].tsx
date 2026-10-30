@@ -47,6 +47,7 @@ import {
   ScreenHeader,
   scoreLevel,
 } from "../../src/ui/kit";
+import { custodyText } from "../../src/lib/custodyDisplay";
 
 type Reason = { k: string; v: any };
 type ReportFull = {
@@ -66,6 +67,8 @@ type ReportFull = {
   lat?: number | null;
   lng?: number | null;
   reward_ore?: number | null;
+  custody?: string | null;
+  custody_place?: string | null;
   location_label?: string | null;
   radius_m?: number | null;
   search_radius_m?: number | null;
@@ -417,6 +420,8 @@ function MatchDetailsScreen() {
   const finderDescription = reportDescriptionText(match.found?.description);
   const reward = Number(match.lost?.reward_ore || 0);
   const foundPlace = shortPlace(match.found?.location_label);
+  // T1.9K: where the found item is now; the hand-in place is shown after confirmation.
+  const custody = custodyText(match.found?.custody, match.found?.custody_place, t, { placeHidden: youOwnLost && !confirmed });
   const canOpenMap =
     confirmed && youOwnLost && Number.isFinite(Number(match.found?.lat)) && Number.isFinite(Number(match.found?.lng));
 
@@ -519,7 +524,7 @@ function MatchDetailsScreen() {
           </View>
         )}
 
-        {(reward > 0 || !!match.found?.occurred_at || !!foundPlace || !!ownerMessage || !!finderDescription) && (
+        {(reward > 0 || !!match.found?.occurred_at || !!foundPlace || !!custody || !!ownerMessage || !!finderDescription) && (
           <View style={styles.card}>
             {reward > 0 && (
               <View style={styles.factRow}>
@@ -537,6 +542,12 @@ function MatchDetailsScreen() {
               <View style={styles.factRow}>
                 <Text style={styles.factLabel}>{t("matchDetail.place")}</Text>
                 <Text style={styles.factValue}>{foundPlace}</Text>
+              </View>
+            )}
+            {!!custody && (
+              <View style={styles.factRow}>
+                <Text style={styles.factLabel}>{t("custody.label")}</Text>
+                <Text style={styles.factValue}>{custody}</Text>
               </View>
             )}
             {!!ownerMessage && (

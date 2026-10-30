@@ -1,6 +1,6 @@
 // app/(tabs)/profile.tsx
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,6 +11,7 @@ import { isAnonymousUser } from "../../src/lib/authGate";
 import { theme } from "../../src/ui/theme";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { sendSentryTestEvent } from "../../src/lib/sentry";
+import { useNewRegistration } from "../../src/lib/newRegistration";
 
 export default function ProfileTab() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function ProfileTab() {
   const { t } = useI18n();
 
   const isGuest = isAnonymousUser(user as any);
+  // T1.9K: try the new one-page registration next to the current one.
+  const [newRegistration, setNewRegistration] = useNewRegistration();
   const email = session?.user?.email;
   // T1.9D: test builds (staging) can prove that errors reach Sentry.
   const isTestBuild = process.env.EXPO_PUBLIC_APP_ENV === "staging";
@@ -160,6 +163,18 @@ export default function ProfileTab() {
           ))}
         </View>
 
+        <View style={styles.switchCard}>
+          <View style={styles.switchText}>
+            <Text style={styles.switchTitle}>{t("profile.newRegistration")}</Text>
+            <Text style={styles.switchBody}>{t("profile.newRegistrationBody")}</Text>
+          </View>
+          <Switch
+            value={newRegistration}
+            onValueChange={setNewRegistration}
+            accessibilityLabel={t("profile.newRegistration")}
+          />
+        </View>
+
         {isGuest ? null : user ? (
           <Pressable style={styles.logout} onPress={logout}>
             <Text style={styles.logoutText}>{t("profile.logout")}</Text>
@@ -175,6 +190,20 @@ export default function ProfileTab() {
 }
 
 const styles = StyleSheet.create({
+  switchCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 14,
+    padding: 16,
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 18,
+  },
+  switchText: { flex: 1, gap: 4 },
+  switchTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  switchBody: { fontSize: 13, lineHeight: 18, fontWeight: "600", color: theme.colors.textSecondary },
   safe: {
     flex: 1,
     backgroundColor: theme.colors.bg,

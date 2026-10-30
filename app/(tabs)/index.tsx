@@ -9,12 +9,15 @@ import { useI18n } from "../../src/i18n/I18nProvider";
 import { isAnonymousUser } from "../../src/lib/authGate";
 import { AuthHeaderAction } from "../../src/ui/AuthHeaderAction";
 import { theme } from "../../src/ui/theme";
+import { registerRoute, useNewRegistration } from "../../src/lib/newRegistration";
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useI18n();
   const isGuest = isAnonymousUser(user as any);
+  // T1.9K: Profil → "Prøv ny registrering".
+  const [newRegistration] = useNewRegistration();
 
   const openLost = () => {
     if (!user || isGuest) {
@@ -25,17 +28,11 @@ export default function DashboardScreen() {
       return;
     }
 
-    router.push({
-      pathname: "/(report)/create-report",
-      params: { type: "LOST" },
-    });
+    router.push(registerRoute(newRegistration, "LOST"));
   };
 
   const openFound = () => {
-    router.push({
-      pathname: "/(report)/create-report",
-      params: { type: "FOUND" },
-    });
+    router.push(registerRoute(newRegistration, "FOUND"));
   };
 
   // T1.9A: guests see the found report first; lost reports need an account.
