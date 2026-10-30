@@ -1351,4 +1351,5 @@ export const no: TranslationDictionary = {
   "matchDetail.dismissSheet.title": "Ikke din gjenstand?",
   "matchDetail.dismissSheet.body": "Treffet fjernes fra listen din. Finneren får ikke beskjed.",
   "matchDetail.dismissedNotice": "Du har sagt at dette ikke er din gjenstand.",
+  "catalog.colorPair": "{{first}} og {{second}}",
 };

@@ -585,7 +585,7 @@ router.get("/mine", requireUser, async (req, res) => {
     const { data, error } = await supaAdmin
       .from("reports")
       .select(
-        "id, type, category, subcategory_key, title, created_at, occurred_at, color, brand, lat, lng, location_label, radius_m, search_radius_m, area_radius_m, location_radius_m, status, visible_until, closed_at, archived_at, last_extended_at, extension_count, critical_edit_count, last_critical_edit_at, edit_locked_until",
+        "id, type, category, subcategory_key, subcategory_custom, title, created_at, occurred_at, color, secondary_color, brand, lat, lng, location_label, radius_m, search_radius_m, area_radius_m, location_radius_m, status, visible_until, closed_at, archived_at, last_extended_at, extension_count, critical_edit_count, last_critical_edit_at, edit_locked_until",
       )
       .eq("user_id", user.id)
       .is("deleted_at", null)

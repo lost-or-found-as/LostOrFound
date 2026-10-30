@@ -7,6 +7,7 @@ import { colorLabel, itemLabel, categoryLabel, type AppLanguage } from "./locali
 import { METAL_COMPOUND_NAMES, colorName } from "../i18n/catalog";
 import { translate } from "../i18n/translate";
 import { formatDate } from "../i18n/formatters";
+import { reportSecondaryColor } from "./reportDescription";
 
 type CaseLike = {
   type?: string | null;
@@ -15,6 +16,8 @@ type CaseLike = {
   subcategory_key?: string | null;
   subcategory_custom?: string | null;
   color?: string | null;
+  secondary_color?: string | null;
+  description?: string | null;
   brand?: string | null;
 };
 
@@ -70,10 +73,20 @@ export function caseTitle(r: CaseLike, language: AppLanguage): string {
   return sentenceCase(r.title);
 }
 
-// "Flerfarget" / "Gull · Pandora" (colour is left out when it is part of the title)
+// "Flerfarget" / "Rød og gul · Pandora" (colour is left out when it is part of the title)
 export function caseAttributes(r: CaseLike, language: AppLanguage): string {
   const parts: string[] = [];
-  if (r.color && !compoundTitle(r, language)) parts.push(sentenceCase(colorLabel(r.color, language)));
+  // T1.9F: main and secondary colour together, "Rød og gul". The main colour is left out when
+  // it is part of the title (Gullring).
+  const main = r.color && !compoundTitle(r, language) ? colorLabel(r.color, language) : "";
+  const secondKey = reportSecondaryColor(r);
+  const second =
+    secondKey && secondKey !== String(r.color ?? "").trim().toLowerCase() ? colorLabel(secondKey, language) : "";
+  const colors =
+    main && second
+      ? translate(language, "catalog.colorPair", { first: main, second: second.toLocaleLowerCase() })
+      : main || second;
+  if (colors) parts.push(sentenceCase(colors));
   const brand = titleCaseWords(r.brand);
   if (brand) parts.push(brand);
   return parts.join(" · ");

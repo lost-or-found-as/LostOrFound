@@ -1356,6 +1356,7 @@ export const en = {
   "matchDetail.dismissSheet.title": "Not your item?",
   "matchDetail.dismissSheet.body": "The match is removed from your list. The finder is not told.",
   "matchDetail.dismissedNotice": "You have said this is not your item.",
+  "catalog.colorPair": "{{first}} and {{second}}",
 } as const;
 
 export type TranslationKey = keyof typeof en;
