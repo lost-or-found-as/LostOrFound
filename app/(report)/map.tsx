@@ -8,6 +8,8 @@ import { useReportDraft, type SearchArea, type ReportType } from "../../src/cont
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
+import { userErrorMessage } from "../../src/lib/userError";
+import { formatDistance } from "../../src/i18n/formatters";
 
 const MAX_SEARCH_AREAS = 3;
 const RADIUS_OPTIONS = [100, 250, 500, 1000, 2000, 5000];
@@ -194,7 +196,7 @@ export default function MapPickerScreen() {
       if (!response.ok) throw new Error(json?.error || "ADDRESS_SEARCH_FAILED");
       setAddressResults(json?.results || []);
     } catch (e: any) {
-      Alert.alert(t("report.map.address.search.failed"), e?.message || "");
+      Alert.alert(t("report.map.address.search.failed"), userErrorMessage(e, t, "errors.generic", "report.map.search"));
     } finally {
       setSearching(false);
     }
@@ -350,7 +352,7 @@ export default function MapPickerScreen() {
 
         {(editableRadius || (!selectedArea && mode !== "POLYGON")) && (
           <>
-            <View style={styles.radiusRow}>{RADIUS_OPTIONS.map((m) => <Pressable key={m} onPress={() => changeSelectedRadius(m)} style={[styles.radius, displayedRadius === m && styles.radiusActive]}><Text style={[styles.radiusText, displayedRadius === m && styles.radiusTextActive]}>{m >= 1000 ? `${m / 1000} km` : `${m} m`}</Text></Pressable>)}</View>
+            <View style={styles.radiusRow}>{RADIUS_OPTIONS.map((m) => <Pressable key={m} onPress={() => changeSelectedRadius(m)} style={[styles.radius, displayedRadius === m && styles.radiusActive]}><Text style={[styles.radiusText, displayedRadius === m && styles.radiusTextActive]}>{formatDistance(m, language, t)}</Text></Pressable>)}</View>
             <Text style={styles.radiusHelp}>{selectedArea?.kind === "ROUTE" ? t("report.map.p0.m.on.each.side.approximately", { p0: displayedRadius, p1: Number(displayedRadius) * 2 }) : selectedArea?.kind === "CIRCLE" ? t("report.map.radius.p0.m", { p0: displayedRadius }) : mode === "ROUTE" ? t("report.map.p0.m.on.each.side.of", { p0: radius }) : t("report.map.radius.for.the.new.place.p0", { p0: radius })}</Text>
           </>
         )}

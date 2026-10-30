@@ -2,11 +2,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Localization from "expo-localization";
-import { en, type TranslationKey } from "./locales/en";
-import { no } from "./locales/no";
+import type { TranslationKey } from "./locales/en";
+import { isLang, translate, type Lang, type TranslateParams as Params } from "./translate";
 
-export type Lang = "no" | "en";
-type Params = Record<string, string | number | null | undefined>;
+export { SUPPORTED_LANGUAGES, translate } from "./translate";
+export type { Lang } from "./translate";
 type I18nContextValue = {
   language: Lang;
   setLanguage: (language: Lang) => Promise<void>;
@@ -14,20 +14,13 @@ type I18nContextValue = {
 };
 
 const STORAGE_KEY = "app.language";
-const dictionaries = { en, no } as const;
 const I18nContext = createContext<I18nContextValue | null>(null);
 
 function guessDeviceLanguage(): Lang {
   const first = Localization.getLocales()?.[0]?.languageCode;
-  return first === "en" ? "en" : "no";
-}
-
-function formatTemplate(template: string, params?: Params) {
-  if (!params) return template;
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key) => {
-    const value = params[key];
-    return value == null ? "" : String(value);
-  });
+  if (first === "nb" || first === "nn") return "no";
+  // Devices in a language the app does not have yet keep the current default (Norwegian).
+  return isLang(first) ? first : "no";
 }
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
@@ -37,7 +30,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (active && (saved === "no" || saved === "en")) setLanguageState(saved);
+        if (active && isLang(saved)) setLanguageState(saved);
       } catch (error) {
         console.warn("[i18n] Could not read the saved language", error);
       }
@@ -57,7 +50,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<I18nContextValue>(() => ({
     language,
     setLanguage,
-    t: (key, params) => formatTemplate(dictionaries[language][key] ?? en[key] ?? String(key), params),
+    t: (key, params) => translate(language, key, params),
   }), [language]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

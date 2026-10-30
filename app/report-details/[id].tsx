@@ -28,6 +28,8 @@ import {
 } from "../../src/lib/areaAlertStatus";
 import { AreaAlertServiceCard } from "../../src/ui/AreaAlertServiceCard";
 import { InlineNotice } from "../../src/ui/InlineNotice";
+import { formatLocalizedDateTime, formatMoney } from "../../src/i18n/formatters";
+import { STORED_MONEY_CURRENCY } from "../../src/lib/market";
 type D = {
   report: any;
   images: any[];
@@ -39,10 +41,7 @@ type D = {
 };
 const dt = (v: string | undefined, l: "no" | "en") =>
   v
-    ? new Date(v).toLocaleString(l === "en" ? "en-GB" : "nb-NO", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
+    ? formatLocalizedDateTime(v, l)
     : "";
 type Translate = (key: TranslationKey, params?: Record<string, string | number | null | undefined>) => string;
 // Labels for stored technical values (status, category, color) come from the locale files.
@@ -285,7 +284,7 @@ function Screen() {
             </Text>
             {Number(r.reward_ore) > 0 && (
               <Text style={s.reward}>
-                {t("caseDetail.reward")}: {Number(r.reward_ore) / 100} NOK
+                {t("caseDetail.reward")}: {formatMoney(Number(r.reward_ore) / 100, STORED_MONEY_CURRENCY, language)}
               </Text>
             )}
           </View>

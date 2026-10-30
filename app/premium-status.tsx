@@ -7,6 +7,7 @@ import { PremiumHeader } from "../src/ui/PremiumHeader";
 import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { useRevenueCatState } from "../src/hooks/useRevenueCatState";
+import { userErrorMessage } from "../src/lib/userError";
 
 function loadPurchasesModule(): any | null {
   try {
@@ -41,7 +42,7 @@ function MyPurchasesScreen() {
       await reload();
       Alert.alert(t("purchases.restoreComplete"), t("purchases.restoreCompleteBody"));
     } catch (error: any) {
-      Alert.alert(t("purchases.restoreFailed"), error?.message ?? t("common.unknownError"));
+      Alert.alert(t("purchases.restoreFailed"), userErrorMessage(error, t, "common.unknownError", "purchases.restore"));
     } finally {
       setRestoreLoading(false);
     }

@@ -49,6 +49,9 @@ import { useI18n } from "../../src/i18n/I18nProvider";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
+import { codedError, userErrorMessage } from "../../src/lib/userError";
+import { formatDistance } from "../../src/i18n/formatters";
+import { CATEGORY_CATALOG, COLOR_CATALOG, colorEntry, findByName, itemEntry, itemSearchText } from "../../src/i18n/catalog";
 type ReportType = "LOST" | "FOUND";
 type ColorOption = { label: string; value: string };
 type RegionCode = "NO" | "US" | "GB" | "EU" | "OTHER";
@@ -89,18 +92,11 @@ function inferRegionCodeFromLocale(locale?: string): RegionCode {
 function formatDistanceDisplay(
   meters: number | undefined,
   region: RegionCode,
+  language: "no" | "en",
   translate: Translate,
 ) {
   if (meters == null) return "—";
-  if (region === "US") {
-    const feet = meters * 3.28084;
-    if (feet < 1000)
-      return `${Math.round(feet)} ${translate("report.create.ft")}`;
-    const miles = meters / 1609.344;
-    return `${miles.toFixed(miles >= 10 ? 0 : 1)} ${translate("report.create.mi")}`;
-  }
-  if (meters >= 1000) return `${(meters / 1000).toFixed(0)} km`;
-  return `${meters} m`;
+  return formatDistance(meters, language, translate, region === "US" || region === "GB" ? "imperial" : "metric");
 }
 
 function rewardCurrencyCode(region: RegionCode): "NOK" | "USD" | "GBP" | "EUR" {
@@ -109,73 +105,15 @@ function rewardCurrencyCode(region: RegionCode): "NOK" | "USD" | "GBP" | "EUR" {
   if (region === "GB") return "GBP";
   return "EUR";
 }
-const COLORS: ColorOption[] = [
-  { label: "Svart", value: "black" },
-  { label: "Hvit", value: "white" },
-  { label: "Grå", value: "gray" },
-  { label: "Rød", value: "red" },
-  { label: "Oransje", value: "orange" },
-  { label: "Gul", value: "yellow" },
-  { label: "Grønn", value: "green" },
-  { label: "Blå", value: "blue" },
-  { label: "Lilla", value: "purple" },
-  { label: "Brun", value: "brown" },
-  { label: "Rosa", value: "pink" },
-  { label: "Beige", value: "beige" },
-  { label: "Mørkeblå (Navy)", value: "navy" },
-  { label: "Lyseblå", value: "light-blue" },
-  { label: "Turkis", value: "turquoise" },
-  { label: "Burgunder", value: "burgundy" },
-  { label: "Lime", value: "lime" },
-  { label: "Cyan", value: "cyan" },
-  { label: "Magenta", value: "magenta" },
-  { label: "Oliven", value: "olive" },
-  { label: "Gull", value: "gold" },
-  { label: "Sølv", value: "silver" },
-  { label: "Bronse", value: "bronze" },
-  { label: "Camo / Kamuflasje", value: "camo" },
-  { label: "Flerfarget", value: "multicolor" },
-  { label: "Mønstret", value: "patterned" },
-  { label: "Usikker", value: "unknown" },
-  { label: "Annet", value: "other" },
-];
+// Picker values are colour keys; the shown name comes from the catalog in the app language.
+const COLORS: ColorOption[] = COLOR_CATALOG.map((e) => ({ label: e.names.no, value: e.key }));
 const pad = (n: number) => String(n).padStart(2, "0");
 function localizeCategoryLabel(
   label: string | undefined,
   language: "no" | "en",
 ) {
   if (!label) return label ?? "";
-  const map: Record<string, string> = {
-    "Personlige eiendeler": "Personal belongings",
-    Elektronikk: "Electronics",
-    "Vesker og bagasje": "Bags and luggage",
-    "Klær og tilbehør": "Clothing and accessories",
-    Smykker: "Jewelry",
-    Verktøy: "Tools",
-    "Bil / transport": "Vehicle / transport",
-    "Sport og friluft": "Sports and outdoors",
-    "Kultur og hobby": "Culture and hobbies",
-    Husdyr: "Pets",
-    "Barn og familie": "Children and family",
-    Nøkler: "Keys",
-    Lommebok: "Wallet",
-    Mobiltelefon: "Mobile phone",
-    Solbriller: "Sunglasses",
-    "Vanlige briller": "Glasses",
-    Bankkort: "Bank card",
-    "ID-kort": "ID card",
-    Pass: "Passport",
-    Førerkort: "Driver's license",
-    Høreapparat: "Hearing aid",
-    "Annet (personlige)": "Other (personal)",
-    Hund: "Dog",
-    Katt: "Cat",
-    Fugl: "Bird",
-    Kanin: "Rabbit",
-    "Annet (husdyr)": "Other (pet)",
-    "Egendefinert (skriv selv)": "Custom (type your own)",
-  };
-  return language === "en" ? (map[label] ?? label) : label;
+  return findByName(CATEGORY_CATALOG, label)?.names[language] ?? label;
 }
 
 function localizeObjectLabel(
@@ -184,145 +122,9 @@ function localizeObjectLabel(
   language: "no" | "en",
 ) {
   if (!value && !fallbackLabel) return "";
-  if (language !== "en") return fallbackLabel ?? value ?? "";
-
-  const map: Record<string, string> = {
-    KEYS: "Keys",
-    WALLET: "Wallet",
-    MOBILE_PHONE: "Mobile phone",
-    SUNGLASSES: "Sunglasses",
-    GLASSES: "Glasses",
-    BANK_CARD: "Bank card",
-    ID_CARD: "ID card",
-    PASSPORT: "Passport",
-    DRIVER_LICENSE: "Driver's license",
-    HEARING_AID: "Hearing aid",
-    OTHER_PERSONAL: "Other personal item",
-
-    HEADPHONES: "Headphones / AirPods",
-    SMARTWATCH: "Smartwatch",
-    TABLET: "Tablet",
-    LAPTOP: "Laptop",
-    POWERBANK: "Power bank",
-    CAMERA: "Camera",
-    OTHER_ELECTRONICS: "Other electronics",
-
-    BACKPACK: "Backpack",
-    HANDBAG: "Handbag",
-    SUITCASE: "Suitcase",
-    GYM_BAG: "Gym bag",
-    LAPTOP_BAG: "Laptop bag",
-    SHOULDER_BAG: "Shoulder bag",
-    DOCUMENT_BRIEFCASE: "Document briefcase",
-    SCHOOL_BAG: "School bag",
-    TRAVEL_LUGGAGE: "Travel luggage",
-    TOTE_BAG: "Tote bag",
-    OTHER_BAGS: "Other bag/luggage",
-
-    JACKET: "Jacket",
-    HAT: "Hat / cap",
-    GLOVES: "Gloves / mittens",
-    SCARF: "Scarf",
-    BELT: "Belt",
-    SHOES: "Shoes",
-    UMBRELLA: "Umbrella",
-    OTHER_CLOTHING: "Other clothing/accessory",
-
-    RING: "Ring",
-    EARRINGS: "Earrings",
-    NECKLACE: "Necklace",
-    BRACELET: "Bracelet",
-    WATCH: "Watch",
-    OTHER_JEWELRY: "Other jewelry",
-
-    TOOLS: "Tools",
-    OTHER_TOOLS: "Other tools",
-
-    CAR_KEYS: "Car keys",
-    BICYCLE: "Bicycle",
-    SCOOTER: "Scooter",
-    OTHER_VEHICLE: "Other vehicle/transport",
-
-    FOOTBALL: "Football",
-    TENNIS_RACKET: "Tennis racket",
-    FISHING_ROD: "Fishing rod",
-    HEADLAMP: "Headlamp",
-    CAMPING_GEAR: "Camping gear",
-    SKIS: "Skis",
-    SNOWBOARD: "Snowboard",
-    HELMET: "Helmet",
-    GOGGLES: "Goggles",
-    WATER_BOTTLE: "Water bottle",
-    OTHER_SPORT: "Other sports/outdoor item",
-
-    BOOK: "Book",
-    OTHER_HOBBY: "Other culture/hobby item",
-
-    DOG: "Dog",
-    CAT: "Cat",
-    BIRD: "Bird",
-    RABBIT: "Rabbit",
-    KEYCHAIN: "Keychain",
-    GLASSES_CASE: "Glasses case",
-    ACCESS_CARD: "Access card",
-    TRAVEL_CARD: "Travel card",
-    STUDENT_CARD: "Student card",
-    MEDICATION: "Medication",
-    TOILETRY_BAG: "Toiletry bag",
-    CHARGING_CASE: "Charging case",
-    CHARGER: "Charger",
-    CHARGING_CABLE: "Charging cable",
-    SPEAKER: "Speaker",
-    GAME_CONSOLE: "Game console",
-    STYLUS: "Stylus",
-    GPS_DEVICE: "GPS",
-    TRACKER_TAG: "Tracker tag",
-    PHONE_CASE: "Phone case",
-    SPORTS_BAG: "Sports bag",
-    CAMERA_BAG: "Camera bag",
-    TOOL_BAG: "Tool bag",
-    SHOPPING_BAG: "Shopping bag",
-    SWEATER: "Sweater",
-    TROUSERS: "Trousers",
-    DRESS: "Dress",
-    SHIRT: "Shirt",
-    CAP: "Cap",
-    BOOTS: "Boots",
-    WEDDING_RING: "Wedding ring",
-    ENGAGEMENT_RING: "Engagement ring",
-    SIGNET_RING: "Signet ring",
-    PENDANT: "Pendant",
-    BROOCH: "Brooch",
-    CUFFLINKS: "Cufflinks",
-    MEASURING_TOOL: "Measuring tool",
-    POWER_TOOL: "Power tool",
-    BIKE_HELMET: "Bike helmet",
-    VEHICLE_ACCESSORY: "Vehicle accessory",
-    PADEL_RACKET: "Padel racket",
-    GOLF_CLUB: "Golf club",
-    GOLF_BAG: "Golf bag",
-    HIKING_BACKPACK: "Hiking backpack",
-    SLEEPING_BAG: "Sleeping bag",
-    MUSICAL_INSTRUMENT: "Musical instrument",
-    NOTEBOOK: "Notebook",
-    CRAFT_ITEM: "Craft item",
-    STROLLER: "Stroller",
-    STUFFED_TOY: "Stuffed toy",
-    PACIFIER: "Pacifier",
-    LUNCH_BOX: "Lunch box",
-    TOY: "Toy",
-    CHILD_BACKPACK: "Child backpack",
-    OTHER_CHILDREN: "Other child/family item",
-    GUINEA_PIG: "Guinea pig",
-    TURTLE: "Turtle",
-    REPTILE: "Reptile",
-    OTHER_PET: "Other pet",
-    CUSTOM: "Custom (type your own)",
-  };
-
   return (
-    map[String(value ?? "").toUpperCase()] ??
-    localizeCategoryLabel(fallbackLabel, language) ??
+    itemEntry(value)?.names[language] ??
+    findByName(CATEGORY_CATALOG, fallbackLabel)?.names[language] ??
     fallbackLabel ??
     value ??
     ""
@@ -334,113 +136,12 @@ function objectSearchAliases(
   noLabel: string | undefined,
   enLabel: string | undefined,
 ) {
-  const key = String(value ?? "").toUpperCase();
-  const base = [
-    objectSearchText(key, noLabel ?? "", enLabel),
-    key,
-    noLabel ?? "",
-    enLabel ?? "",
-  ];
-  const aliases: Record<string, string[]> = {
-    KEYS: [
-      "nokkel",
-      "nokler",
-      "nøkkel",
-      "nøkler",
-      "keys",
-      "key",
-      "husnokkel",
-      "bilnokkel",
-    ],
-    CAR_KEYS: ["bilnokkel", "bilnøkler", "car key", "car keys", "carkey"],
-    WALLET: ["lommebok", "wallet", "purse"],
-    MOBILE_PHONE: [
-      "mobil",
-      "mobiltelefon",
-      "iphone",
-      "telefon",
-      "phone",
-      "mobile",
-      "cellphone",
-    ],
-    SUNGLASSES: ["solbriller", "sunglasses", "sun glasses"],
-    GLASSES: [
-      "briller",
-      "vanlige briller",
-      "glasses",
-      "spectacles",
-      "reading glasses",
-    ],
-    RING: [
-      "ring",
-      "giftering",
-      "forlovelsesring",
-      "wedding ring",
-      "engagement ring",
-      "signetring",
-    ],
-    WATCH: ["klokke", "ur", "watch"],
-    EARRINGS: ["øredobber", "oredobber", "earrings", "earring"],
-    NECKLACE: ["halskjede", "necklace", "chain"],
-    BRACELET: ["armbånd", "armband", "bracelet"],
-    HEADPHONES: [
-      "airpods",
-      "ørepropper",
-      "orepropper",
-      "hodetelefoner",
-      "headphones",
-      "earbuds",
-      "earphones",
-    ],
-    DOG: ["hund", "dog", "valp", "puppy"],
-    CAT: ["katt", "cat", "kitten"],
-    BICYCLE: ["sykkel", "bike", "bicycle"],
-    BACKPACK: ["ryggsekk", "sekk", "backpack", "rucksack"],
-    CHARGER: ["lader", "charger", "mobillader", "phone charger"],
-    CHARGING_CASE: ["ladeetui", "airpods etui", "charging case", "earbud case"],
-    ACCESS_CARD: ["adgangskort", "nøkkelkort", "access card", "key card"],
-    WEDDING_RING: ["giftering", "wedding ring"],
-    ENGAGEMENT_RING: ["forlovelsesring", "engagement ring"],
-    STUFFED_TOY: ["kosedyr", "bamse", "stuffed toy", "teddy bear"],
-    PACIFIER: ["smokk", "pacifier", "dummy"],
-    LUNCH_BOX: ["matboks", "lunch box"],
-  };
-  return [...base, ...(aliases[key] ?? [])].join(" ");
+  return [itemSearchText(value), noLabel ?? "", enLabel ?? ""].join(" ");
 }
 
 function localizeColorLabel(label: string | undefined, language: "no" | "en") {
   if (!label) return label ?? "";
-  const map: Record<string, string> = {
-    Svart: "Black",
-    Hvit: "White",
-    Grå: "Gray",
-    Rød: "Red",
-    Oransje: "Orange",
-    Gul: "Yellow",
-    Grønn: "Green",
-    Blå: "Blue",
-    Lilla: "Purple",
-    Brun: "Brown",
-    Rosa: "Pink",
-    Beige: "Beige",
-    "Mørkeblå (Navy)": "Dark blue (navy)",
-    Lyseblå: "Light blue",
-    Turkis: "Turquoise",
-    Burgunder: "Burgundy",
-    Lime: "Lime",
-    Cyan: "Cyan",
-    Magenta: "Magenta",
-    Oliven: "Olive",
-    Gull: "Gold",
-    Sølv: "Silver",
-    Bronse: "Bronze",
-    "Camo / Kamuflasje": "Camo / camouflage",
-    Flerfarget: "Multicolor",
-    Mønstret: "Patterned",
-    Usikker: "Unknown",
-    Annet: "Other",
-  };
-  return language === "en" ? (map[label] ?? label) : label;
+  return (colorEntry(label) ?? findByName(COLOR_CATALOG, label))?.names[language] ?? label;
 }
 const fmtLocal = (iso?: string) => {
   if (!iso) return { date: "", time: "" };
@@ -804,6 +505,7 @@ export default function CreateReportScreen() {
   const radiusLabel = formatDistanceDisplay(
     effectiveRadiusMeters,
     regionCode,
+    language,
     t,
   );
   // Time.
@@ -930,7 +632,7 @@ export default function CreateReportScreen() {
       } catch (e: any) {
         Alert.alert(
           t("report.create.error"),
-          e?.message ?? t("report.create.could.not.load.case.2"),
+          userErrorMessage(e, t, "report.create.could.not.load.case.2", "report.edit.load"),
         );
       } finally {
         if (alive) setEditLoading(false);
@@ -1165,7 +867,7 @@ export default function CreateReportScreen() {
     } catch (e: any) {
       Alert.alert(
         t("report.create.error.2"),
-        e?.message ?? t("report.create.could.not.open.image.library"),
+        userErrorMessage(e, t, "report.create.could.not.open.image.library", "report.image.library"),
       );
     }
   };
@@ -1179,7 +881,7 @@ export default function CreateReportScreen() {
     } catch (e: any) {
       Alert.alert(
         t("report.create.error.3"),
-        e?.message ?? t("report.create.could.not.open.camera"),
+        userErrorMessage(e, t, "report.create.could.not.open.camera", "report.image.camera"),
       );
     }
   };
@@ -1220,7 +922,7 @@ export default function CreateReportScreen() {
     } catch (error: any) {
       Alert.alert(
         t("report.create.the.image.could.not.be.uploaded.2"),
-        error?.message ?? t("report.create.please.try.again"),
+        userErrorMessage(error, t, "report.create.please.try.again", "report.image_upload.retry"),
       );
     } finally {
       setUploading(false);
@@ -1392,12 +1094,9 @@ export default function CreateReportScreen() {
           );
         } catch (e: any) {
           clearTimeout(id);
-          const msg =
-            e?.name === "AbortError"
-              ? "Tidsavbrudd: klarte ikke å nå serveren (20s)."
-              : `Nettverksfeil: ${e?.message || e}`;
-          log("POST /reports -> throw", msg);
-          throw new Error(msg);
+          const err = codedError(e?.name === "AbortError" ? "NETWORK_TIMEOUT" : "NETWORK_ERROR");
+          log("POST /reports -> throw", err.code, e?.message ?? e);
+          throw err;
         } finally {
           clearTimeout(id);
         }
@@ -1465,7 +1164,7 @@ export default function CreateReportScreen() {
                   return await uploadReportImage(String(reportId), uri);
                 } catch (err: any) {
                   const msg = err?.message ?? String(err);
-                  throw new Error(`Upload feilet for ${uri}: ${msg}`);
+                  throw Object.assign(codedError("IMAGE_UPLOAD_FAILED"), { detail: msg });
                 }
               }),
             );
@@ -1530,12 +1229,9 @@ export default function CreateReportScreen() {
         }
 
         if (showReportApiError(e, router, t)) return;
-        const fallback = t("report.create.could.not.save.the.case.please");
-        const msg =
-          e instanceof ReportApiError
-            ? e.serverMessage || fallback
-            : e?.message || fallback;
-        console.log("[create-report] submit error:", msg);
+        // Already reported to Sentry above, so no second report here.
+        const msg = userErrorMessage(e, t, "report.create.could.not.save.the.case.please", null);
+        console.log("[create-report] submit error:", code || e?.message);
         Alert.alert(t("report.create.could.not.save"), msg);
       } finally {
         setSaving(false);

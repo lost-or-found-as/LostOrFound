@@ -1,3 +1,5 @@
+import { translate } from "../i18n/translate";
+import { formatDateTimeCustom, formatDistance, formatTime } from "../i18n/formatters";
 // T1.8E.5I: area-alert status and error handling for the app.
 // Pure helpers only (no React Native imports), so they can be tested in Node.
 
@@ -130,24 +132,22 @@ export function classifyAreaAlertError(error: unknown): AreaAlertErrorInfo {
   return { kind: "unknown", code, retryable: true };
 }
 
-const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** Local date and time parts: no "27.10" / "13:40", en "27 Oct" / "13:40". */
+/** Local date and time parts in the app language, e.g. "27. okt." / "27 Oct" and "13:40". */
 export function areaAlertDateParts(iso: string | null | undefined, language: "no" | "en") {
   if (!iso) return { date: "", time: "" };
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return { date: "", time: "" };
-  const date = language === "en" ? `${d.getDate()} ${MONTHS_EN[d.getMonth()]}` : `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
-  return { date, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+  return {
+    date: formatDateTimeCustom(d, language, { day: "numeric", month: "short" }),
+    time: formatTime(d, language),
+  };
 }
 
-/** Radius label: 500 m, 1,5 km (no) / 1.5 km (en), 3 km. */
+/** Radius label in the device distance unit: 500 m, 1,5 km / 1.5 km, 0.9 mi. */
 export function areaAlertRadiusLabel(radiusM: number | null | undefined, language: "no" | "en") {
   const r = Number(radiusM || 0);
   if (!r) return "";
-  if (r < 1000) return `${r} m`;
-  const km = r / 1000;
-  const text = Number.isInteger(km) ? String(km) : km.toFixed(1);
-  return `${language === "no" ? text.replace(".", ",") : text} km`;
+  return formatDistance(r, language, (k, p) => translate(language, k, p));
 }

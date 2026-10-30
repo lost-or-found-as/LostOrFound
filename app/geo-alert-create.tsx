@@ -41,6 +41,8 @@ import {
 } from "../src/lib/areaAlertStatus";
 import { InlineNotice } from "../src/ui/InlineNotice";
 import { Ionicons } from "@expo/vector-icons";
+import { formatArea, formatDistance, formatLocalizedDateTime, formatMoney } from "../src/i18n/formatters";
+import { STORED_MONEY_CURRENCY } from "../src/lib/market";
 
 function tr(language: "no" | "en", key: TranslationKey): string {
   return language === "en" ? en[key] : no[key];
@@ -343,7 +345,7 @@ function GeoAlertCreateScreen() {
                 <Chip
                   key={v}
                   active={radiusM === v}
-                  label={v >= 1000 ? `${v / 1000} km` : `${v} m`}
+                  label={formatDistance(v, language, t)}
                   onPress={() => setRadiusM(v)}
                 />
               ))}
@@ -409,7 +411,7 @@ function GeoAlertCreateScreen() {
                 {tr(language, "areaAlertCreate.relevantUsersMayBeNotified")}
               </Text>
               <Text style={styles.resultMeta}>
-                {result.preview.areaSqKm.toFixed(2)} km² ·{" "}
+                {formatArea(result.preview.areaSqKm * 1_000_000, language, t)} ·{" "}
                 {tr(language, "areaAlertCreate.recipientCountPrivate")}
               </Text>
               <View style={styles.priceRow}>
@@ -417,10 +419,7 @@ function GeoAlertCreateScreen() {
                   {tr(language, "areaAlertCreate.test.price")}
                 </Text>
                 <Text style={styles.price}>
-                  {(result.quote.amountOre / 100).toLocaleString(
-                    tr(language, "areaAlertCreate.en.gb"),
-                  )}{" "}
-                  kr
+                  {formatMoney(result.quote.amountOre / 100, STORED_MONEY_CURRENCY, language)}
                 </Text>
               </View>
               <Text style={styles.warning}>
@@ -461,9 +460,7 @@ function GeoAlertCreateScreen() {
                   </Text>
                   <Text style={styles.successText}>
                     {tr(language, "areaAlertCreate.active.until")}:{" "}
-                    {new Date(activatedUntil).toLocaleString(
-                      tr(language, "areaAlertCreate.en.gb"),
-                    )}
+                    {formatLocalizedDateTime(activatedUntil, language)}
                   </Text>
                   <Text style={styles.successText}>
                     {tr(

@@ -19,25 +19,11 @@ const USER = "aaaaaaaa-1111-1111-1111-111111111111";
 const REPORT = "rrrrrrrr-0000-0000-0000-000000000001";
 
 // ---------------------------------------------------------------- load the TypeScript helper
-function loadTsModule(file) {
-  const source = fs.readFileSync(file, "utf8");
-  let ts = null;
-  try { ts = require(path.join(root, "node_modules", "typescript")); } catch { ts = null; }
-  if (ts) {
-    const out = ts.transpileModule(source, {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-      fileName: file,
-    }).outputText;
-    const m = new Module(file, module);
-    m.filename = file;
-    m.paths = Module._nodeModulePaths(path.dirname(file));
-    m._compile(out, file);
-    return m.exports;
-  }
-  if (process.features && process.features.typescript) return require(file);
-  throw new Error("TYPESCRIPT_NOT_AVAILABLE: run npm install in the project root first");
-}
-const helpers = loadTsModule(path.join(root, "src", "lib", "areaAlertStatus.ts"));
+// T1.9E: the helper now formats through src/i18n, so it is loaded with its imports.
+const { requireTs, EXPO_LOCALIZATION_STUB_OBJECT } = require("./lib/ts-modules");
+const helpers = requireTs(path.join(root, "src", "lib", "areaAlertStatus.ts"), {
+  "expo-localization": EXPO_LOCALIZATION_STUB_OBJECT,
+});
 
 // ---------------------------------------------------------------- backend stand-ins
 const fixture = { state: null, entitlements: [], campaigns: [], reportOwner: USER, failState: false };
@@ -219,7 +205,7 @@ async function scenario(name, fn) {
 
   await scenario("Formatting: Norwegian and English date and radius labels", async () => {
     const d = new Date(2026, 9, 27, 13, 40).toISOString();
-    assert.deepStrictEqual(helpers.areaAlertDateParts(d, "no"), { date: "27.10", time: "13:40" });
+    assert.deepStrictEqual(helpers.areaAlertDateParts(d, "no"), { date: "27. okt.", time: "13:40" });
     assert.deepStrictEqual(helpers.areaAlertDateParts(d, "en"), { date: "27 Oct", time: "13:40" });
     assert.deepStrictEqual(helpers.areaAlertDateParts(null, "no"), { date: "", time: "" });
     assert.strictEqual(helpers.areaAlertRadiusLabel(500, "no"), "500 m");

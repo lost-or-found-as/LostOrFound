@@ -33,6 +33,9 @@ import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { supabase } from "../src/lib/supabase";
 import { API_BASE_URL } from "../src/lib/config";
+import { formatDateTimeCustom, formatDistance } from "../src/i18n/formatters";
+
+const isLoginRequired = (e: any) => e?.code === "LOGIN_REQUIRED" || String(e?.message ?? "") === "LOGIN_REQUIRED";
 
 type Point = { latitude: number; longitude: number };
 type Area = {
@@ -180,7 +183,7 @@ function AlertAreasScreen() {
     } catch (e: any) {
       Alert.alert(
         t("alertAreas.error"),
-        e?.message === "LOGIN_REQUIRED"
+        isLoginRequired(e)
           ? t("alertAreas.loginRequired")
           : t("alertAreas.loadFailed"),
       );
@@ -281,10 +284,7 @@ function AlertAreasScreen() {
   };
   const formatUpdated = (iso?: string | null) =>
     iso
-      ? new Date(iso).toLocaleString(language === "en" ? "en-GB" : "nb-NO", {
-          dateStyle: "short",
-          timeStyle: "short",
-        })
+      ? formatDateTimeCustom(iso, language, { dateStyle: "short", timeStyle: "short" })
       : t("alertAreas.neverUpdated");
   const expiryLabel = (h: number) =>
     h === 24
@@ -453,7 +453,7 @@ function AlertAreasScreen() {
                       style={[s.chip, radius === v && s.chipOn]}
                     >
                       <Text style={[s.chipText, radius === v && s.chipTextOn]}>
-                        {v / 1000} km
+                        {formatDistance(v, language, t)}
                       </Text>
                     </Pressable>
                   ))}

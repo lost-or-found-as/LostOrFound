@@ -4,6 +4,9 @@
 // separate attributes, so Norwegian adjectives never need gender agreement. Known Norwegian
 // compound words (gullring, sølvklokke) are kept; English uses two words (Gold ring).
 import { colorLabel, itemLabel, categoryLabel, type AppLanguage } from "./localizedReport";
+import { METAL_COMPOUND_NAMES, colorName } from "../i18n/catalog";
+import { translate } from "../i18n/translate";
+import { formatDate } from "../i18n/formatters";
 
 type CaseLike = {
   type?: string | null;
@@ -18,30 +21,6 @@ type CaseLike = {
 const METALS = ["gold", "silver", "bronze"] as const;
 type Metal = (typeof METALS)[number];
 
-const METAL_COMPOUNDS_NO: Record<Metal, Record<string, string>> = {
-  gold: {
-    RING: "Gullring", WEDDING_RING: "Gullgiftering", ENGAGEMENT_RING: "Gullforlovelsesring",
-    SIGNET_RING: "Gullsignetring", WATCH: "Gullklokke", BRACELET: "Gullarmbånd",
-    NECKLACE: "Gullhalskjede", EARRINGS: "Gulløredobber", PENDANT: "Gullanheng",
-    BROOCH: "Gullbrosje", CUFFLINKS: "Gullmansjettknapper",
-  },
-  silver: {
-    RING: "Sølvring", WEDDING_RING: "Sølvgiftering", ENGAGEMENT_RING: "Sølvforlovelsesring",
-    SIGNET_RING: "Sølvsignetring", WATCH: "Sølvklokke", BRACELET: "Sølvarmbånd",
-    NECKLACE: "Sølvhalskjede", EARRINGS: "Sølvøredobber", PENDANT: "Sølvanheng",
-    BROOCH: "Sølvbrosje", CUFFLINKS: "Sølvmansjettknapper",
-  },
-  bronze: {
-    RING: "Bronsering", WATCH: "Bronseklokke", BRACELET: "Bronsearmbånd",
-    NECKLACE: "Bronsehalskjede", PENDANT: "Bronseanheng",
-  },
-};
-const METAL_EN: Record<Metal, string> = { gold: "Gold", silver: "Silver", bronze: "Bronze" };
-
-const MONTHS: Record<AppLanguage, string[]> = {
-  no: ["jan.", "feb.", "mars", "apr.", "mai", "juni", "juli", "aug.", "sep.", "okt.", "nov.", "des."],
-  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-};
 
 export function sentenceCase(value?: string | null): string {
   const s = String(value ?? "").trim();
@@ -67,9 +46,16 @@ function compoundTitle(r: CaseLike, language: AppLanguage): string | null {
   const metal = metalOf(r);
   const key = String(r.subcategory_key ?? "").toUpperCase();
   if (!metal || !key) return null;
-  if (language === "no") return METAL_COMPOUNDS_NO[metal][key] ?? null;
-  if (!METAL_COMPOUNDS_NO[metal][key]) return null;
-  return `${METAL_EN[metal]} ${itemLabel(key, "en", r.category).toLocaleLowerCase()}`;
+  // Only items that have a metal version (rings, watches, jewellery) get a combined title.
+  if (!METAL_COMPOUND_NAMES.no?.[metal]?.[key]) return null;
+  const compound = METAL_COMPOUND_NAMES[language]?.[metal]?.[key];
+  if (compound) return compound;
+  return sentenceCase(
+    translate(language, "catalog.metalItem", {
+      metal: colorName(metal, language),
+      item: itemLabel(key, language, r.category).toLocaleLowerCase(),
+    }),
+  );
 }
 
 // "Toalettmappe" / "Toiletry bag" / "Gullring" / "Gold ring"
@@ -95,10 +81,5 @@ export function caseAttributes(r: CaseLike, language: AppLanguage): string {
 
 // "29. okt. 2026" / "29 Oct 2026"
 export function formatCaseDate(iso: string | null | undefined, language: AppLanguage): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const day = d.getDate();
-  const month = MONTHS[language][d.getMonth()];
-  return language === "no" ? `${day}. ${month} ${d.getFullYear()}` : `${day} ${month} ${d.getFullYear()}`;
+  return formatDate(iso, language);
 }

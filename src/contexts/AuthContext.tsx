@@ -12,6 +12,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { ensureProfileRow } from "../lib/profile";
 import { claimPendingGuestReports, rememberGuestForClaim } from "../lib/guestClaim";
+import { codedError } from "../lib/userError";
 
 export type AuthCtx = {
   user: User | null;
@@ -110,7 +111,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signInWithPassword = useCallback(async (email: string, password: string) => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password) {
-      throw new Error("E-post og passord må fylles ut.");
+      throw codedError("EMAIL_PASSWORD_REQUIRED");
     }
 
     setLoading(true);
@@ -136,10 +137,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signUpWithPassword = useCallback(async (email: string, password: string) => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password) {
-      throw new Error("E-post og passord må fylles ut.");
+      throw codedError("EMAIL_PASSWORD_REQUIRED");
     }
     if (password.length < 6) {
-      throw new Error("Passord må være minst 6 tegn.");
+      throw codedError("PASSWORD_TOO_SHORT");
     }
 
     setLoading(true);

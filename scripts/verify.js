@@ -22,7 +22,6 @@ const ACTIVE_CHECKS = [
   "check-t1-7d.js",
   "check-t1-7f.js",
   "check-t1-7g.js",
-  "check-t1-7i.js",
   "check-t1-8a.js",
   "check-t1-8b.js",
   "check-t1-8c.js",
@@ -51,11 +50,15 @@ const ACTIVE_CHECKS = [
   "test-t1-9a-claim.js",
   "test-t1-9c-case-display.js",
   "test-t1-9d-sentry.js",
+  "test-t1-9e-catalog.js",
+  "check-t1-9e-hardcoded-text.js",
   "check-t1-8e5j.js",
 ];
 
 // Not run: these assert code that later packages intentionally replaced.
 const SUPERSEDED = [
+  // Expo template files removed in T1.9E (legacy cleanup).
+  "check-t1-7i.js",
   "check-t1-7e.js",
   "check-t1-7h.js",
   "check-t1-8d1.js",

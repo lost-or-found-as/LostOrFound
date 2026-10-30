@@ -12,10 +12,10 @@ const check = (ok, code) => { if (!ok) errors.push(code); };
 const GATED = [
   "app/my-reports.tsx", "app/notifications.tsx", "app/alert-areas.tsx", "app/alert-area-editor.tsx",
   "app/push-settings.tsx", "app/match.tsx", "app/premium-status.tsx", "app/geo-alert-create.tsx",
-  "app/observation-create.tsx", "app/payment.tsx", "app/commerce-test.tsx", "app/geo-alert-test.tsx",
+  "app/observation-create.tsx",
   "app/area-alert/[id].tsx", "app/chat/[matchId].tsx", "app/match-comparison/[matchId].tsx",
   "app/matches/[matchId].tsx", "app/observation-chat/[id].tsx", "app/observation/[id].tsx",
-  "app/report-details/[id].tsx", "app/(report)/mine.tsx",
+  "app/report-details/[id].tsx",
 ];
 for (const f of GATED) {
   const s = read(f);

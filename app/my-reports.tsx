@@ -35,6 +35,12 @@ import {
   createReportOrder,
 } from "../src/lib/reportCommerce";
 import { REPORT_PRODUCT_CODES } from "../src/lib/reportProducts";
+import { userErrorMessage } from "../src/lib/userError";
+import { formatMoney, formatTime as formatClock } from "../src/i18n/formatters";
+import { STORED_MONEY_CURRENCY } from "../src/lib/market";
+
+// Test price shown in the reactivation dialog until RevenueCat supplies the store price.
+const REACTIVATION_TEST_PRICE = 99;
 
 type Report = {
   id: string;
@@ -137,11 +143,8 @@ function shortMessage(body?: string) {
   return t.slice(0, 67) + "…";
 }
 
-function formatTime(iso?: string) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function formatTime(iso: string | undefined, language: "no" | "en") {
+  return formatClock(iso, language);
 }
 
 function sortReportsByActivity(
@@ -434,7 +437,7 @@ function MyReportsScreen() {
       const friendly = lifecycleErrorCopy(data?.error, t);
       Alert.alert(
         friendly?.title || t("cases.could.not.extend"),
-        friendly?.body || data?.message || t("cases.please.try.again.later"),
+        friendly?.body || userErrorMessage({ ...data, status: res.status }, t, "cases.please.try.again.later", "cases.extend"),
       );
       return;
     }
@@ -461,7 +464,7 @@ function MyReportsScreen() {
     } catch (error: any) {
       Alert.alert(
         t("cases.reactivation.failed"),
-        error?.message || t("cases.please.try.again.later"),
+        userErrorMessage(error, t, "cases.please.try.again.later", "cases.reactivate"),
       );
     } finally {
       setReactivatingReportId(null);
@@ -490,7 +493,7 @@ function MyReportsScreen() {
     if (!res.ok) {
       Alert.alert(
         t("cases.error"),
-        data?.message || data?.error || t("cases.could.not.close.case"),
+        userErrorMessage({ ...data, status: res.status }, t, "cases.could.not.close.case", "cases.close"),
       );
       return;
     }
@@ -683,7 +686,7 @@ function MyReportsScreen() {
                         <Ionicons name="chatbubble-outline" size={16} color={unreadByReport[r.id] ? "#1D4ED8" : "#64748B"} />
                         <Text style={[styles.detailText, unreadByReport[r.id] && styles.unreadText]} numberOfLines={1}>
                           {unreadByReport[r.id] ? `${t("cases.new.message")} · ` : ""}
-                          {actFromMe ? t("cases.you") : t("cases.other.party")}: {shortMessage(act.body)} · {formatTime(act.at)}
+                          {actFromMe ? t("cases.you") : t("cases.other.party")}: {shortMessage(act.body)} · {formatTime(act.at, language)}
                         </Text>
                       </View>
                     )}
@@ -817,7 +820,7 @@ function MyReportsScreen() {
                   <Text style={dialogStyles.paymentLabel}>
                     {t("cases.test.price")}
                   </Text>
-                  <Text style={dialogStyles.paymentPrice}>99 kr</Text>
+                  <Text style={dialogStyles.paymentPrice}>{formatMoney(REACTIVATION_TEST_PRICE, STORED_MONEY_CURRENCY, language)}</Text>
                 </View>
                 <Text style={dialogStyles.testModeText}>
                   {t("cases.test.payment.notice")}

@@ -24,6 +24,8 @@ import { useAuth } from "../../src/contexts/AuthContext";
 import { theme } from "../../src/ui/theme";
 import { PremiumHeader } from "../../src/ui/PremiumHeader";
 import { useI18n } from "../../src/i18n/I18nProvider";
+import { userErrorMessage } from "../../src/lib/userError";
+import { formatDateTimeCustom, type Translate } from "../../src/i18n/formatters";
 
 type Msg = {
   id: string;
@@ -43,18 +45,18 @@ function dayKey(iso: string) {
   const d = new Date(iso);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-function dateDividerLabel(iso: string, language: "no" | "en") {
+function dateDividerLabel(iso: string, language: "no" | "en", t: Translate) {
   const date = new Date(iso);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-  if (dayKey(iso) === dayKey(today.toISOString())) return language === "en" ? "Today" : "I dag";
-  if (dayKey(iso) === dayKey(yesterday.toISOString())) return language === "en" ? "Yesterday" : "I går";
-  return new Intl.DateTimeFormat(language === "en" ? "en-GB" : "nb-NO", {
+  if (dayKey(iso) === dayKey(today.toISOString())) return t("time.today");
+  if (dayKey(iso) === dayKey(yesterday.toISOString())) return t("time.yesterday");
+  return formatDateTimeCustom(date, language, {
     day: "numeric",
     month: "long",
     year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
-  }).format(date);
+  });
 }
 
 function ChatScreen() {
@@ -97,7 +99,7 @@ function ChatScreen() {
         } catch {}
       }, 50);
     } catch (e: any) {
-      Alert.alert(t("chat.errorTitle"), e?.message ?? t("chat.loadError"));
+      Alert.alert(t("chat.errorTitle"), userErrorMessage(e, t, "chat.loadError", "chat.load"));
     } finally {
       setLoading(false);
     }
@@ -187,7 +189,7 @@ function ChatScreen() {
     } catch (e: any) {
       // Roll back the optimistic message.
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
-      Alert.alert(t("chat.errorTitle"), e?.message ?? t("chat.sendError"));
+      Alert.alert(t("chat.errorTitle"), userErrorMessage(e, t, "chat.sendError", "chat.send"));
       setText(body);
     } finally {
       setSending(false);
@@ -199,8 +201,8 @@ function ChatScreen() {
   const [resolution,setResolution]=useState<any>(null);
   const getToken=async()=> (await supabase.auth.getSession()).data.session?.access_token;
   const loadResolution=useCallback(async()=>{try{const authToken=await getToken();if(!authToken||!matchId)return;const r=await fetch(`${API_BASE_URL}/resolutions/context/MATCH/${encodeURIComponent(String(matchId))}`,{headers:{Authorization:`Bearer ${authToken}`}});const j=await r.json().catch(()=>({}));if(r.ok)setResolution(j);}catch{}},[matchId]);
-  const proposeResolution=async()=>{try{const authToken=await getToken();const r=await fetch(`${API_BASE_URL}/resolutions/propose`,{method:"POST",headers:{Authorization:`Bearer ${authToken}`,"Content-Type":"application/json"},body:JSON.stringify({contextType:"MATCH",contextId:String(matchId)})});const j=await r.json().catch(()=>({}));if(!r.ok&&j?.error!=="RESOLUTION_ALREADY_PENDING")throw new Error(j?.error);Alert.alert(t("observation.resolution.sentTitle"),t("observation.resolution.sentBody"));await loadResolution();}catch (e: any) {Alert.alert(t("observation.common.error"),String(e?.message||e));}};
-  const respondResolution=async(accept:boolean)=>{try{const authToken=await getToken();const pid=resolution?.proposal?.id;if(!pid)return;const r=await fetch(`${API_BASE_URL}/resolutions/${pid}/respond`,{method:"POST",headers:{Authorization:`Bearer ${authToken}`,"Content-Type":"application/json"},body:JSON.stringify({accept})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j?.error);Alert.alert(accept?t("observation.resolution.closedTitle"):t("observation.resolution.rejectedTitle"),accept?t("observation.resolution.closedBody"):t("observation.resolution.rejectedBody"));await loadResolution();}catch (e: any) {Alert.alert(t("observation.common.error"),String(e?.message||e));}};
+  const proposeResolution=async()=>{try{const authToken=await getToken();const r=await fetch(`${API_BASE_URL}/resolutions/propose`,{method:"POST",headers:{Authorization:`Bearer ${authToken}`,"Content-Type":"application/json"},body:JSON.stringify({contextType:"MATCH",contextId:String(matchId)})});const j=await r.json().catch(()=>({}));if(!r.ok&&j?.error!=="RESOLUTION_ALREADY_PENDING")throw new Error(j?.error);Alert.alert(t("observation.resolution.sentTitle"),t("observation.resolution.sentBody"));await loadResolution();}catch (e: any) {Alert.alert(t("observation.common.error"),userErrorMessage(e,t,"errors.generic","resolution"));}};
+  const respondResolution=async(accept:boolean)=>{try{const authToken=await getToken();const pid=resolution?.proposal?.id;if(!pid)return;const r=await fetch(`${API_BASE_URL}/resolutions/${pid}/respond`,{method:"POST",headers:{Authorization:`Bearer ${authToken}`,"Content-Type":"application/json"},body:JSON.stringify({accept})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j?.error);Alert.alert(accept?t("observation.resolution.closedTitle"):t("observation.resolution.rejectedTitle"),accept?t("observation.resolution.closedBody"):t("observation.resolution.rejectedBody"));await loadResolution();}catch (e: any) {Alert.alert(t("observation.common.error"),userErrorMessage(e,t,"errors.generic","resolution"));}};
   useEffect(()=>{void loadResolution()},[loadResolution]);
   if (!matchId) {
     return (
@@ -242,7 +244,7 @@ function ChatScreen() {
                 const previous = index > 0 ? messages[index - 1] : null;
                 const showDate = !previous || dayKey(previous.created_at) !== dayKey(item.created_at);
                 return <>
-                  {showDate && <View style={styles.dateDividerRow}><View style={styles.dateDivider}><Text style={styles.dateDividerText}>{dateDividerLabel(item.created_at, language)}</Text></View></View>}
+                  {showDate && <View style={styles.dateDividerRow}><View style={styles.dateDivider}><Text style={styles.dateDividerText}>{dateDividerLabel(item.created_at, language, t)}</Text></View></View>}
                   <View style={[styles.msgRow, mine ? styles.msgRowMine : styles.msgRowOther]}><View style={[styles.bubble, mine ? styles.bubbleMe : styles.bubbleOther]}><Text style={[styles.body, mine ? styles.bodyMe : styles.bodyOther]}>{item.body}</Text><Text style={[styles.time, mine ? styles.timeMe : styles.timeOther]}>{timeShort(item.created_at)}</Text></View></View>
                 </>;
               }}

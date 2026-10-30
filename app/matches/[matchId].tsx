@@ -44,11 +44,18 @@ import { PremiumHeader } from "../../src/ui/PremiumHeader";
 import { AuthHeaderAction } from "../../src/ui/AuthHeaderAction";
 import { useI18n } from "../../src/i18n/I18nProvider";
 
-import { en } from "../../src/i18n/locales/en";
-import { no } from "../../src/i18n/locales/no";
 import type { TranslationKey } from "../../src/i18n/locales/en";
-function tr(language: "no" | "en", key: TranslationKey): string {
-  return language === "en" ? en[key] : no[key];
+import { codedError, userErrorMessage } from "../../src/lib/userError";
+import { translate } from "../../src/i18n/I18nProvider";
+import { categoryName, colorName, itemName } from "../../src/i18n/catalog";
+import { formatDistance as formatDistanceText, formatMoney, formatNumber, formatTimeAgo } from "../../src/i18n/formatters";
+import { STORED_MONEY_CURRENCY } from "../../src/lib/market";
+function tr(
+  language: "no" | "en",
+  key: TranslationKey,
+  params?: Record<string, string | number | null | undefined>,
+): string {
+  return translate(language, key, params);
 }
 
 type Reason = { k: string; v: any };
@@ -92,95 +99,11 @@ type LastMsg = {
 
 type AppLang = "no" | "en";
 
-const SUBCATEGORY_LABELS_EN: Record<string, string> = {
-  ...OBJECT_LABELS_EN,
-  KEYS: "Keys",
-  WALLET: "Wallet",
-  MOBILE_PHONE: "Mobile phone",
-  SUNGLASSES: "Sunglasses",
-  GLASSES: "Glasses",
-  BANK_CARD: "Bank card",
-  ID_CARD: "ID card",
-  PASSPORT: "Passport",
-  DRIVER_LICENSE: "Driver license",
-  HEARING_AID: "Hearing aid",
-  OTHER_PERSONAL: "Other personal item",
-  HEADPHONES: "Headphones / AirPods",
-  SMARTWATCH: "Smartwatch",
-  TABLET: "Tablet",
-  LAPTOP: "Laptop",
-  POWERBANK: "Power bank",
-  CAMERA: "Camera",
-  OTHER_ELECTRONICS: "Other electronics",
-  BACKPACK: "Backpack",
-  HANDBAG: "Handbag",
-  SUITCASE: "Suitcase",
-  GYM_BAG: "Gym bag",
-  LAPTOP_BAG: "Laptop bag",
-  SHOULDER_BAG: "Shoulder bag",
-  DOCUMENT_BRIEFCASE: "Document case",
-  SCHOOL_BAG: "School bag",
-  TRAVEL_LUGGAGE: "Travel luggage",
-  TOTE_BAG: "Tote bag",
-  OTHER_BAGS: "Other bag/luggage",
-  JACKET: "Jacket",
-  HAT: "Hat",
-  GLOVES: "Gloves",
-  SCARF: "Scarf",
-  BELT: "Belt",
-  SHOES: "Shoes",
-  UMBRELLA: "Umbrella",
-  OTHER_CLOTHING: "Other clothing/accessory",
-  RING: "Ring",
-  EARRINGS: "Earrings",
-  NECKLACE: "Necklace",
-  BRACELET: "Bracelet",
-  WATCH: "Watch",
-  OTHER_JEWELRY: "Other jewelry",
-  TOOLS: "Tools",
-  OTHER_TOOLS: "Other tools",
-  CAR_KEYS: "Car keys",
-  BICYCLE: "Bicycle",
-  SCOOTER: "Scooter",
-  OTHER_VEHICLE: "Other vehicle/transport",
-  FOOTBALL: "Football",
-  TENNIS_RACKET: "Tennis racket",
-  FISHING_ROD: "Fishing rod",
-  HEADLAMP: "Headlamp",
-  CAMPING_GEAR: "Camping gear",
-  SKIS: "Skis",
-  SNOWBOARD: "Snowboard",
-  HELMET: "Helmet",
-  GOGGLES: "Goggles",
-  WATER_BOTTLE: "Water bottle",
-  OTHER_SPORT: "Other sport/outdoor item",
-  BOOK: "Book",
-  OTHER_HOBBY: "Other culture/hobby item",
-  DOG: "Dog",
-  CAT: "Cat",
-  BIRD: "Bird",
-  RABBIT: "Rabbit",
-  OTHER_PET: "Other pet",
-  CUSTOM: "Custom",
-};
 
-const CATEGORY_LABELS_EN: Record<string, string> = {
-  PERSONAL: "Personal items",
-  ELECTRONICS: "Electronics",
-  BAGS_LUGGAGE: "Bags and luggage",
-  CLOTHING_ACCESSORIES: "Clothing and accessories",
-  JEWELRY: "Jewelry",
-  TOOLS_HOUSE: "Tools",
-  VEHICLE_TRANSPORT: "Vehicle / transport",
-  SPORT_OUTDOOR: "Sport and outdoor",
-  CULTURE_HOBBY: "Culture and hobby",
-  PETS: "Pets",
-};
 
 function localizeCategoryLabel(cat?: string, language: AppLang = "no") {
   if (!cat) return null;
-  if (language === "en") return CATEGORY_LABELS_EN[cat] ?? cat;
-  return CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
+  return categoryName(cat, language);
 }
 
 function localizeSubcategoryLabel(
@@ -189,42 +112,13 @@ function localizeSubcategoryLabel(
   language: AppLang = "no",
 ) {
   if (!cat || !sub) return null;
-  if (language === "en") return SUBCATEGORY_LABELS_EN[sub] ?? sub;
-  const list = (SUBCATEGORIES as any)[cat] ?? [];
-  return list.find((s: any) => s.value === sub)?.label ?? sub;
+  return itemName(sub, language, cat);
 }
 
-function colorLabelOldUnused(v?: string | null) {
-  return colorLabel(v, "no");
-}
 
-function scoreLabelOldUnused(score: number) {
-  return scoreLabel(score, "no");
-}
 
-function statusLabelText(s: string, language: AppLang = "no") {
-  const no: Record<string, string> = {
-    NEW: "Ny",
-    SEEN: "Sett",
-    DISMISSED: "Avvist",
-    CONFIRMED: "Bekreftet",
-  };
-  const en: Record<string, string> = {
-    NEW: "New",
-    SEEN: "Seen",
-    DISMISSED: "Dismissed",
-    CONFIRMED: "Confirmed",
-  };
-  return (language === "en" ? en : no)[s] ?? s;
-}
 
-function formatDaysOldUnused(days: any) {
-  return formatDays(days, "no");
-}
 
-function timeAgoLongOldUnused(iso?: string | null) {
-  return timeAgoLong(iso, "no");
-}
 
 function lowerForPhrase(
   value: string | null | undefined,
@@ -239,43 +133,31 @@ function reasonVal(reasons: Reason[] | undefined, key: string) {
   return hit?.v;
 }
 function scoreLabel(score: number, language: AppLang = "no") {
-  if (language === "en") {
-    if (score >= 85) return "Excellent match";
-    if (score >= 70) return "Good match";
-    if (score >= 55) return "Possible match";
-    return "Low match";
-  }
-  if (score >= 85) return "Svært godt treff";
-  if (score >= 70) return "Godt treff";
-  if (score >= 55) return "Mulig treff";
-  return "Lavt samsvar";
+  if (score >= 85) return tr(language, "match.score.excellent");
+  if (score >= 70) return tr(language, "match.score.good");
+  if (score >= 55) return tr(language, "match.score.possible");
+  return tr(language, "match.score.low");
 }
 function statusLabel(s: any, language: AppLang = "no") {
-  const no: Record<string, string> = {
-    NEW: "Ny",
-    SEEN: "Sett",
-    DISMISSED: "Avvist",
-    CONFIRMED: "Bekreftet",
+  const keys: Record<string, TranslationKey> = {
+    NEW: "match.status.new",
+    SEEN: "match.status.seen",
+    DISMISSED: "match.status.dismissed",
+    CONFIRMED: "match.status.confirmed",
   };
-  const en: Record<string, string> = {
-    NEW: "New",
-    SEEN: "Seen",
-    DISMISSED: "Dismissed",
-    CONFIRMED: "Confirmed",
-  };
-  return (language === "en" ? en : no)[String(s)] ?? String(s);
+  const key = keys[String(s)];
+  return key ? tr(language, key) : String(s);
 }
-function formatDistance(meters: any) {
+function formatDistance(meters: any, language: AppLang = "no") {
   const n = Number(meters);
-  if (!Number.isFinite(n)) return null;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)} km`;
-  return `${Math.round(n)} m`;
+  if (meters == null || !Number.isFinite(n)) return null;
+  return formatDistanceText(n, language, (k, p) => tr(language, k, p));
 }
 function formatDays(days: any, language: AppLang = "no") {
   const n = Number(days);
   if (!Number.isFinite(n)) return null;
   if (n < 1) return tr(language, "matchDetail.today");
-  return n.toFixed(1) + " d";
+  return tr(language, "time.short.days", { count: formatNumber(n, language, 1) });
 }
 function formatTextSim(sim: any) {
   const n = Number(sim);
@@ -283,37 +165,7 @@ function formatTextSim(sim: any) {
   return `${Math.round(n * 100)}%`;
 }
 function timeAgoLong(iso?: string | null, language: AppLang = "no") {
-  if (!iso) return null;
-  const d = new Date(iso);
-  const ms = Date.now() - d.getTime();
-  if (!Number.isFinite(ms)) return null;
-  const min = Math.floor(ms / 60000);
-  if (language === "en") {
-    if (min < 1) return "now";
-    if (min < 60) return String(min) + " min ago";
-    const h = Math.floor(min / 60);
-    if (h < 24) return String(h) + " h ago";
-    const days = Math.floor(h / 24);
-    if (days < 7) return String(days) + " days ago";
-    const weeks = Math.floor(days / 7);
-    if (weeks < 5) return String(weeks) + " weeks ago";
-    const months = Math.floor(days / 30);
-    if (months < 12) return String(months) + " months ago";
-    const years = Math.floor(days / 365);
-    return String(years) + " years ago";
-  }
-  if (min < 1) return "nå";
-  if (min < 60) return String(min) + " min siden";
-  const h = Math.floor(min / 60);
-  if (h < 24) return String(h) + " t siden";
-  const days = Math.floor(h / 24);
-  if (days < 7) return String(days) + " dager siden";
-  const weeks = Math.floor(days / 7);
-  if (weeks < 5) return String(weeks) + " uker siden";
-  const months = Math.floor(days / 30);
-  if (months < 12) return String(months) + " mnd siden";
-  const years = Math.floor(days / 365);
-  return String(years) + " år siden";
+  return formatTimeAgo(iso, (k, p) => tr(language, k, p), "long") || null;
 }
 function shortMessage(body?: string) {
   if (!body) return "";
@@ -323,42 +175,7 @@ function shortMessage(body?: string) {
 }
 function colorLabel(v?: string | null, language: AppLang = "no") {
   if (!v) return null;
-  const key = String(v).toLowerCase();
-  const no: Record<string, string> = {
-    black: "Svart",
-    white: "Hvit",
-    gray: "Grå",
-    grey: "Grå",
-    red: "Rød",
-    orange: "Oransje",
-    yellow: "Gul",
-    green: "Grønn",
-    blue: "Blå",
-    purple: "Lilla",
-    brown: "Brun",
-    pink: "Rosa",
-    beige: "Beige",
-    gold: "Gull",
-    silver: "Sølv",
-  };
-  const en: Record<string, string> = {
-    black: "Black",
-    white: "White",
-    gray: "Gray",
-    grey: "Gray",
-    red: "Red",
-    orange: "Orange",
-    yellow: "Yellow",
-    green: "Green",
-    blue: "Blue",
-    purple: "Purple",
-    brown: "Brown",
-    pink: "Pink",
-    beige: "Beige",
-    gold: "Gold",
-    silver: "Silver",
-  };
-  return (language === "en" ? en : no)[key] ?? v;
+  return colorName(v, language);
 }
 function titleCase(s?: string | null) {
   if (!s) return null;
@@ -476,9 +293,7 @@ function areaSummaryForMatch(match: any, language: AppLang = "no") {
   const radius = reportRadiusMeters(match.lost);
   const insideText = tr(language, "matchDetail.within.selected.area");
   const outsideText = (v: string | null) =>
-    language === "en"
-      ? String(v) + " outside selected area"
-      : String(v) + " utenfor valgt område";
+    tr(language, "match.outsideSelectedArea", { distance: String(v) });
   if (
     explicitInside === true ||
     explicitInside === "true" ||
@@ -488,11 +303,11 @@ function areaSummaryForMatch(match: any, language: AppLang = "no") {
     return insideText;
   if (Number.isFinite(outsideMeters)) {
     if (outsideMeters <= 0) return insideText;
-    return outsideText(formatDistance(outsideMeters));
+    return outsideText(formatDistance(outsideMeters, language));
   }
   if (Number.isFinite(dist) && radius != null) {
     if (dist <= radius) return insideText;
-    return outsideText(formatDistance(dist - radius));
+    return outsideText(formatDistance(dist - radius, language));
   }
   if (Number.isFinite(dist))
     return tr(
@@ -573,7 +388,7 @@ function MatchDetailsScreen() {
       setLoading(true);
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
-      if (!token) throw new Error("Mangler innlogging (token). ");
+      if (!token) throw codedError("LOGIN_REQUIRED");
       await loadLastSeen();
       const r = await fetch(`${API_BASE_URL}/matches/${matchId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -637,7 +452,7 @@ function MatchDetailsScreen() {
     } catch (e: any) {
       Alert.alert(
         tr(language, "matchDetail.error"),
-        e?.message ?? tr(language, "matchDetail.unknown.error"),
+        userErrorMessage(e, (k) => tr(language, k), "matchDetail.unknown.error", "match.detail"),
       );
     } finally {
       setLoading(false);
@@ -686,7 +501,7 @@ function MatchDetailsScreen() {
       if (!matchId) return;
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
-      if (!token) throw new Error("Mangler innlogging (token). ");
+      if (!token) throw codedError("LOGIN_REQUIRED");
       const r = await fetch(`${API_BASE_URL}/matches/${matchId}/status`, {
         method: "POST",
         headers: {
@@ -702,7 +517,7 @@ function MatchDetailsScreen() {
     } catch (e: any) {
       Alert.alert(
         tr(language, "matchDetail.error"),
-        e?.message ?? tr(language, "matchDetail.unknown.error"),
+        userErrorMessage(e, (k) => tr(language, k), "matchDetail.unknown.error", "match.detail"),
       );
     }
   };
@@ -781,10 +596,10 @@ function MatchDetailsScreen() {
   const reportUpdatedAgo = timeAgoLong(latestReportAt, language);
   const lastFromMe = lastMsg?.sender_id === user?.id;
   const lastLine = lastMsg
-    ? lastFromMe
-      ? `Siste melding fra deg: ${shortMessage(lastMsg.body)}`
-      : `Siste melding fra motpart: ${shortMessage(lastMsg.body)}`
-    : "Ingen meldinger ennå";
+    ? tr(language, lastFromMe ? "matchDetail.lastMessageFromYou" : "matchDetail.lastMessageFromOther", {
+        message: shortMessage(lastMsg.body),
+      })
+    : tr(language, "matchDetail.noMessagesYet");
   // Din rapport/motpart basert på user_id
   const youOwnLost = match.lost?.user_id === user?.id;
   const youOwnFound = match.found?.user_id === user?.id;
@@ -890,7 +705,7 @@ function MatchDetailsScreen() {
         {typeof rep.reward_ore === "number" && rep.reward_ore > 0 && (
           <Text style={styles.reward}>
             {tr(language, "matchDetail.reward")}:{" "}
-            {(rep.reward_ore / 100).toFixed(2)} kr
+            {formatMoney(rep.reward_ore / 100, STORED_MONEY_CURRENCY, language)}
           </Text>
         )}
       </View>
@@ -898,7 +713,7 @@ function MatchDetailsScreen() {
   };
   return (
     <>
-      <Stack.Screen options={{ title: "Treff" }} />
+      <Stack.Screen options={{ title: tr(language, "matchDetail.screenTitle") }} />
       <ImageViewing
         images={viewerImages}
         imageIndex={viewerIndex}
@@ -964,7 +779,7 @@ function MatchDetailsScreen() {
           <Text style={styles.lastLine}>{lastLine}</Text>
           {hiddenLow && (
             <Text style={styles.muted}>
-              Dette treffet har lavt samsvar og vises normalt ikke i listen.
+              {tr(language, "matchDetail.lowMatchHidden")}
             </Text>
           )}
         </View>

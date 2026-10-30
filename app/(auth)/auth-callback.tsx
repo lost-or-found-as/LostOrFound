@@ -10,6 +10,7 @@ import * as Linking from "expo-linking";
 
 import { supabase } from "../../src/lib/supabase";
 import { useI18n } from "../../src/i18n/I18nProvider";
+import { userErrorMessage } from "../../src/lib/userError";
 
 function safeUrl(u: string) {
   return u
@@ -91,7 +92,7 @@ export default function AuthCallbackScreen() {
       } catch (e: any) {
         if (cancelled) return;
         setStatus("error");
-        setMessage(e?.message ?? t("auth.callback.unknownError"));
+        setMessage(userErrorMessage(e, t, "auth.callback.unknownError", "auth.callback"));
       }
     }
 

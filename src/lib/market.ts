@@ -1,4 +1,10 @@
 // src/lib/market.ts
+import { translate } from "../i18n/translate";
+import { formatDistance } from "../i18n/formatters";
+
+// Rewards and prices are stored in Norwegian kroner (reward_ore, amountOre) until the database
+// stores a currency per amount.
+export const STORED_MONEY_CURRENCY = "NOK";
 export type SupportedLanguage = "no" | "en";
 export type RegionCode = "NO" | "US" | "GB" | "EU" | "OTHER";
 export type CurrencyCode = "NOK" | "USD" | "GBP" | "EUR";
@@ -99,16 +105,10 @@ export function getMarketConfig(input?: { locale?: string; language?: SupportedL
   };
 }
 
+// Kept for older callers; new code uses formatDistance from src/i18n/formatters.
 export function formatDistanceDisplay(meters: number | undefined, region: RegionCode, language: SupportedLanguage) {
   if (meters == null) return "—";
-  if (region === "US") {
-    const feet = meters * 3.28084;
-    if (feet < 1000) return `${Math.round(feet)} ${language === "en" ? "ft" : "fot"}`;
-    const miles = meters / 1609.344;
-    return `${miles.toFixed(miles >= 10 ? 0 : 1)} ${language === "en" ? "mi" : "miles"}`;
-  }
-  if (meters >= 1000) return `${(meters / 1000).toFixed(0)} km`;
-  return `${meters} m`;
+  return formatDistance(meters, language, (k, p) => translate(language, k, p), region === "US" || region === "GB" ? "imperial" : "metric");
 }
 
 export function formatCurrencyDisplay(amount: number | undefined, currency: CurrencyCode, locale?: string) {

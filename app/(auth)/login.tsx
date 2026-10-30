@@ -20,6 +20,7 @@ import { supabase } from "../../src/lib/supabase";
 import { ensureProfileRow } from "../../src/lib/profile";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { rememberGuestForClaim } from "../../src/lib/guestClaim";
+import { codedError, userErrorMessage } from "../../src/lib/userError";
 
 type OAuthStartResult = {
   data?: { url?: string | null } | null;
@@ -42,11 +43,11 @@ const WARNING_BG = "#FFF7ED";
 const WARNING_BORDER = "#FDBA74";
 const WARNING_TEXT = "#9A3412";
 
-function withTimeout<T>(p: Promise<T>, ms = 15000, label = "Operasjon") {
+function withTimeout<T>(p: Promise<T>, ms = 15000, label = "operation") {
   return Promise.race<T>([
     p,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timeout (${Math.round(ms / 1000)}s)`)), ms)
+      setTimeout(() => reject(Object.assign(codedError("TIMEOUT"), { label, timeoutMs: ms })), ms)
     ),
   ]);
 }
@@ -123,7 +124,7 @@ export default function LoginScreen() {
       await withTimeout(signInWithPassword(email.trim(), password), 20000, t("auth.login.login"));
       goToApp();
     } catch (e: any) {
-      Alert.alert(mode === "signup" ? t("auth.login.sign.up.failed") : t("auth.login.login.failed"), e?.message ?? t("auth.login.unknown.error"));
+      Alert.alert(mode === "signup" ? t("auth.login.sign.up.failed") : t("auth.login.login.failed"), userErrorMessage(e, t, "auth.login.unknown.error", "auth.login"));
     } finally {
       setSubmitting(false);
     }
@@ -144,8 +145,7 @@ export default function LoginScreen() {
         )) as OAuthStartResult;
 
         const url = res?.data?.url ?? null;
-        const errMsg = res?.error?.message;
-        if (errMsg) throw new Error(errMsg);
+        if (res?.error) throw res.error;
         if (!url) {
           Alert.alert(
             t("auth.login.login.is.not.ready"),
@@ -155,7 +155,7 @@ export default function LoginScreen() {
         }
         await Linking.openURL(url);
       } catch (e: any) {
-        Alert.alert(t("auth.login.login.failed"), e?.message ?? t("auth.login.unknown.error"));
+        Alert.alert(t("auth.login.login.failed"), userErrorMessage(e, t, "auth.login.unknown.error", "auth.login"));
       } finally {
         setBusy(null);
       }
@@ -184,8 +184,7 @@ export default function LoginScreen() {
       }
 
       const res = (await withTimeout<GuestResult>(fn.call(supabase.auth), 15000, t("auth.login.guest"))) as GuestResult;
-      const errMsg = res?.error?.message;
-      if (errMsg) throw new Error(errMsg);
+      if (res?.error) throw res.error;
 
       const uid = res?.data?.session?.user?.id;
       if (uid) {
@@ -203,7 +202,7 @@ export default function LoginScreen() {
         goToApp();
       }, 50);
     } catch (e: any) {
-      Alert.alert(t("auth.login.guest.login.failed"), e?.message ?? t("auth.login.unknown.error"));
+      Alert.alert(t("auth.login.guest.login.failed"), userErrorMessage(e, t, "auth.login.unknown.error", "auth.login"));
      } finally {
       setBusy(null);
     }

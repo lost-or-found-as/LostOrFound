@@ -12,20 +12,18 @@ import { isAnonymousUser } from "../src/lib/authGate";
 export default function StartScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { language, t } = useI18n();
+  const { t } = useI18n();
   const isGuest = isAnonymousUser(user as any);
   const [choice, setChoice] = useState<"LOST" | "FOUND">("LOST");
 
   const goCreate = () => {
     if (choice === "LOST" && (!user || isGuest)) {
       Alert.alert(
-        language === "en" ? "Account required" : "Konto kreves",
-        language === "en"
-          ? "You need an account to report something you lost. Guests can only report found items."
-          : "Du må ha konto for å registrere noe du har mistet. Gjest kan kun registrere funn.",
+        t("start.accountRequiredTitle"),
+        t("start.accountRequiredAlert"),
         [
-          { text: language === "en" ? "Cancel" : "Avbryt", style: "cancel" },
-          { text: language === "en" ? "Log in / create account" : "Logg inn / opprett konto", onPress: goLogin },
+          { text: t("start.cancel"), style: "cancel" },
+          { text: t("start.loginOrCreate"), onPress: goLogin },
         ]
       );
       return;
@@ -63,8 +61,8 @@ export default function StartScreen() {
       <View style={styles.safe}>
         {user ? (
           <PremiumHeader
-            title={language === "en" ? "Report an item" : "Registrer mistet eller funnet"}
-            subtitle={language === "en" ? "Choose what best fits the situation" : "Velg hva som passer best for situasjonen"}
+            title={t("start.title")}
+            subtitle={t("start.subtitle")}
             onBack={goBack}
             right={<AuthHeaderAction />}
           />
@@ -73,13 +71,13 @@ export default function StartScreen() {
         <View style={[styles.container, user ? styles.containerWithHeader : null]}>
           {!user ? (
             <Text style={styles.title}>
-              {language === "en" ? "Report an item" : "Registrer mistet eller funnet"}
+              {t("start.title")}
             </Text>
           ) : null}
 
           {!user ? (
             <Text style={styles.subtitle}>
-              {language === "en" ? "Choose what best fits the situation" : "Velg hva som passer best for situasjonen"}
+              {t("start.subtitle")}
             </Text>
           ) : null}
 
@@ -89,7 +87,7 @@ export default function StartScreen() {
               onPress={() => setChoice("LOST")}
             >
               <Text style={[styles.segmentTxt, choice === "LOST" && styles.segmentTxtOn]}>
-                {language === "en" ? "I lost something" : "Jeg har mistet noe"}
+                {t("start.lost")}
               </Text>
             </Pressable>
 
@@ -98,7 +96,7 @@ export default function StartScreen() {
               onPress={() => setChoice("FOUND")}
             >
               <Text style={[styles.segmentTxt, choice === "FOUND" && styles.segmentTxtOn]}>
-                {language === "en" ? "I found something" : "Jeg har funnet noe"}
+                {t("start.found")}
               </Text>
             </Pressable>
           </View>
@@ -106,21 +104,19 @@ export default function StartScreen() {
 
           {choice === "LOST" && (!user || isGuest) ? (
             <View style={styles.noticeBox}>
-              <Text style={styles.noticeTitle}>{language === "en" ? "Account required" : "Konto kreves"}</Text>
+              <Text style={styles.noticeTitle}>{t("start.accountRequiredTitle")}</Text>
               <Text style={styles.noticeText}>
-                {language === "en"
-                  ? "Guests can report found items, but lost reports require a real account."
-                  : "Gjest kan registrere funn, men mistet-rapporter krever en ekte konto."}
+                {t("start.accountRequiredNotice")}
               </Text>
             </View>
           ) : null}
           <Pressable style={styles.primaryBtn} onPress={goCreate}>
-            <Text style={styles.primaryTxt}>{language === "en" ? "Continue" : "Fortsett"}</Text>
+            <Text style={styles.primaryTxt}>{t("start.cta")}</Text>
           </Pressable>
 
           {user ? (
             <Pressable style={styles.secondaryBtn} onPress={goMyReports}>
-              <Text style={styles.secondaryTxt}>{language === "en" ? "My cases" : "Mine saker"}</Text>
+              <Text style={styles.secondaryTxt}>{t("start.myCases")}</Text>
             </Pressable>
           ) : null}          {user ? (
             <Pressable style={styles.secondaryBtn} onPress={goNotifications}>

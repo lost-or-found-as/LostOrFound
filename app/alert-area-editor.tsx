@@ -34,6 +34,7 @@ import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { supabase } from "../src/lib/supabase";
 import { API_BASE_URL } from "../src/lib/config";
+import { formatDistance } from "../src/i18n/formatters";
 
 type Point = { latitude: number; longitude: number };
 type AreaMode = "CIRCLE" | "POLYGON";
@@ -373,10 +374,7 @@ function AlertAreaEditorScreen() {
           count: item.boundary_points?.length || 0,
         })
       : t("alertAreas.circleType", {
-          radius:
-            (item.radius_m || 0) >= 1000
-              ? `${(item.radius_m || 0) / 1000} km`
-              : `${item.radius_m || 0} m`,
+          radius: formatDistance(item.radius_m || 0, language, t),
         });
   return (
     <>
@@ -571,7 +569,7 @@ function AlertAreaEditorScreen() {
                           radius === value && styles.chipTextOn,
                         ]}
                       >
-                        {value >= 1000 ? `${value / 1000} km` : `${value} m`}
+                        {formatDistance(value, language, t)}
                       </Text>
                     </Pressable>
                   ))}

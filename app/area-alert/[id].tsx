@@ -8,6 +8,8 @@ import { useI18n } from "../../src/i18n/I18nProvider";
 import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
 import { categoryLabel, colorLabel, itemLabel, reportSummary } from "../../src/lib/localizedReport";
+import { userErrorMessage } from "../../src/lib/userError";
+import { formatDistance, formatLocalizedDateTime } from "../../src/i18n/formatters";
 
 function AreaAlertDetails() {
   const router = useRouter();
@@ -27,7 +29,7 @@ function AreaAlertDetails() {
       if (!response.ok) throw new Error(json?.error || `HTTP_${response.status}`);
       setData(json);
     } catch (error: any) {
-      Alert.alert(t("areaAlert.could.not.open.alert"), error?.message || String(error));
+      Alert.alert(t("areaAlert.could.not.open.alert"), userErrorMessage(error, t, "errors.generic", "area_alert.open"));
     } finally { setLoading(false); }
   }, [id, language]);
 
@@ -42,7 +44,7 @@ function AreaAlertDetails() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>{t("areaAlert.lost.item.near.you")}</Text>
-          <Text style={styles.title}>{reportSummary(report, language) || (t("areaAlert.lost.item"))}</Text>
+          <Text style={styles.title}>{reportSummary(report, language, t) || (t("areaAlert.lost.item"))}</Text>
           <Text style={styles.meta}>{report?.location_label || ""}</Text>
         </View>
         <View style={styles.card}>
@@ -56,8 +58,8 @@ function AreaAlertDetails() {
         <View style={styles.card}>
           <Text style={styles.h2}>{t("areaAlert.alert.status")}</Text>
           <Text style={styles.row}>{String(campaign.status).toUpperCase() === "ACTIVE" ? (t("areaAlert.active")) : campaign.status}</Text>
-          <Text style={styles.row}>{t("areaAlert.area.radius")}: {campaign.radius_m || "–"} m</Text>
-          <Text style={styles.row}>{t("areaAlert.active.until")}: {new Date(campaign.ends_at).toLocaleString(language === "en" ? "en-GB" : "nb-NO")}</Text>
+          <Text style={styles.row}>{t("areaAlert.area.radius")}: {campaign.radius_m ? formatDistance(campaign.radius_m, language, t) : "–"}</Text>
+          <Text style={styles.row}>{t("areaAlert.active.until")}: {formatLocalizedDateTime(campaign.ends_at, language)}</Text>
         </View>
         <View style={styles.actions}>
           <Pressable style={styles.secondaryButton} onPress={() => router.push({ pathname: "/observation-create", params: { campaignId: String(id || ""), kind: "SEEN" } })}><Text style={styles.secondaryButtonText}>{t("areaAlert.i.saw.this")}</Text></Pressable>

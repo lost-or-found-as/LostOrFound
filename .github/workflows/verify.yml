@@ -19,6 +19,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # T1.9E: the hardcoded-text check and the TypeScript module tests need the TypeScript package.
+      - name: Install TypeScript for the checks
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ts" --no-audit --no-fund typescript@5.9.3
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/ts/node_modules/typescript" node_modules/typescript
       - name: Run active checks and behavior tests
         run: node scripts/verify.js
 

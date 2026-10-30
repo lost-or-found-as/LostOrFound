@@ -19,6 +19,8 @@ import { PremiumHeader } from "../src/ui/PremiumHeader";
 import { AuthHeaderAction } from "../src/ui/AuthHeaderAction";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { notificationCaseLabel } from "../src/lib/localizedReport";
+import { userErrorMessage } from "../src/lib/userError";
+import { formatTimeAgo } from "../src/i18n/formatters";
 
 type Translate = ReturnType<typeof useI18n>["t"];
 type Notif = {
@@ -38,29 +40,12 @@ type Notif = {
   merged_message?: boolean;
 };
 
-function timeAgo(iso: string, language: "no" | "en") {
-  const d = new Date(iso);
-  const ms = Date.now() - d.getTime();
-  if (!Number.isFinite(ms)) return "";
-  const min = Math.floor(ms / 60000);
-  if (language === "en") {
-    if (min < 1) return "now";
-    if (min < 60) return `${min} min`;
-    const h = Math.floor(min / 60);
-    if (h < 24) return `${h} h`;
-    const days = Math.floor(h / 24);
-    return `${days} d`;
-  }
-  if (min < 1) return "nå";
-  if (min < 60) return `${min} min`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h} t`;
-  const days = Math.floor(h / 24);
-  return `${days} d`;
+function timeAgo(iso: string, t: Translate) {
+  return formatTimeAgo(iso, t, "short");
 }
 
-function reportHeading(n: Notif, language: "no" | "en") {
-  return notificationCaseLabel(n.report_context, language) || null;
+function reportHeading(n: Notif, language: "no" | "en", t: Translate) {
+  return notificationCaseLabel(n.report_context, language, t) || null;
 }
 
 function compactNotifications(items: Notif[]) {
@@ -133,7 +118,7 @@ function notificationTitle(n: Notif, language: "no" | "en", t: Translate) {
   if (type === "REPORT_UPDATED") return t("notifications.case.updated");
   if (["REPORT_EXPIRING", "REPORT_EXPIRED", "REPORT_ARCHIVED"].includes(type)) {
     return (
-      reportHeading(n, language) || n.title || t("notifications.notification")
+      reportHeading(n, language, t) || n.title || t("notifications.notification")
     );
   }
   if (
@@ -143,9 +128,7 @@ function notificationTitle(n: Notif, language: "no" | "en", t: Translate) {
   )
     return n.title || t("notifications.case.resolution");
   if (type === "OBSERVATION_MESSAGE")
-    return language === "en"
-      ? "New observation message"
-      : "Ny melding om observasjon";
+    return t("notifications.observationMessageTitle");
   if (type === "OBSERVATION_STATUS")
     return t("notifications.observation.update");
   if (type === "AREA_ALERT_OBSERVATION")
@@ -183,15 +166,11 @@ function notificationBody(n: Notif, language: "no" | "en", t: Translate) {
       "notifications.a.found.report.has.been.archived.and.is.available.in.your.history",
     );
   if (type === "OBSERVATION_MESSAGE")
-    return language === "en"
-      ? "You received a new message about an observation or possible find."
-      : "Du har fått en ny melding om en observasjon eller et mulig funn.";
+    return t("notifications.observationMessageBody");
   if (type === "AREA_ALERT_OBSERVATION")
     return t("notifications.open.the.observation.for.details");
   if (type === "AREA_ALERT" || type === "GEO_ALERT")
-    return language === "en"
-      ? "Reported lost near an area you follow."
-      : "Meldt mistet nær et område du følger.";
+    return t("notifications.areaAlertBody");
   return n.body ? String(n.body) : null;
 }
 
@@ -243,7 +222,7 @@ function NotificationsScreen() {
     } catch (e: any) {
       Alert.alert(
         t("notifications.error"),
-        e?.message ?? t("notifications.unknown.error"),
+        userErrorMessage(e, t, "notifications.unknown.error", "notifications.load"),
       );
     } finally {
       setLoading(false);
@@ -324,7 +303,7 @@ function NotificationsScreen() {
       } catch (e: any) {
         Alert.alert(
           t("notifications.error"),
-          e?.message ?? t("notifications.could.not.delete.notification"),
+          userErrorMessage(e, t, "notifications.could.not.delete.notification", "notifications.delete"),
         );
       } finally {
         setBusy(false);
@@ -360,8 +339,7 @@ function NotificationsScreen() {
     } catch (e: any) {
       Alert.alert(
         t("notifications.error"),
-        e?.message ??
-          t("notifications.could.not.delete.unavailable.notifications"),
+        userErrorMessage(e, t, "notifications.could.not.delete.unavailable.notifications", "notifications.delete"),
       );
     } finally {
       setBusy(false);
@@ -460,7 +438,7 @@ function NotificationsScreen() {
       } catch (e: any) {
         Alert.alert(
           t("notifications.error"),
-          e?.message ?? t("notifications.could.not.open.the.notification"),
+          userErrorMessage(e, t, "notifications.could.not.open.the.notification", "notifications.open"),
         );
       }
     },
@@ -607,19 +585,19 @@ function NotificationsScreen() {
                       <View style={styles.timeWrap}>
                         {unread && <Text style={styles.unreadDot}>●</Text>}
                         <Text style={styles.time}>
-                          {timeAgo(item.created_at, language)}
+                          {timeAgo(item.created_at, t)}
                         </Text>
                       </View>
                     </View>
 
-                    {!!notificationCaseLabel(item.report_context, language) &&
+                    {!!notificationCaseLabel(item.report_context, language, t) &&
                       ![
                         "REPORT_EXPIRING",
                         "REPORT_EXPIRED",
                         "REPORT_ARCHIVED",
                       ].includes(String(item.type || "").toUpperCase()) && (
                         <Text style={styles.caseContext} numberOfLines={1}>
-                          {notificationCaseLabel(item.report_context, language)}
+                          {notificationCaseLabel(item.report_context, language, t)}
                         </Text>
                       )}
                     {notificationBody(item, language, t) && (
