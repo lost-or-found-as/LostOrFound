@@ -48,7 +48,7 @@ function isAllowedStatus(s) {
 const MATCH_SELECT = `
      id, score, status, reasons,
      lost:lost_id (
-       id, user_id, type, category, subcategory_key, title, description, color, brand,
+       id, user_id, type, category, subcategory_key, title, description, color, secondary_color, brand,
        occurred_at, created_at, lat, lng, location_label,
        radius_m, search_radius_m, area_radius_m, location_radius_m,
        status, visible_until, closed_at, archived_at,
@@ -56,7 +56,7 @@ const MATCH_SELECT = `
        report_images ( id, path, sort_order, created_at )
      ),
      found:found_id (
-       id, user_id, type, category, subcategory_key, title, description, color, brand,
+       id, user_id, type, category, subcategory_key, title, description, color, secondary_color, brand,
        occurred_at, created_at, lat, lng, location_label,
        radius_m, search_radius_m, area_radius_m, location_radius_m,
        status, visible_until, closed_at, archived_at,

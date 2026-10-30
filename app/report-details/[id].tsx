@@ -17,7 +17,7 @@ import { supabase } from "../../src/lib/supabase";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { PremiumHeader } from "../../src/ui/PremiumHeader";
 import { theme } from "../../src/ui/theme";
-import { CATEGORIES, SUBCATEGORIES } from "../../src/lib/categories";
+import { categoryEntry, colorName, itemEntry } from "../../src/i18n/catalog";
 import { en, type TranslationKey } from "../../src/i18n/locales/en";
 import { fetchGeoAlertStatus } from "../../src/lib/reportCommerce";
 import {
@@ -30,6 +30,7 @@ import { AreaAlertServiceCard } from "../../src/ui/AreaAlertServiceCard";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { formatLocalizedDateTime, formatMoney } from "../../src/i18n/formatters";
 import { STORED_MONEY_CURRENCY } from "../../src/lib/market";
+import { reportDescriptionText, reportSecondaryColor } from "../../src/lib/reportDescription";
 type D = {
   report: any;
   images: any[];
@@ -51,14 +52,9 @@ function human(v: any, l: "no" | "en", t: Translate) {
     .replace(/-/g, "_");
   const key = `caseLabel.${k}`;
   if (k && key in en) return t(key as TranslationKey);
-  if (l === "no") {
-    const category = CATEGORIES.find((x) => x.value === k);
-    if (category) return category.label;
-    for (const options of Object.values(SUBCATEGORIES)) {
-      const item = options.find((x) => x.value === k);
-      if (item) return item.label;
-    }
-  }
+  // T1.9F: category and item names come from the catalog in every language.
+  const named = categoryEntry(k)?.names[l] ?? itemEntry(k)?.names[l];
+  if (named) return named;
   return String(v || "")
     .replace(/_/g, " ")
     .toLowerCase()
@@ -243,9 +239,7 @@ function Screen() {
         r.location_radius_m ||
         0,
     ),
-    secondary = String(r.description || "").match(
-      /(?:Secondary color|Tilleggsfarge):\s*([^\n]+)/i,
-    )?.[1];
+    secondary = reportSecondaryColor(r);
   return (
     <>
       <Stack.Screen
@@ -296,20 +290,18 @@ function Screen() {
             <Row label={t("caseDetail.object")} value={title} />
             <Row
               label={t("caseDetail.color")}
-              value={human(r.color, language, t)}
+              value={colorName(r.color, language)}
             />
             {secondary && (
               <Row
                 label={t("caseDetail.secondaryColor")}
-                value={human(secondary, language, t)}
+                value={colorName(secondary, language)}
               />
             )}
             <Row label={t("caseDetail.brand")} value={r.brand} />
             <Row
               label={t("caseDetail.description")}
-              value={String(r.description || "")
-                .replace(/(?:Secondary color|Tilleggsfarge):\s*[^\n]+/i, "")
-                .trim()}
+              value={reportDescriptionText(r.description)}
               multiline
             />
           </Card>

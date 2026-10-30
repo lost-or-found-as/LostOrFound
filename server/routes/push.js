@@ -8,6 +8,28 @@ const { requireUser } = require("../mw/auth");
 const isExpoToken = (value) => /^ExponentPushToken\[[^\]]+\]$|^ExpoPushToken\[[^\]]+\]$/.test(String(value || ""));
 const testUserIds = () => new Set(String(process.env.PUSH_TEST_USER_IDS || "").split(",").map(x => x.trim()).filter(Boolean));
 
+// T1.9F: the app reports its language whenever it changes, so push texts follow the app
+// language and not the language that was active when push was first turned on.
+router.post("/language", requireUser, async (req, res) => {
+  try {
+    const installationId = String(req.body?.installationId || "").trim();
+    const language = req.body?.language === "en" ? "en" : req.body?.language === "no" ? "no" : null;
+    if (!installationId || installationId.length > 200) return res.status(400).json({ error: "INVALID_INSTALLATION_ID" });
+    if (!language) return res.status(400).json({ error: "INVALID_LANGUAGE" });
+    const { data, error } = await supaAdmin
+      .from("push_installations")
+      .update({ language, last_seen_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("user_id", req.user.id)
+      .eq("installation_id", installationId)
+      .select("installation_id");
+    if (error) throw error;
+    return res.json({ ok: true, updated: (data || []).length });
+  } catch (e) {
+    console.error("[push/language] failed", e?.message ?? e);
+    return res.status(500).json({ error: "PUSH_LANGUAGE_UPDATE_FAILED" });
+  }
+});
+
 router.post("/register", requireUser, async (req, res) => {
   try {
     const userId = req.user.id;

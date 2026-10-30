@@ -51,6 +51,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { codedError, userErrorMessage } from "../../src/lib/userError";
 import { formatDistance } from "../../src/i18n/formatters";
+import { reportDescriptionText, reportSecondaryColor } from "../../src/lib/reportDescription";
 import { CATEGORY_CATALOG, COLOR_CATALOG, colorEntry, findByName, itemEntry, itemSearchText } from "../../src/i18n/catalog";
 type ReportType = "LOST" | "FOUND";
 type ColorOption = { label: string; value: string };
@@ -597,9 +598,9 @@ export default function CreateReportScreen() {
         setField("category" as any, report.category ?? "PERSONAL");
         setField("subcategoryKey" as any, report.subcategory_key ?? "");
         setField("subcategoryCustom" as any, report.subcategory_custom ?? "");
-        setField("description" as any, report.description ?? "");
+        setField("description" as any, reportDescriptionText(report.description));
         setField("color" as any, report.color ?? "");
-        setField("colorSecondary" as any, "");
+        setField("colorSecondary" as any, reportSecondaryColor(report) ?? "");
         setField("brand" as any, report.brand ?? "");
         setField(
           "rewardNOK" as any,
@@ -1014,19 +1015,11 @@ export default function CreateReportScreen() {
         if (networkSubmitRef.current) return;
         networkSubmitRef.current = true;
         setSaving(true);
+        // T1.9F: the secondary colour is stored as a colour key in its own column, no longer as
+        // a text line in the description.
         const secondary =
           colorSecondary && colorSecondary !== color ? colorSecondary : "";
-        const secondaryLabel = secondary
-          ? COLORS.find((c) => c.value === secondary)?.label || secondary
-          : "";
-        const descriptionBase = description?.trim() || "";
-        const extraLine = secondaryLabel
-          ? `${t("report.create.secondary.color")}: ${localizeColorLabel(secondaryLabel, language)}`
-          : "";
-        const descriptionFull =
-          descriptionBase || extraLine
-            ? [descriptionBase, extraLine].filter(Boolean).join("\n")
-            : undefined;
+        const descriptionFull = reportDescriptionText(description) || undefined;
         const when = (() => {
           if (occurredAtISO) {
             const d = new Date(occurredAtISO);
@@ -1049,6 +1042,7 @@ export default function CreateReportScreen() {
           title: computedTitle,
           description: descriptionFull,
           color: color.trim() || undefined,
+          secondary_color: secondary || (isEditMode ? null : undefined),
           brand: brand.trim() || undefined,
           occurred_at: when,
           // The backend expects latitude and longitude at the top level.

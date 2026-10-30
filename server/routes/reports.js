@@ -15,6 +15,7 @@ const supaAdmin =
 const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const requireUserOrGuest = authModule.requireUserOrGuest;
+const { normalizeSecondaryColor } = require("../lib/colorKeys");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -285,6 +286,8 @@ function normalizeReportPatch(body) {
   if (typeof input.title === "string") patch.title = input.title.trim();
   if ("description" in input) patch.description = input.description || null;
   if ("color" in input) patch.color = input.color || null;
+  // T1.9F: validated colour key (throws INVALID_SECONDARY_COLOR).
+  if ("secondary_color" in input) patch.secondary_color = normalizeSecondaryColor(input.secondary_color);
   if ("brand" in input) patch.brand = input.brand || null;
   if ("occurred_at" in input) patch.occurred_at = input.occurred_at;
   if ("lat" in input) patch.lat = toFiniteNumberOrNull(input.lat);
@@ -383,6 +386,7 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       title,
       description = null,
       color = null,
+      secondary_color = null,
       brand = null,
       occurred_at,
       lat = null,
@@ -407,6 +411,13 @@ router.post("/", requireUserOrGuest, async (req, res) => {
     const normalizedType = String(type).toUpperCase();
     if (normalizedType !== "LOST" && normalizedType !== "FOUND") {
       return res.status(400).json({ error: "Invalid report type" });
+    }
+
+    let normalizedSecondaryColor = null;
+    try {
+      normalizedSecondaryColor = normalizeSecondaryColor(secondary_color);
+    } catch {
+      return res.status(400).json({ error: "INVALID_SECONDARY_COLOR" });
     }
 
     const normalizedClientRequestId =
@@ -476,6 +487,7 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       title,
       description,
       color,
+      secondary_color: normalizedSecondaryColor,
       brand,
       occurred_at,
       lat: toFiniteNumberOrNull(lat),
@@ -610,7 +622,15 @@ router.patch("/:id", requireUser, async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Report not found" });
 
     // Do not allow changing report type. LOST remains LOST, FOUND remains FOUND.
-    const patch = normalizeReportPatch(req.body || {});
+    let patch;
+    try {
+      patch = normalizeReportPatch(req.body || {});
+    } catch (patchErr) {
+      if (patchErr?.code === "INVALID_SECONDARY_COLOR") {
+        return res.status(400).json({ error: "INVALID_SECONDARY_COLOR" });
+      }
+      throw patchErr;
+    }
     if (Object.keys(patch).length === 0) {
       return res.status(400).json({ error: "No editable fields provided" });
     }

@@ -99,6 +99,30 @@ export async function registerPushInstallation(language: "no" | "en") {
   return { token, installationId, installation: data.installation };
 }
 
+// T1.9F: tell the server which language this phone uses, so push texts follow the app language.
+// Quiet and best effort: only for registered users on a phone that has turned on push.
+export async function syncPushLanguage(language: "no" | "en") {
+  try {
+    const installationId = await AsyncStorage.getItem(INSTALLATION_KEY);
+    if (!installationId) return;
+    const headers = await authHeaders();
+    await fetch(`${API_BASE_URL}/push/language`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ installationId, language }),
+    });
+  } catch {
+    // Not signed in, offline or push never turned on: nothing to update.
+  }
+}
+
+export function usePushLanguageSync(language: "no" | "en", userId: string | null | undefined, isGuest: boolean) {
+  useEffect(() => {
+    if (!userId || isGuest) return;
+    void syncPushLanguage(language);
+  }, [language, userId, isGuest]);
+}
+
 export async function unregisterPushInstallation() {
   const installationId = await getPushInstallationId();
   const headers = await authHeaders();

@@ -1,14 +1,15 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 // T1.8E.5I: in-screen notice used instead of native alert dialogs.
-type Tone = "warning" | "info" | "error";
+type Tone = "warning" | "info" | "error" | "success";
 
 const TONES: Record<Tone, { bg: string; border: string; title: string; body: string; icon: string; button: string }> = {
   warning: { bg: "#FFFBEB", border: "#FCD34D", title: "#78350F", body: "#92400E", icon: "#92400E", button: "#D97706" },
   info: { bg: "#EFF6FF", border: "#BFDBFE", title: "#1E3A8A", body: "#1E40AF", icon: "#1D4ED8", button: "#2563EB" },
   error: { bg: "#FFF1F2", border: "#FECDD3", title: "#881337", body: "#9F1239", icon: "#BE123C", button: "#E11D48" },
+  success: { bg: "#F0FDF4", border: "#BBF7D0", title: "#14532D", body: "#166534", icon: "#166534", button: "#166534" },
 };
 
 type Props = {
@@ -19,12 +20,14 @@ type Props = {
   actionLabel?: string;
   onAction?: () => void;
   busy?: boolean;
+  // T1.9F: extra style for the box (the default has a top margin).
+  style?: StyleProp<ViewStyle>;
 };
 
-export function InlineNotice({ tone = "warning", icon = "alert-circle-outline", title, body, actionLabel, onAction, busy }: Props) {
+export function InlineNotice({ tone = "warning", icon = "alert-circle-outline", title, body, actionLabel, onAction, busy, style }: Props) {
   const c = TONES[tone];
   return (
-    <View accessibilityRole="alert" style={[styles.box, { backgroundColor: c.bg, borderColor: c.border }]}>
+    <View accessibilityRole="alert" style={[styles.box, { backgroundColor: c.bg, borderColor: c.border }, style]}>
       <View style={styles.row}>
         <Ionicons name={icon} size={20} color={c.icon} style={styles.icon} />
         <View style={styles.textCol}>

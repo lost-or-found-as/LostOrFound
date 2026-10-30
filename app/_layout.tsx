@@ -6,10 +6,18 @@ import { I18nProvider } from "../src/i18n/I18nProvider";
 import { AuthHeaderAction } from "../src/ui/AuthHeaderAction";
 import { ReportDraftProvider } from "../src/contexts/ReportDraftContext";
 import { initializeSentry, Sentry } from "../src/lib/sentry";
-import { usePushNotificationNavigation } from "../src/lib/pushNotifications";
+import { usePushLanguageSync, usePushNotificationNavigation } from "../src/lib/pushNotifications";
+import { useAuth } from "../src/contexts/AuthContext";
+import { useI18n } from "../src/i18n/I18nProvider";
+import { useIsGuest } from "../src/ui/AccountRequired";
 initializeSentry();
 function PushBridge() {
   usePushNotificationNavigation();
+  // T1.9F: keep the push language on the server equal to the app language.
+  const { user } = useAuth();
+  const { language } = useI18n();
+  const isGuest = useIsGuest();
+  usePushLanguageSync(language, user?.id, isGuest);
   return null;
 }
 function RootLayout() {

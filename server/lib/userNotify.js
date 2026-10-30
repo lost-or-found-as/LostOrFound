@@ -7,8 +7,14 @@ function localized(value, language) {
   return value[language === "en" ? "en" : "no"] || value.no || value.en || "";
 }
 async function notifyUser({ userId, type, entityType, entityId, title, body, titles, bodies, data = {} }) {
-  const installations = await supaAdmin.from("push_installations").select("installation_id,expo_push_token,language").eq("user_id", userId).eq("active", true);
-  const preferredLanguage = installations.data?.find((x) => x.language === "en")?.language || installations.data?.[0]?.language || "no";
+  // T1.9F: in-app text uses the language of the phone the user used most recently.
+  const installations = await supaAdmin
+    .from("push_installations")
+    .select("installation_id,expo_push_token,language,last_seen_at")
+    .eq("user_id", userId)
+    .eq("active", true)
+    .order("last_seen_at", { ascending: false });
+  const preferredLanguage = installations.data?.[0]?.language || "no";
   const inAppTitle = localized(titles || title, preferredLanguage);
   const inAppBody = localized(bodies || body, preferredLanguage);
   const inserted = await supaAdmin

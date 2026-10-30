@@ -18,6 +18,7 @@ import {
   StyleSheet,
   RefreshControl,
   Pressable,
+  Image,
 } from "react-native";
 import {
   Stack,
@@ -37,8 +38,13 @@ import {
   objectSearchText,
 } from "../src/lib/categories";
 import { theme } from "../src/ui/theme";
-import { PremiumHeader } from "../src/ui/PremiumHeader";
-import { AuthHeaderAction } from "../src/ui/AuthHeaderAction";
+import { InlineNotice } from "../src/ui/InlineNotice";
+import { EmptyState, InfoButton, ScoreBadge, ScoreLevelsExplained, ScreenHeader, SCORE_LABEL_KEYS, scoreLevel as scoreLevelKey } from "../src/ui/kit";
+import { caseAttributes, caseTitle } from "../src/lib/caseDisplay";
+import { shortPlace } from "../src/lib/places";
+import { formatDate } from "../src/i18n/formatters";
+import { reportSecondaryColor } from "../src/lib/reportDescription";
+import { Ionicons } from "@expo/vector-icons";
 import { useI18n } from "../src/i18n/I18nProvider";
 
 import type { TranslationKey } from "../src/i18n/locales/en";
@@ -316,12 +322,7 @@ function objectTone(m: Match, language: AppLang = "no"): SimilarityTone {
   return comparison.lost || comparison.found ? "red" : "neutral";
 }
 function secondaryColorValue(report: any) {
-  const direct = String(report?.secondary_color || "").trim();
-  if (direct) return direct;
-  const match = String(report?.description || "").match(
-    /(?:Secondary color|Tilleggsfarge):\s*([^\n]+)/i,
-  );
-  return match?.[1]?.trim() || null;
+  return reportSecondaryColor(report);
 }
 function normalizedReportColors(report: any) {
   return [report?.color, secondaryColorValue(report)]
@@ -535,7 +536,7 @@ async function getSignedUrlsBatch(paths: string[], token: string) {
 function MatchScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const params = useLocalSearchParams<{ reportId?: string | string[] }>();
   const reportId = useMemo(() => {
     const rid = params?.reportId;
@@ -544,6 +545,7 @@ function MatchScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [thumbMap, setThumbMap] = useState<
     Record<string, { own?: string; other?: string }>
   >({});
@@ -582,6 +584,7 @@ function MatchScreen() {
   const fetchMatches = useCallback(async () => {
     if (!reportId) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
@@ -597,18 +600,11 @@ function MatchScreen() {
       if (!r.ok) {
         const serverMsg = String(data?.error ?? "MATCHES_LOAD_FAILED");
         if (r.status === 404 && /report not found/i.test(serverMsg)) {
-          Alert.alert(
-            tr(language, "match.case.not.found"),
-            tr(
-              language,
-              "match.this.case.no.longer.exists.or.you.do.not.have.ac",
-            ),
-            [{ text: "OK", onPress: () => router.back() }],
-          );
+          setLoadError(t("match.this.case.no.longer.exists.or.you.do.not.have.ac"));
           setMatches([]);
           return;
         }
-        throw new Error(serverMsg);
+        throw Object.assign(codedError(serverMsg), { status: r.status });
       }
       const list: Match[] = data?.matches ?? [];
       setMatches(list);
@@ -717,14 +713,11 @@ function MatchScreen() {
         }
       }
     } catch (e: any) {
-      Alert.alert(
-        tr(language, "match.error"),
-        userErrorMessage(e, (k) => tr(language, k), "match.unknown.error", "match.list"),
-      );
+      setLoadError(userErrorMessage(e, t, "match.unknown.error", "match.list"));
     } finally {
       setLoading(false);
     }
-  }, [reportId, loadLastSeen, computeUnreadForMatch]);
+  }, [reportId, loadLastSeen, computeUnreadForMatch, t]);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchMatches();
@@ -797,114 +790,178 @@ function MatchScreen() {
       }
     };
   }, []);
+  const visibleMatches = useMemo(
+    () =>
+      matches
+        .filter((item) => scoreLevel(item.score) >= 2 && item.status !== "DISMISSED")
+        .sort((first, second) => Number(second.score || 0) - Number(first.score || 0)),
+    [matches],
+  );
+  const ownReport = useMemo(() => {
+    const first = matches[0];
+    if (!first) return null;
+    return first.lost?.id === reportId ? first.lost : first.found;
+  }, [matches, reportId]);
+
+  const header = (
+    <ScreenHeader
+      title={t("match.matches")}
+      subtitle={t("match.ranked.matches.for.your.case")}
+      onBack={() => router.back()}
+      right={
+        <InfoButton title={t("info.matchLevels.title")} body={t("info.matchLevels.body")} label={t("info.matchLevels.label")}>
+          <ScoreLevelsExplained />
+        </InfoButton>
+      }
+    />
+  );
+
   if (!reportId) {
     return (
-      <View style={styles.center}>
-        <Text>{tr(language, "match.missing.reportid")}</Text>
+      <View style={list.screen}>
+        <Stack.Screen options={{ headerShown: false }} />
+        {header}
+        <View style={list.content}>
+          <InlineNotice tone="error" title={t("match.missing.reportid")} />
+        </View>
       </View>
     );
   }
-  const visibleMatches = useMemo(() => {
-    return matches
-      .filter((item) => scoreLevel(item.score) >= 2)
-      .sort(
-        (first, second) => Number(second.score || 0) - Number(first.score || 0),
-      );
-  }, [matches]);
-  return (
-    <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.safe}>
-        <PremiumHeader
-          title={tr(language, "match.matches")}
-          subtitle={tr(language, "match.ranked.matches.for.your.case")}
-          onBack={() => router.back()}
-          right={<AuthHeaderAction />}
-        />
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator />
-            <Text style={{ marginTop: 8 }}>
-              {tr(language, "match.loading.matches")}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            style={{ flex: 1 }}
-            contentContainerStyle={{
-              padding: 12,
-              paddingBottom: 24,
-              flexGrow: 1,
-            }}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            data={visibleMatches}
-            keyExtractor={(m) => m.id}
-            renderItem={({ item }) => {
-              const level = scoreLevel(item.score);
-              const tone = bannerTone(level);
-              const unread = unreadByMatch[item.id] === true;
-              const ownIsLost = item.lost?.id === reportId;
-              const ownLabel = ownIsLost
-                ? tr(language, "match.your.case")
-                : tr(language, "match.other.party");
-              const otherLabel = ownIsLost
-                ? tr(language, "match.other.party")
-                : tr(language, "match.your.case");
 
-              const title = headlineTitle(item, language);
-              const detailRows = detailRowsForMatch(item, reportId, language);
-              if (level < 2) return null;
-              const summary = detailRows.slice(0, 4);
-              const rank =
-                visibleMatches.findIndex(
-                  (candidate) => candidate.id === item.id,
-                ) + 1;
-              return (
-                <Pressable
-                  style={styles.listRow}
-                  onPress={() => router.push(`/matches/${item.id}`)}
-                >
-                  <View style={[styles.rankPill, { backgroundColor: tone.bg }]}>
-                    <Text style={styles.rankText}>{rank}</Text>
-                  </View>
-                  <View style={styles.listContent}>
-                    <View style={styles.listTopRow}>
-                      <Text style={styles.listTitle} numberOfLines={1}>
-                        {title}
-                      </Text>
-                      {unread && <Text style={styles.unreadDot}>●</Text>}
-                    </View>
-                    <Text style={[styles.listLevel, { color: tone.bg }]}>
-                      {scoreLabel(item.score, language)}
-                    </Text>
-                    {summary.map((row, index) => (
-                      <Text
-                        key={`${item.id}-summary-${index}`}
-                        style={styles.listMeta}
-                        numberOfLines={1}
-                      >
-                        {row.label}: {row.value}
-                        {row.note ? ` · ${row.note}` : ""}
-                      </Text>
-                    ))}
-                    <Text style={styles.listOpen}>
-                      {tr(language, "match.view.full.details")}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            }}
-            ListEmptyComponent={
-              <Text style={{ textAlign: "center", marginTop: 32 }}>
-                {tr(language, "match.no.matches.yet.top.3.levels")}
-              </Text>
-            }
-          />
-        )}
+  const daysText = (m: Match) => {
+    const days = Number(reasonVal(m.reasons, "days_apart"));
+    if (!Number.isFinite(days)) return null;
+    const whole = Math.round(Math.abs(days));
+    return whole === 0 ? t("matchDetail.compare.sameDay") : t("matchDetail.compare.daysBetween", { count: whole });
+  };
+
+  const ownIsFound = ownReport?.type === "FOUND";
+  const ownCard = ownReport ? (
+    <View style={list.ownCard}>
+      <View style={[list.ownIcon, { backgroundColor: ownIsFound ? "#DCFCE7" : "#FEF3C7" }]}>
+        <Ionicons
+          name={ownIsFound ? "checkmark-circle-outline" : "search-outline"}
+          size={22}
+          color={ownIsFound ? "#166534" : "#92400E"}
+        />
       </View>
-    </>
+      <View style={list.ownText}>
+        <Text style={[list.ownKicker, { color: ownIsFound ? "#166534" : "#92400E" }]}>
+          {t("matchDetail.sideLabel", {
+            who: t("matchDetail.your.case"),
+            type: ownIsFound ? t("common.found") : t("common.lost"),
+          })}
+        </Text>
+        <Text style={list.ownTitle} numberOfLines={1}>
+          {[caseTitle(ownReport, language), caseAttributes(ownReport, language)].filter(Boolean).join(" · ")}
+        </Text>
+        <Text style={list.meta} numberOfLines={1}>
+          {[shortPlace(ownReport.location_label), formatDate(ownReport.occurred_at ?? ownReport.created_at, language)]
+            .filter(Boolean)
+            .join(" · ")}
+        </Text>
+      </View>
+    </View>
+  ) : null;
+
+  return (
+    <View style={list.screen}>
+      <Stack.Screen options={{ headerShown: false }} />
+      {header}
+      {loading && !matches.length ? (
+        <View style={list.center}>
+          <ActivityIndicator />
+          <Text style={list.meta}>{t("match.loading.matches")}</Text>
+        </View>
+      ) : (
+        <FlatList
+          style={list.flex}
+          contentContainerStyle={list.content}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          data={visibleMatches}
+          keyExtractor={(m) => m.id}
+          ListHeaderComponent={
+            <View style={list.headerBlock}>
+              {ownCard}
+              {!!loadError && (
+                <InlineNotice
+                  tone="error"
+                  title={loadError}
+                  actionLabel={t("errors.retry")}
+                  onAction={() => void fetchMatches()}
+                  style={list.noticeTight}
+                />
+              )}
+              {visibleMatches.length > 0 && (
+                <Text style={list.section}>{t("match.countLabel", { count: visibleMatches.length })}</Text>
+              )}
+            </View>
+          }
+          ItemSeparatorComponent={() => <View style={list.gap} />}
+          renderItem={({ item }) => {
+            const unread = unreadByMatch[item.id] === true;
+            const ownIsLost = item.lost?.id === reportId;
+            const other = ownIsLost ? item.found : item.lost;
+            const thumb = thumbMap[item.id]?.other;
+            const dist = formatDistance(reasonVal(item.reasons, "distance_m"), language);
+            const line1 = [dist ? t("match.distanceAway", { distance: dist }) : null, daysText(item)].filter(Boolean).join(" · ");
+            const line2 = other ? caseAttributes(other, language) : "";
+            const title = other ? caseTitle(other, language) : headlineTitle(item, language);
+            const isNew = unread || item.status === "NEW";
+            const statusText = unread
+              ? t("match.newMessage")
+              : t(
+                  item.status === "CONFIRMED"
+                    ? "match.status.confirmed"
+                    : item.status === "NEW"
+                      ? "match.status.new"
+                      : "match.status.seen",
+                );
+            return (
+              <Pressable
+                style={({ pressed }) => [list.card, pressed && list.pressed]}
+                onPress={() => router.push(`/matches/${item.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={[title, t(SCORE_LABEL_KEYS[scoreLevelKey(item.score)]), statusText, line1]
+                  .filter(Boolean)
+                  .join(", ")}
+              >
+                {thumb ? (
+                  <Image source={{ uri: thumb }} style={list.thumb} />
+                ) : (
+                  <View style={[list.thumb, list.thumbEmpty]}>
+                    <Text style={list.thumbEmptyText}>{t("matchDetail.noImage")}</Text>
+                  </View>
+                )}
+                <View style={list.cardText}>
+                  <View style={list.badgeRow}>
+                    <ScoreBadge score={item.score} />
+                    <View style={list.statusWrap}>
+                      {isNew && <View style={list.dot} />}
+                      <Text style={[list.status, isNew && list.statusStrong]}>{statusText}</Text>
+                    </View>
+                  </View>
+                  <Text style={list.title} numberOfLines={1}>
+                    {title}
+                  </Text>
+                  {!!line1 && (
+                    <Text style={list.meta} numberOfLines={1}>
+                      {line1}
+                    </Text>
+                  )}
+                  {!!line2 && (
+                    <Text style={list.meta} numberOfLines={1}>
+                      {line2}
+                    </Text>
+                  )}
+                </View>
+              </Pressable>
+            );
+          }}
+          ListEmptyComponent={loadError ? null : <EmptyState title={t("match.empty.title")} body={t("match.empty.body")} />}
+        />
+      )}
+    </View>
   );
 }
 const styles = StyleSheet.create({
@@ -1133,3 +1190,57 @@ const styles = StyleSheet.create({
 
 // T1.9A: registered accounts only; guests see the account-required screen.
 export default requireAccount(MatchScreen);
+
+// T1.9F: styles for the reworked match list.
+const list = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.colors.bg },
+  flex: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+  content: { padding: 16, paddingBottom: 32, flexGrow: 1 },
+  headerBlock: { gap: 14, marginBottom: 12 },
+  noticeTight: { marginTop: 0 },
+  ownCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 16,
+    padding: 12,
+  },
+  ownIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  ownText: { flex: 1, minWidth: 0, gap: 2 },
+  ownKicker: { fontSize: 12, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase" },
+  ownTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  section: { fontSize: 13, fontWeight: "800", color: theme.colors.textSecondary, letterSpacing: 0.3, textTransform: "uppercase" },
+  gap: { height: 12 },
+  card: {
+    flexDirection: "row",
+    gap: 12,
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 18,
+    padding: 14,
+  },
+  pressed: { opacity: 0.85 },
+  thumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: "#E2E8F0" },
+  thumbEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#CBD5E1",
+    backgroundColor: "#F1F5F9",
+  },
+  thumbEmptyText: { fontSize: 11, fontWeight: "700", color: theme.colors.textSecondary, textAlign: "center" },
+  cardText: { flex: 1, minWidth: 0, gap: 5 },
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statusWrap: { marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 5 },
+  dot: { width: 8, height: 8, borderRadius: 999, backgroundColor: theme.colors.unread },
+  status: { fontSize: 12, fontWeight: "700", color: theme.colors.textSecondary },
+  statusStrong: { color: theme.colors.unread, fontWeight: "800" },
+  title: { fontSize: 17, fontWeight: "900", color: theme.colors.text },
+  meta: { fontSize: 13, fontWeight: "600", color: theme.colors.textSecondary },
+});

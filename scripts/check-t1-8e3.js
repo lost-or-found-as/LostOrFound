@@ -12,9 +12,10 @@ const checks = {
     "cases.reactivate.30.days",
   ],
   "app/match.tsx": ["normalizedReportColors", "sharedColorValue"],
+  // T1.9F: the detail screen compares both colours (incl. secondary) in "How the cases compare".
   "app/matches/[matchId].tsx": [
-    "secondaryColorValue",
-    "matchDetail.secondary.color",
+    "reportSecondaryColor",
+    "matchDetail.compare.color",
   ],
   "server/routes/matches.js": ["enrichMatchColorInfo", "matched_color"],
 };
