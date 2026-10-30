@@ -32,13 +32,13 @@ import { userErrorMessage } from "../../src/lib/userError";
 import {
   canBuyLongTerm,
   canExtendFound,
-  canReactivateLost,
+  canExtendLost,
   closeReportRequest,
   deleteReportRequest,
   extendFoundRequest,
   isReportClosed,
   isReportExpired,
-  reactivateLostRequest,
+  extendLostRequest,
   reportDaysLeft,
   REACTIVATION_TEST_PRICE,
 } from "../../src/lib/reportLifecycle";
@@ -228,7 +228,7 @@ function Screen() {
   const runStepAction = () => {
     if (step.action === "openChat" && activity.summary.chatMatchId) openChat(activity.summary.chatMatchId);
     else if (step.action === "openMatches") openMatches();
-    else if (step.action === "reactivateLost") setConfirm("reactivate");
+    else if (step.action === "extendLost") setConfirm("reactivate");
     else if (step.action === "extendFound") setConfirm("extend");
     else if (step.action === "longTerm") setLongTermOpen(true);
   };
@@ -255,7 +255,7 @@ function Screen() {
       }
       if (kind === "close") await closeReportRequest(r.id);
       else if (kind === "extend") await extendFoundRequest(r.id);
-      else if (kind === "reactivate") await reactivateLostRequest(r.id);
+      else if (kind === "reactivate") await extendLostRequest(r.id);
       setConfirm(null);
       await load(true);
     } catch (e) {
@@ -289,8 +289,14 @@ function Screen() {
       hint: t("cases.extended.count", { count: Number(r.extension_count || 0) }),
       onPress: () => fromMenu(() => setConfirm("extend")),
     });
-  if (canReactivateLost(r))
-    menuItems.push({ key: "reactivate", icon: "refresh-outline", label: t("cases.reactivate.30.days"), onPress: () => fromMenu(() => setConfirm("reactivate")) });
+  if (canExtendLost(r, activity.summary))
+    menuItems.push({
+      key: "reactivate",
+      icon: "refresh-outline",
+      label: expired ? t("cases.reactivate.30.days") : t("caseDetail.next.extendLost"),
+      hint: t("caseDetail.extensionNumber", { count: activity.summary.paidExtensions + 1 }),
+      onPress: () => fromMenu(() => setConfirm("reactivate")),
+    });
   if (canBuyLongTerm(r))
     menuItems.push({
       key: "longTerm",
@@ -326,9 +332,9 @@ function Screen() {
       label: t("cases.extend"),
     },
     reactivate: {
-      title: t("cases.reactivate.lost.report"),
+      title: expired ? t("cases.reactivate.lost.report") : t("caseDetail.confirm.extendTitle"),
       body: [
-        t("cases.reactivate.payment.summary"),
+        t("caseDetail.extendLostBody", { count: activity.summary.paidExtensions + 1 }),
         `${t("cases.test.price")}: ${formatMoney(REACTIVATION_TEST_PRICE, STORED_MONEY_CURRENCY, language)}`,
         t("cases.test.payment.notice"),
       ].join("\n\n"),

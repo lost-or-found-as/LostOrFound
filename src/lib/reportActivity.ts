@@ -6,9 +6,9 @@ import { supabase } from "./supabase";
 import {
   canBuyLongTerm,
   canExtendFound,
-  canReactivateLost,
+  canExtendLost,
+  isInLostExtensionWindow,
   isHistoricFromStart,
-  LOST_MAX_EXTENSIONS,
   isReportClosed,
   isReportExpired,
   reportDaysLeft,
@@ -75,7 +75,7 @@ export async function fetchReportActivity(reportId: string): Promise<ReportActiv
   return { summary: { ...EMPTY_ACTIVITY.summary, ...(body?.summary || {}) }, events: Array.isArray(body?.events) ? body.events : [] };
 }
 
-export type NextStepAction = "openChat" | "openMatches" | "reactivateLost" | "extendFound" | "longTerm" | null;
+export type NextStepAction = "openChat" | "openMatches" | "extendLost" | "extendFound" | "longTerm" | null;
 // A historic case can be renewed from this many days before it ends.
 export const LONG_TERM_RENEW_WINDOW_DAYS = 30;
 export type NextStepTone = "dark" | "plain";
@@ -156,8 +156,8 @@ export function nextStep(report: LifecycleReport, summary: ActivitySummary, now 
 
   if (isReportExpired(report, now)) {
     // A lost case gets 30 days twice; after that the next step is a historic case.
-    if (canReactivateLost(report, now) && summary.paidExtensions < LOST_MAX_EXTENSIONS && !isHistoricFromStart(report, now))
-      return step("expired", "plain", "caseDetail.next.expiredTitle", "caseDetail.next.expiredBodyLost", "reactivateLost", "caseDetail.next.reactivate");
+    if (canExtendLost(report, summary, now) && !isHistoricFromStart(report, now))
+      return step("expired", "plain", "caseDetail.next.expiredTitle", "caseDetail.next.expiredBodyLost", "extendLost", "caseDetail.next.reactivate");
     if (lost && canBuyLongTerm(report))
       return step(
         "expired",
@@ -174,6 +174,15 @@ export function nextStep(report: LifecycleReport, summary: ActivitySummary, now 
 
   if (lost && canBuyLongTerm(report) && isHistoricFromStart(report, now))
     return step("historicOffer", "plain", "caseDetail.next.historicOfferTitle", "caseDetail.next.historicOfferBody", "longTerm", "caseDetail.next.makeHistoric");
+
+  // T1.9I: the last days of a LOST case: extend it, or make it historic when both extensions are used.
+  if (lost && isInLostExtensionWindow(report, now)) {
+    const days = { count: reportDaysLeft(report, now) ?? 0 };
+    if (canExtendLost(report, summary, now))
+      return step("expiring", "plain", "caseDetail.next.expiringTitle", "caseDetail.next.expiringBodyLost", "extendLost", "caseDetail.next.extendLost", days);
+    if (canBuyLongTerm(report))
+      return step("expiring", "plain", "caseDetail.next.expiringTitle", "caseDetail.next.expiringBodyLostFinal", "longTerm", "caseDetail.next.makeHistoric", days);
+  }
 
   if (canExtendFound(report, now))
     return step("expiring", "plain", "caseDetail.next.expiringTitle", "caseDetail.next.expiringBodyFound", "extendFound", "caseDetail.next.extendFound", {

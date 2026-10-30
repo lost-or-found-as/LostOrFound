@@ -23,6 +23,7 @@ const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const { loadReportMatches } = require("./matches");
 const { buildReportActivity, OPEN_MATCH_STATUSES } = require("../lib/reportActivity");
+const { isLiveWatch, paidExtensionCount } = require("../lib/longTermWatch");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -62,6 +63,34 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
 
     const reportIds = reps.map((r) => r.id);
     const reportSet = new Set(reportIds);
+
+    // T1.9I: lifecycle facts My cases needs for its menu (extend twice, then historic case).
+    const [extensionOrders, watches] = await Promise.all([
+      supaAdmin
+        .from("report_orders")
+        .select("report_id, product_code, status, paid_at, refunded_at")
+        .eq("user_id", user.id)
+        .eq("product_code", "REPORT_REACTIVATION")
+        .in("report_id", reportIds),
+      supaAdmin
+        .from("long_term_watches")
+        .select("report_id, status, current_period_end")
+        .in("report_id", reportIds),
+    ]);
+    if (extensionOrders.error) return res.status(400).json({ error: extensionOrders.error.message });
+    if (watches.error) return res.status(400).json({ error: watches.error.message });
+    const ordersByReport = new Map();
+    for (const o of extensionOrders.data || []) {
+      const list = ordersByReport.get(o.report_id) || [];
+      list.push(o);
+      ordersByReport.set(o.report_id, list);
+    }
+    const watchByReport = new Map((watches.data || []).map((w) => [w.report_id, w]));
+    for (const rep of reps) {
+      rep.paid_extensions = paidExtensionCount(ordersByReport.get(rep.id));
+      const watch = watchByReport.get(rep.id);
+      rep.long_term_until = isLiveWatch(watch) ? watch.current_period_end || null : null;
+    }
 
     // 2) Load all matches for these reports and merge both query results.
     const { data: lostMatches, error: lmErr } = await supaAdmin
@@ -180,7 +209,7 @@ router.get("/:id/activity", requireUser, async (req, res) => {
         : Promise.resolve({ data: [] }),
       supaAdmin.from("area_alert_observations").select("id, observation_type, status, created_at").eq("report_id", reportId),
       supaAdmin.from("geo_alert_campaigns").select("id, radius_m, activated_at").eq("report_id", reportId),
-      supaAdmin.from("report_orders").select("product_code, paid_at, refunded_at").eq("report_id", reportId).eq("user_id", userId).not("paid_at", "is", null),
+      supaAdmin.from("report_orders").select("product_code, status, paid_at, refunded_at").eq("report_id", reportId).eq("user_id", userId).not("paid_at", "is", null),
       supaAdmin.from("long_term_watches").select("status, current_period_end").eq("report_id", reportId).maybeSingle(),
     ]);
     for (const r of [confirmationsResult, lastResult, readsResult, observationsResult, campaignsResult, ordersResult, watchResult])

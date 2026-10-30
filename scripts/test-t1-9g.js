@@ -87,7 +87,7 @@ const matches = nextStep(active("LOST"), sum({ possibleMatches: 3, strongMatches
 ok(matches.kind === "matches" && matches.bodyKey === "caseDetail.next.matchesBodyLostStrong" && matches.action === "openMatches", "lost case with a strong match");
 eq(nextStep(active("FOUND"), sum({ possibleMatches: 1 }), NOW).bodyKey, "caseDetail.next.matchesBodyFound", "finder waits for the owner");
 const expiredLost = nextStep(active("LOST", -1), sum({}), NOW);
-ok(expiredLost.kind === "expired" && expiredLost.action === "reactivateLost", "expired lost case can be reactivated");
+ok(expiredLost.kind === "expired" && expiredLost.action === "extendLost", "expired lost case can be extended");
 const expiredFoundLimit = nextStep(active("FOUND", -1, { extension_count: 2 }), sum({}), NOW);
 ok(expiredFoundLimit.kind === "expired" && expiredFoundLimit.action === null, "found case at the extension limit has no action");
 const expiring = nextStep(active("FOUND", 3), sum({}), NOW);

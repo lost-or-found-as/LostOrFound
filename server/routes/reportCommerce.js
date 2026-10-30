@@ -31,6 +31,9 @@ const {
   longTermPeriod,
   longTermQuote,
   isLiveWatch,
+  paidExtensionCount,
+  lostExtensionEligibility,
+  lostExtensionEnd,
 } = require("../lib/longTermWatch");
 const GEO_ALERT_DURATION_HOURS = 168;
 const GEO_ALERT_REMINDER_COUNT = 0;
@@ -126,6 +129,7 @@ async function loadLongTermContext(reportId, userId) {
   if (watchResult.error) throw watchResult.error;
   if (ordersResult.error) throw ordersResult.error;
   const orders = ordersResult.data || [];
+  const paidExtensions = paidExtensionCount(orders);
   const hadLongTermBefore = orders.some(
     (o) => String(o.product_code || "").startsWith("LONG_TERM_WATCH") && !!o.paid_at && !o.refunded_at,
   );
@@ -133,6 +137,7 @@ async function loadLongTermContext(reportId, userId) {
     watch: watchResult.data || null,
     credits: extensionCredits(orders, hadLongTermBefore),
     hadLongTermBefore,
+    paidExtensions,
   };
 }
 
@@ -388,6 +393,11 @@ router.post("/orders", requireUser, async (req, res) => {
       longTermRequest = { years: resolved.years, credits: resolved.credits, renew: resolved.renew };
     } else if (isLongTermProduct(productCode)) {
       return res.status(400).json({ error: "LONG_TERM_PRODUCT_REQUIRES_YEARS" });
+    } else if (productCode === "REPORT_REACTIVATION") {
+      // T1.9I: 30 days at a time, twice, from three days before the end.
+      const context = await loadLongTermContext(report.id, userId);
+      const eligibility = lostExtensionEligibility(report, context);
+      if (!eligibility.ok) return res.status(409).json({ error: eligibility.error });
     }
 
     const product = await activeProduct(productCode);
@@ -557,7 +567,12 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       periodEnd.setUTCFullYear(periodEnd.getUTCFullYear() + 1);
       autoRenews = true;
     } else if (order.product_code === "REPORT_REACTIVATION") {
-      periodEnd = new Date(now.getTime() + 30 * 86400000);
+      // T1.9I: checked again here (an old order may have been created before the rules), and
+      // the 30 days are added to the days that are left instead of replacing them.
+      const context = await loadLongTermContext(order.report_id, userId);
+      const eligibility = lostExtensionEligibility(report, context, now.getTime());
+      if (!eligibility.ok) return res.status(409).json({ error: eligibility.error });
+      periodEnd = new Date(lostExtensionEnd(report, now.getTime()));
     } else if (order.product_code.startsWith("GEO_ALERT_TIER_")) {
       periodEnd = new Date(now.getTime() + GEO_ALERT_DURATION_HOURS * 3600000);
     } else if (isLongTermProduct(order.product_code)) {

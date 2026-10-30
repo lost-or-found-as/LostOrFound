@@ -14,6 +14,8 @@ export const FOUND_MAX_EXTENSIONS = 2;
 export const REACTIVATION_TEST_PRICE = 99;
 // T1.9H: a LOST case gets 30 days twice; after that it can become a historic case.
 export const LOST_MAX_EXTENSIONS = 2;
+// T1.9I: a LOST case can be extended from this many days before it ends (same rule on the server).
+export const LOST_EXTENSION_WINDOW_DAYS = 3;
 // A loss at least this old is offered as historic from the start (same rule on the server).
 export const HISTORIC_FROM_START_DAYS = 365;
 export const LONG_TERM_YEAR_OPTIONS = [1, 2, 3] as const;
@@ -55,8 +57,26 @@ export function canExtendFound(r: LifecycleReport, now = Date.now()): boolean {
   return until - now <= FOUND_EXTENSION_WINDOW_DAYS * DAY_MS;
 }
 
-export function canReactivateLost(r: LifecycleReport, now = Date.now()): boolean {
-  return String(r.type || "").toUpperCase() === "LOST" && isReportExpired(r, now) && !isReportClosed(r);
+export type LostExtensionFacts = { paidExtensions?: number | null; longTermUntil?: string | null };
+
+function hasLiveLongTerm(facts: LostExtensionFacts, now: number): boolean {
+  const end = Date.parse(facts.longTermUntil || "");
+  return Number.isFinite(end) && end > now;
+}
+
+/** T1.9I: 30 more days for a LOST case, twice, from three days before the end or after it. */
+export function canExtendLost(r: LifecycleReport, facts: LostExtensionFacts, now = Date.now()): boolean {
+  if (String(r.type || "").toUpperCase() !== "LOST" || isReportClosed(r)) return false;
+  if (hasLiveLongTerm(facts, now)) return false;
+  if (Number(facts.paidExtensions || 0) >= LOST_MAX_EXTENSIONS) return false;
+  return isInLostExtensionWindow(r, now);
+}
+
+/** The case has ended or ends within the extension window. */
+export function isInLostExtensionWindow(r: LifecycleReport, now = Date.now()): boolean {
+  if (isReportExpired(r, now)) return true;
+  const until = Date.parse(r.visible_until || "");
+  return Number.isFinite(until) && until - now <= LOST_EXTENSION_WINDOW_DAYS * DAY_MS;
 }
 
 /** A historic period can be bought (or renewed) for any LOST case that is not closed. */
@@ -103,8 +123,8 @@ export const closeReportRequest = (id: string) => reportRequest(`/${encodeURICom
 export const deleteReportRequest = (id: string) => reportRequest(`/${encodeURIComponent(id)}`, "DELETE");
 export const extendFoundRequest = (id: string) => reportRequest(`/${encodeURIComponent(id)}/extend-found`, "POST");
 
-/** Test-mode reactivation of an expired LOST case for 30 days (real store payment comes later). */
-export async function reactivateLostRequest(id: string) {
+/** Test-mode 30-day extension of a LOST case (real store payment comes later). */
+export async function extendLostRequest(id: string) {
   const clientRequestId = `report-reactivation-${id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const created = await createReportOrder({
     reportId: id,

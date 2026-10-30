@@ -1040,7 +1040,7 @@ export const en = {
   "notifications.case.expired.combined":
     "The case has expired and is no longer active in new matching.",
   "notifications.case.expiring.combined":
-    "The case expires soon and is nearing the end of its visibility period.",
+    "The case expires soon. Open it to see what you can do.",
   "notifications.match.confirmed.with.message":
     "The person who lost the item thinks your find is theirs and has sent you a message. Open the chat to reply.",
   "cases.reactivate.lost.report": "Reactivate lost report for 30 days?",
@@ -1461,6 +1461,16 @@ export const en = {
   "longTerm.until": "Valid until {{date}}",
   "longTerm.quoteFailed": "Could not get the price. Try again.",
   "longTerm.buyFailed": "The purchase was not completed. Try again.",
+  "caseDetail.next.extendLost": "Extend 30 days",
+  "caseDetail.next.expiringBodyLost": "The case expires in {{count}} days. Extend it by 30 days and we keep looking.",
+  "caseDetail.next.expiringBodyLost_one": "The case expires in 1 day. Extend it by 30 days and we keep looking.",
+  "caseDetail.next.expiringBodyLostFinal": "The case expires in {{count}} days and both extensions are used. Make it a historic case and we keep looking for a year or more.",
+  "caseDetail.next.expiringBodyLostFinal_one": "The case expires in 1 day and both extensions are used. Make it a historic case and we keep looking for a year or more.",
+  "caseDetail.extensionNumber": "Extension {{count}} of 2",
+  "caseDetail.extendLostBody": "This is extension {{count}} of 2. The case gets 30 more days on top of the days that are left.",
+  "errors.lostExtensionLimit": "Both extensions are used. You can make the case historic instead.",
+  "errors.lostExtensionTooEarly": "The case can be extended in the last three days before it expires.",
+  "errors.longTermActive": "The case is already historic, so it does not need an extension.",
 } as const;
 
 export type TranslationKey = keyof typeof en;

@@ -1038,7 +1038,7 @@ export const no: TranslationDictionary = {
   "notifications.case.expired.combined":
     "Saken er utløpt og ikke lenger aktiv i nye treff.",
   "notifications.case.expiring.combined":
-    "Saken utløper snart og nærmer seg slutten av synlighetsperioden.",
+    "Saken utløper snart. Åpne den for å se hva du kan gjøre.",
   "notifications.match.confirmed.with.message":
     "Den som mistet gjenstanden mener funnet ditt er deres og har sendt deg en melding. Åpne chatten for å svare.",
   "cases.reactivate.lost.report": "Aktivere mistet-rapporten i 30 nye dager?",
@@ -1456,4 +1456,14 @@ export const no: TranslationDictionary = {
   "longTerm.until": "Gjelder til {{date}}",
   "longTerm.quoteFailed": "Kunne ikke hente prisen. Prøv igjen.",
   "longTerm.buyFailed": "Kjøpet ble ikke fullført. Prøv igjen.",
+  "caseDetail.next.extendLost": "Forleng 30 dager",
+  "caseDetail.next.expiringBodyLost": "Saken utløper om {{count}} dager. Forleng den i 30 dager, så fortsetter vi å lete.",
+  "caseDetail.next.expiringBodyLost_one": "Saken utløper om 1 dag. Forleng den i 30 dager, så fortsetter vi å lete.",
+  "caseDetail.next.expiringBodyLostFinal": "Saken utløper om {{count}} dager, og begge forlengelsene er brukt. Gjør den historisk, så leter vi videre i ett år eller mer.",
+  "caseDetail.next.expiringBodyLostFinal_one": "Saken utløper om 1 dag, og begge forlengelsene er brukt. Gjør den historisk, så leter vi videre i ett år eller mer.",
+  "caseDetail.extensionNumber": "Forlengelse {{count}} av 2",
+  "caseDetail.extendLostBody": "Dette er forlengelse {{count}} av 2. Saken får 30 nye dager i tillegg til dagene som er igjen.",
+  "errors.lostExtensionLimit": "Begge forlengelsene er brukt. Du kan gjøre saken historisk i stedet.",
+  "errors.lostExtensionTooEarly": "Saken kan forlenges de siste tre dagene før den utløper.",
+  "errors.longTermActive": "Saken er allerede historisk, så den trenger ikke forlenges.",
 };

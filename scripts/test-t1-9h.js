@@ -102,7 +102,7 @@ ok(historic.kind === "historic" && historic.action === null && historic.dateIso 
 const ending = nextStep(report(10), sum({ longTermUntil: iso(10 * DAY) }), NOW);
 ok(ending.kind === "historic" && ending.action === "longTerm" && ending.bodyKey === "caseDetail.next.historicBodyEnding", "renew in the last month");
 ok(nextStep(report(10), sum({ longTermUntil: iso(10 * DAY), possibleMatches: 2 }), NOW).kind === "matches", "matches before the historic notice");
-eq(nextStep(report(-1), sum({ paidExtensions: 1 }), NOW).action, "reactivateLost", "second extension still offered");
+eq(nextStep(report(-1), sum({ paidExtensions: 1 }), NOW).action, "extendLost", "second extension still offered");
 const final = nextStep(report(-1), sum({ paidExtensions: 2 }), NOW);
 ok(final.action === "longTerm" && final.bodyKey === "caseDetail.next.expiredBodyLostFinal", "after two extensions: historic case");
 const oldActive = nextStep(report(5, { occurred_at: iso(-800 * DAY) }), sum({}), NOW);

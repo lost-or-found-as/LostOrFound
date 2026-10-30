@@ -25,6 +25,9 @@ const EXACT: Record<string, TranslationKey> = {
   TIMEOUT: "errors.timeout",
   // Rules
   REPORT_CLOSED: "errors.reportClosed",
+  LOST_EXTENSION_LIMIT: "errors.lostExtensionLimit",
+  LOST_EXTENSION_TOO_EARLY: "errors.lostExtensionTooEarly",
+  LONG_TERM_ACTIVE: "errors.longTermActive",
   RESOLUTION_ALREADY_PENDING: "errors.resolutionAlreadyPending",
   OWNER_CANNOT_OBSERVE_OWN_REPORT: "errors.ownReport",
   WATCH_AREA_LIMIT_REACHED: "errors.watchAreaLimit",

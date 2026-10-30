@@ -30,15 +30,19 @@ import { useI18n } from "../src/i18n/I18nProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { caseAttributes, caseTitle, formatCaseDate } from "../src/lib/caseDisplay";
 import { reportHandledError } from "../src/lib/sentry";
-import {
-  activateTestReportOrder,
-  createReportOrder,
-} from "../src/lib/reportCommerce";
-import { REPORT_PRODUCT_CODES } from "../src/lib/reportProducts";
 import { userErrorMessage } from "../src/lib/userError";
 import { formatMoney, formatTime as formatClock } from "../src/i18n/formatters";
 import { STORED_MONEY_CURRENCY } from "../src/lib/market";
-import { canExtendFound, REACTIVATION_TEST_PRICE } from "../src/lib/reportLifecycle";
+import {
+  canBuyLongTerm,
+  canExtendFound,
+  canExtendLost,
+  extendLostRequest,
+  isInLostExtensionWindow,
+  isReportExpired,
+  REACTIVATION_TEST_PRICE,
+} from "../src/lib/reportLifecycle";
+import { LongTermSheet } from "../src/ui/LongTermSheet";
 
 // Test price shown in the reactivation dialog until RevenueCat supplies the store price.
 
@@ -61,6 +65,9 @@ type Report = {
   archived_at?: string | null;
   last_extended_at?: string | null;
   extension_count?: number | null;
+  // T1.9I: from /reports/mine/with-activity.
+  paid_extensions?: number | null;
+  long_term_until?: string | null;
 };
 
 type LastActivity = {
@@ -176,6 +183,7 @@ function MyReportsScreen() {
     string | null
   >(null);
   const [reactivationSuccessOpen, setReactivationSuccessOpen] = useState(false);
+  const [longTermReportId, setLongTermReportId] = useState<string | null>(null);
   const matchToReportRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
@@ -435,15 +443,7 @@ function MyReportsScreen() {
   const reactivateLostReport = async (r: Report) => {
     try {
       setReactivatingReportId(r.id);
-      const clientRequestId = `report-reactivation-${r.id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      const created = await createReportOrder({
-        reportId: r.id,
-        productCode: REPORT_PRODUCT_CODES.REPORT_REACTIVATION,
-        clientRequestId,
-        platform: "TEST",
-        provider: "TEST",
-      });
-      await activateTestReportOrder(created.order.id);
+      await extendLostRequest(r.id);
       await load();
       setSection("active");
       setReactivationSuccessOpen(true);
@@ -497,7 +497,9 @@ function MyReportsScreen() {
     confirmDialog?.kind === "extend"
       ? t("cases.reactivate.found.report")
       : confirmDialog?.kind === "reactivateLost"
-        ? t("cases.reactivate.lost.report")
+        ? isReportExpired(confirmDialog.report)
+          ? t("cases.reactivate.lost.report")
+          : t("caseDetail.confirm.extendTitle")
         : confirmDialog?.kind === "close"
           ? t("cases.close.case")
           : t("cases.delete.case");
@@ -507,7 +509,7 @@ function MyReportsScreen() {
           "cases.keep.the.report.active.for.up.to.30.more.days.found.reports.can.remain",
         )
       : confirmDialog?.kind === "reactivateLost"
-        ? t("cases.reactivate.payment.summary")
+        ? t("caseDetail.extendLostBody", { count: Number(confirmDialog.report.paid_extensions || 0) + 1 })
         : confirmDialog?.kind === "close"
           ? t(
               "cases.the.case.stays.in.my.cases.but.it.will.no.longer.be.used.for.new.match",
@@ -741,7 +743,22 @@ function MyReportsScreen() {
             ];
             if (!isClosed) items.push({ key: "edit", icon: "create-outline", label: isExpired ? t("cases.edit.details") : t("cases.edit"), onPress: () => run(() => editReport(r)) });
             if (canExtendFound(r)) items.push({ key: "extend", icon: "refresh-outline", label: isExpired ? t("cases.reactivate") : t("cases.extend"), onPress: () => run(() => confirmExtendFound(r)) });
-            if (r.type === "LOST" && isExpired && !isClosed) items.push({ key: "reactivate", icon: "refresh-outline", label: t("cases.reactivate.30.days"), onPress: () => run(() => setConfirmDialog({ kind: "reactivateLost", report: r })) });
+            // T1.9I: a lost case is extended twice; after that it can become a historic case.
+            const lostFacts = { paidExtensions: r.paid_extensions, longTermUntil: r.long_term_until };
+            if (canExtendLost(r, lostFacts))
+              items.push({
+                key: "reactivate",
+                icon: "refresh-outline",
+                label: isExpired ? t("cases.reactivate.30.days") : t("caseDetail.next.extendLost"),
+                onPress: () => run(() => setConfirmDialog({ kind: "reactivateLost", report: r })),
+              });
+            else if (r.type === "LOST" && canBuyLongTerm(r) && (r.long_term_until || isInLostExtensionWindow(r)))
+              items.push({
+                key: "longTerm",
+                icon: "hourglass-outline",
+                label: r.long_term_until ? t("caseDetail.menu.renewLongTerm") : t("caseDetail.menu.makeHistoric"),
+                onPress: () => run(() => setLongTermReportId(r.id)),
+              });
             if (!isClosed && !(r.type === "LOST" && isExpired)) items.push({ key: "close", icon: "checkmark-circle-outline", label: t("cases.close"), onPress: () => run(() => confirmClose(r)) });
             items.push({ key: "delete", icon: "trash-outline", label: t("cases.delete"), danger: true, onPress: () => run(() => confirmDelete(r)) });
             return (
@@ -855,6 +872,15 @@ function MyReportsScreen() {
           </View>
         </View>
       </Modal>
+      <LongTermSheet
+        visible={!!longTermReportId}
+        reportId={longTermReportId || ""}
+        onClose={() => setLongTermReportId(null)}
+        onDone={() => {
+          setLongTermReportId(null);
+          void load();
+        }}
+      />
       <Modal
         transparent
         visible={reactivationSuccessOpen}

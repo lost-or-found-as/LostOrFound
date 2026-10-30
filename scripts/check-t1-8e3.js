@@ -6,11 +6,13 @@ const checks = {
     'notificationType === "NEW_MATCH"',
     'pathname: "/match"',
   ],
+  // T1.9I: the extension order (REPORT_REACTIVATION) is created by the shared extendLostRequest.
   "app/my-reports.tsx": [
     "reactivateLostReport",
-    "REPORT_REACTIVATION",
+    "extendLostRequest",
     "cases.reactivate.30.days",
   ],
+  "src/lib/reportLifecycle.ts": ["REPORT_PRODUCT_CODES.REPORT_REACTIVATION"],
   "app/match.tsx": ["normalizedReportColors", "sharedColorValue"],
   // T1.9F: the detail screen compares both colours (incl. secondary) in "How the cases compare".
   "app/matches/[matchId].tsx": [

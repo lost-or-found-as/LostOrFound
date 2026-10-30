@@ -3,7 +3,7 @@
 // Pure (no database access) so it can be tested directly.
 "use strict";
 
-const { isLiveWatch, isLongTermProduct, yearsOfProduct, EXTENSION_PRODUCT_CODE } = require("./longTermWatch");
+const { isLiveWatch, isLongTermProduct, yearsOfProduct, paidExtensionCount, EXTENSION_PRODUCT_CODE } = require("./longTermWatch");
 
 // T1.9G: score from which a match counts as strong (the "good" and "excellent" levels in the app).
 const STRONG_MATCH_SCORE = 70;
@@ -89,7 +89,7 @@ function buildReportActivity({ report, matches, confirmations, lastMessages, unr
       chatMatchId,
       newObservations: (observations || []).filter((o) => String(o.status || "").toUpperCase() === "NEW").length,
       // T1.9H: lifecycle facts for the historic-case offer.
-      paidExtensions: (orders || []).filter((o) => String(o.product_code) === EXTENSION_PRODUCT_CODE && o.paid_at && !o.refunded_at).length,
+      paidExtensions: paidExtensionCount(orders),
       longTermUntil: isLiveWatch(longTermWatch, now) ? longTermWatch.current_period_end || null : null,
     },
     events: sorted,
