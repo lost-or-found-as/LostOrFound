@@ -26,6 +26,7 @@ const requireUser = authModule?.requireUser || authModule;
 const { notifyUser } = require("../lib/userNotify");
 const { localizedPair } = require("../lib/messages");
 const { redactCustodyForViewer } = require("../lib/reportCustody");
+const { checkLimit, limitResponse } = require("../lib/rateLimits");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -418,6 +419,11 @@ router.post("/:id/messages", requireUser, async (req, res) => {
     const users = [m?.lost?.user_id, m?.found?.user_id];
     if (!m || !users.includes(req.user.id))
       return res.status(404).json({ error: "MATCH_NOT_FOUND" });
+    // T1.9L: 30 messages per minute and 500 per day per user.
+    for (const name of ["messagesPerMinute", "messagesPerDay"]) {
+      const limit = await checkLimit(supaAdmin, { name, table: "messages", column: "sender_id", userId: req.user.id });
+      if (!limit.allowed) return res.status(429).json(limitResponse(limit));
+    }
     const ins = await supaAdmin
       .from("messages")
       .insert({ conversation_id: m.id, sender_id: req.user.id, body })

@@ -1559,6 +1559,9 @@ export const en = {
   "custody.handedIn": "Handed in",
   "custody.handedInAt": "Handed in: {{place}}",
   "custody.handedInHidden": "Handed in (the place is shown when you confirm the match)",
+  "errors.foundReportLimit": "You have reported many found items today. Try again tomorrow.",
+  "errors.messageRateLimit": "You are sending messages very quickly. Wait a moment and try again.",
+  "errors.observationLimit": "You have sent many observations today. Try again tomorrow.",
 } as const;
 
 export type TranslationKey = keyof typeof en;

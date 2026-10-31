@@ -28,6 +28,11 @@ const EXACT: Record<string, TranslationKey> = {
   LOST_EXTENSION_LIMIT: "errors.lostExtensionLimit",
   LOST_EXTENSION_TOO_EARLY: "errors.lostExtensionTooEarly",
   LONG_TERM_ACTIVE: "errors.longTermActive",
+  // T1.9L: limits per user and per address.
+  FOUND_REPORT_DAILY_LIMIT: "errors.foundReportLimit",
+  MESSAGE_RATE_LIMIT: "errors.messageRateLimit",
+  OBSERVATION_DAILY_LIMIT: "errors.observationLimit",
+  TOO_MANY_REQUESTS: "errors.rateLimited",
   RESOLUTION_ALREADY_PENDING: "errors.resolutionAlreadyPending",
   OWNER_CANNOT_OBSERVE_OWN_REPORT: "errors.ownReport",
   WATCH_AREA_LIMIT_REACHED: "errors.watchAreaLimit",
@@ -108,10 +113,21 @@ export function userErrorMessage(
   area: string | null = "ui",
 ): string {
   const key = knownErrorKey(error);
-  if (key) return t(key);
   const code = candidates(error)[0];
+  if (key) return withTestCode(t(key), code);
   if (area) reportHandledError(error, area, code && /^[A-Za-z_]+$/.test(code) ? code : undefined);
-  return t(fallbackKey);
+  return withTestCode(t(fallbackKey), code);
+}
+
+// T1.9L: test builds (staging) show the technical code under the message, so a failure can be
+// traced without guessing. Users of the store build never see it.
+const SHOW_ERROR_CODES = process.env.EXPO_PUBLIC_APP_ENV === "staging";
+
+export function withTestCode(text: string, code: string | undefined, show = SHOW_ERROR_CODES): string {
+  if (!show || !code) return text;
+  const clean = code.trim().slice(0, 80);
+  if (!/^[A-Za-z0-9_.:-]+$/.test(clean)) return text;
+  return `${text}\n(${clean})`;
 }
 
 // Error with a stable English code, for throwing inside the app.

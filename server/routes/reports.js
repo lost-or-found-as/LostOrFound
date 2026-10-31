@@ -17,6 +17,7 @@ const requireUser = authModule?.requireUser || authModule;
 const requireUserOrGuest = authModule.requireUserOrGuest;
 const { normalizeSecondaryColor } = require("../lib/colorKeys");
 const { normalizeCustody, normalizeOccurredPrecision } = require("../lib/reportCustody");
+const { checkLimit, limitResponse } = require("../lib/rateLimits");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -458,6 +459,19 @@ router.post("/", requireUserOrGuest, async (req, res) => {
         candidates: [],
         idempotent_replay: true,
       });
+    // T1.9L: found reports per day (accounts 5, guests 2).
+    if (normalizedType === "FOUND") {
+      const found = await checkLimit(supaAdmin, {
+        name: "foundReports",
+        table: "report_creation_events",
+        column: "user_id",
+        userId: user.id,
+        isGuest: isAnonymousUser(user),
+        filters: { report_type: "FOUND" },
+      });
+      if (!found.allowed) return res.status(429).json(limitResponse(found));
+    }
+
     if (normalizedType === "LOST" && isAnonymousUser(user)) {
       return res.status(403).json({
         error: "ACCOUNT_REQUIRED_FOR_LOST",

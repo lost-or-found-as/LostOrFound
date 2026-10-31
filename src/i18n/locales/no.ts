@@ -1554,4 +1554,7 @@ export const no: TranslationDictionary = {
   "custody.handedIn": "Levert inn",
   "custody.handedInAt": "Levert inn: {{place}}",
   "custody.handedInHidden": "Levert inn (stedet vises når du bekrefter treffet)",
+  "errors.foundReportLimit": "Du har registrert mange funn i dag. Prøv igjen i morgen.",
+  "errors.messageRateLimit": "Du sender meldinger veldig raskt. Vent litt og prøv igjen.",
+  "errors.observationLimit": "Du har sendt mange observasjoner i dag. Prøv igjen i morgen.",
 };

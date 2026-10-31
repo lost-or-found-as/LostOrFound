@@ -28,9 +28,12 @@ process.on("unhandledRejection", (reason) => {
   captureServerException(reason instanceof Error ? reason : new Error(String(reason)), { kind: "unhandledRejection" });
 });
 
+const { ipRateLimit } = require("./lib/rateLimits");
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
+// T1.9L: stop request floods per address (300 per minute); per-user limits live in the routes.
+app.use(ipRateLimit({ windowMs: 60 * 1000, max: 300 }));
 app.use(sentryResponseMonitor);
 
 // Enkel request-logg
