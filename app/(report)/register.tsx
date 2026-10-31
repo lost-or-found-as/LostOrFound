@@ -33,6 +33,7 @@ import { reverseGeocodeToLabel } from "../../src/lib/reverseGeocode";
 import { reportHandledError } from "../../src/lib/sentry";
 import { userErrorMessage } from "../../src/lib/userError";
 import {
+  cleanRewardInput,
   isLongAgo,
   missingFields,
   needsCustomPet,
@@ -626,7 +627,11 @@ export default function RegisterScreen() {
                   accessibilityRole="radio"
                   accessibilityState={{ selected: rewardOther || !REWARD_PRESETS.includes(reward) }}
                   style={[s.chip, (rewardOther || !REWARD_PRESETS.includes(reward)) && s.chipOn]}
-                  onPress={() => setRewardOther(true)}
+                  onPress={() => {
+                    // Start with an empty field, so typing does not end up after a "0".
+                    setRewardOther(true);
+                    if (REWARD_PRESETS.includes(reward)) setField("rewardNOK", "");
+                  }}
                 >
                   <Text style={[s.chipText, (rewardOther || !REWARD_PRESETS.includes(reward)) && s.chipTextOn]}>{t("register.reward.other")}</Text>
                 </Pressable>
@@ -634,8 +639,11 @@ export default function RegisterScreen() {
               {(rewardOther || !REWARD_PRESETS.includes(reward)) && (
                 <TextInput
                   accessibilityLabel={t("register.reward.amount")}
-                  value={draft.rewardNOK || ""}
-                  onChangeText={(v) => setField("rewardNOK", v.replace(/[^0-9]/g, ""))}
+                  value={draft.rewardNOK === "0" ? "" : draft.rewardNOK || ""}
+                  onChangeText={(v) => setField("rewardNOK", cleanRewardInput(v))}
+                  placeholder={t("register.reward.placeholder")}
+                  placeholderTextColor="#64748B"
+                  autoFocus={rewardOther}
                   keyboardType="number-pad"
                   style={s.input}
                 />

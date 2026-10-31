@@ -1526,6 +1526,7 @@ export const no: TranslationDictionary = {
   "register.reward.other": "Annet beløp",
   "register.reward.amount": "Beløp i kroner",
   "register.reward.help": "Avtales mellom deg og finneren. Appen tar ingen del.",
+  "register.reward.placeholder": "F.eks. 1000",
   "register.custody.title": "Hvor er gjenstanden nå?",
   "register.custody.WITH_FINDER": "Jeg har den",
   "register.custody.WITH_FINDER.body": "Dere avtaler levering i chatten",

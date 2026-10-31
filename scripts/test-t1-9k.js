@@ -105,6 +105,8 @@ ok(foundBody.custody === "WITH_FINDER" && !("reward_ore" in foundBody) && foundB
 const handed = form.reportBody({ ...base, type: "FOUND", custody: "HANDED_IN", custodyPlace: " Kiwi " }, { language: "no", rewardEnabled: false, clientRequestId: "report-123456789" });
 eq([handed.custody, handed.custody_place], ["HANDED_IN", "Kiwi"], "handed in sends the place");
 
+eq(["01000", "0", "1 000 kr", "", "007"].map(form.cleanRewardInput), ["1000", "", "1000", "", "7"], "reward field keeps only the number");
+
 const sw = requireTs(path.join(root, "src/ui/colorSwatches.ts"));
 eq(sw.nextColors("", "", "red"), { color: "red", colorSecondary: "" }, "first tap is the main colour");
 eq(sw.nextColors("red", "", "yellow"), { color: "red", colorSecondary: "yellow" }, "second tap is the secondary colour");

@@ -1531,6 +1531,7 @@ export const en = {
   "register.reward.other": "Other amount",
   "register.reward.amount": "Amount in kroner",
   "register.reward.help": "Agreed between you and the finder. The app takes no part.",
+  "register.reward.placeholder": "E.g. 1000",
   "register.custody.title": "Where is the item now?",
   "register.custody.WITH_FINDER": "I have it",
   "register.custody.WITH_FINDER.body": "You agree on the hand-over in the chat",

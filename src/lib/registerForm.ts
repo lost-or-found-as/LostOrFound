@@ -148,6 +148,11 @@ export function reportBody(
   };
 }
 
+/** Reward field text: digits only, no leading zeros ("01000" becomes "1000"). */
+export function cleanRewardInput(value: string): string {
+  return String(value || "").replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "").replace(/^0$/, "");
+}
+
 export function newClientRequestId(): string {
   return `report-${Date.now()}-${Math.random().toString(36).slice(2, 12)}-${Math.random().toString(36).slice(2, 12)}`;
 }
