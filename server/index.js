@@ -232,6 +232,15 @@ try {
   console.warn("[BOOT] /account NOT mounted:", e?.message || e);
 }
 
+// ---- Mount /safety (T1.9M: report and block in chat) ----
+try {
+  const safetyRoutes = require("./routes/safety");
+  app.use("/safety", safetyRoutes);
+  console.log("[BOOT] Mounted /safety routes");
+} catch (e) {
+  console.warn("[BOOT] /safety NOT mounted:", e?.message || e);
+}
+
 // ---- Mount /resolutions ----
 try { const resolutionRoutes=require("./routes/resolutions"); app.use("/resolutions",resolutionRoutes); console.log("[BOOT] Mounted /resolutions routes"); } catch(e){ console.warn("[BOOT] /resolutions NOT mounted:",e?.message||e); }
 

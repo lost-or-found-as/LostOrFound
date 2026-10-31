@@ -29,7 +29,9 @@ import { formatDateTimeCustom, formatTime, type Translate } from "../../src/i18n
 import { setLastSeen } from "../../src/lib/unread";
 import { caseTitle } from "../../src/lib/caseDisplay";
 import { InlineNotice } from "../../src/ui/InlineNotice";
-import { Button, ConfirmSheet, InfoButton, ScreenHeader } from "../../src/ui/kit";
+import { Button, ConfirmSheet, ScreenHeader } from "../../src/ui/kit";
+import { ChatClosedBar, ChatSafetyMenu, useChatSafety } from "../../src/ui/ChatSafety";
+import { unblockChatPartner } from "../../src/lib/chatSafety";
 
 type Msg = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
 type Resolution = { proposal?: { id: string; status: string } | null; role?: "PROPOSER" | "RESPONDER" | "PARTY" } | null;
@@ -76,6 +78,10 @@ function ChatScreen() {
   const [resolution, setResolution] = useState<Resolution>(null);
   const [proposeOpen, setProposeOpen] = useState(false);
   const [resolutionBusy, setResolutionBusy] = useState(false);
+  // T1.9M: report and block. A closed chat replaces the message field with a notice.
+  const safety = useChatSafety("match", matchId);
+  const [reportSent, setReportSent] = useState(false);
+  const [unblocking, setUnblocking] = useState(false);
   const listRef = useRef<FlatList<Msg>>(null);
 
   const scrollToEnd = (animated: boolean) =>
@@ -218,11 +224,25 @@ function ChatScreen() {
     } catch (e) {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       setText(body);
-      setError(userErrorMessage(e, t, "chat.sendError", "chat.send"));
+      // The database refuses messages in a closed chat; then the closed notice explains it.
+      const state = await safety.reload();
+      setError(state?.closed ? null : userErrorMessage(e, t, "chat.sendError", "chat.send"));
     } finally {
       setSending(false);
     }
-  }, [matchId, user?.id, text, fetchMessages, markRead, t]);
+  }, [matchId, user?.id, text, fetchMessages, markRead, t, safety.reload]);
+
+  const unblock = async () => {
+    if (!matchId) return;
+    setUnblocking(true);
+    try {
+      safety.setState(await unblockChatPartner("match", matchId));
+    } catch (e) {
+      setError(userErrorMessage(e, t, "errors.generic", "chat.safety"));
+    } finally {
+      setUnblocking(false);
+    }
+  };
 
   const proposeResolution = async () => {
     setResolutionBusy(true);
@@ -332,7 +352,19 @@ function ChatScreen() {
         subtitle={subtitle}
         onBack={() => router.back()}
         raised
-        right={<InfoButton title={t("info.chat.title")} body={t("info.chat.body")} label={t("info.chat.label")} />}
+        right={
+          matchId ? (
+            <ChatSafetyMenu
+              kind="match"
+              id={matchId}
+              partner={youOwnLost ? "finder" : "owner"}
+              state={safety.state}
+              onState={safety.setState}
+              onReported={() => setReportSent(true)}
+              aboutText={t("info.chat.body")}
+            />
+          ) : null
+        }
       >
         {resolutionBar}
       </ScreenHeader>
@@ -355,6 +387,7 @@ function ChatScreen() {
             ListHeaderComponent={
               <View style={styles.listHeader}>
                 <InlineNotice tone="warning" icon="shield-checkmark-outline" title={t("chat.safety")} style={styles.noMargin} />
+                {reportSent && <InlineNotice tone="success" icon="checkmark-circle-outline" title={t("safety.reportSent")} style={styles.noMargin} />}
                 {!!error && <InlineNotice tone="error" title={error} style={styles.noMargin} />}
               </View>
             }
@@ -387,6 +420,15 @@ function ChatScreen() {
             }}
           />
         )}
+        {safety.state.closed ? (
+          <ChatClosedBar
+            state={safety.state}
+            partner={youOwnLost ? "finder" : "owner"}
+            onUnblock={() => void unblock()}
+            busy={unblocking}
+            bottomInset={insets.bottom}
+          />
+        ) : (
         <View style={[styles.composer, { paddingBottom: Math.max(12, insets.bottom + 4) }]}>
           <TextInput
             value={text}
@@ -409,6 +451,7 @@ function ChatScreen() {
             {sending ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="arrow-forward" size={22} color="#FFFFFF" />}
           </Pressable>
         </View>
+        )}
       </KeyboardAvoidingView>
 
       <ConfirmSheet

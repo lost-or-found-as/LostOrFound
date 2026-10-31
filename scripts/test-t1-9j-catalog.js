@@ -14,8 +14,8 @@ for (const [tier, price] of Object.entries(TIER_PRICES_ORE)) {
   assert.strictEqual(rows.get(`GEO_ALERT_TIER_${tier}`), price, `tier ${tier} price`);
   n++;
 }
-const appPrice = Number(fs.readFileSync(path.join(root, "src/lib/reportLifecycle.ts"), "utf8").match(/REACTIVATION_TEST_PRICE = (\d+)/)[1]);
-assert.strictEqual(rows.get("REPORT_REACTIVATION"), appPrice * 100, "extension price matches the app");
+// T1.9M: the app reads the extension price from the catalog, so only the seed row is checked here.
+assert.strictEqual(rows.get("REPORT_REACTIVATION"), 9900, "extension seed price");
 n++;
 assert.ok(/on conflict \(code\) do nothing/.test(sql), "existing rows are left unchanged");
 n++;

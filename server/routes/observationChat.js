@@ -5,6 +5,7 @@ const { supaAdmin } = require("../supabaseClient");
 const { requireUser } = require("../mw/auth");
 const { notifyUser } = require("../lib/userNotify");
 const { localizedPair } = require("../lib/messages");
+const { isChatClosed } = require("../lib/chatSafetyStore");
 
 async function getObservation(id) {
   const { data, error } = await supaAdmin.from("area_alert_observations")
@@ -63,6 +64,9 @@ router.post("/:observationId/messages", requireUser, async (req, res) => {
     if (!body || body.length > 1000) return res.status(400).json({ error: "INVALID_MESSAGE" });
     const o = await getObservation(id);
     if (!canAccess(o, userId)) return res.status(404).json({ error: "OBSERVATION_NOT_FOUND" });
+    // T1.9M: no messages when either side has blocked the other or an account is suspended.
+    const otherId = userId === o.report_owner_user_id ? o.observer_user_id : o.report_owner_user_id;
+    if (await isChatClosed(userId, otherId)) return res.status(403).json({ error: "CHAT_CLOSED" });
     const conversation = await ensureConversation(o);
     const ins = await supaAdmin.from("observation_messages")
       .insert({ conversation_id: conversation.id, sender_id: userId, body })

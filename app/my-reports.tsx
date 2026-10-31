@@ -40,9 +40,9 @@ import {
   extendLostRequest,
   isInLostExtensionWindow,
   isReportExpired,
-  REACTIVATION_TEST_PRICE,
 } from "../src/lib/reportLifecycle";
 import { LongTermSheet } from "../src/ui/LongTermSheet";
+import { useReactivationPrice } from "../src/lib/useReactivationPrice";
 
 // Test price shown in the reactivation dialog until RevenueCat supplies the store price.
 
@@ -154,6 +154,8 @@ function sortReportsByActivity(
 
 function MyReportsScreen() {
   const router = useRouter();
+  // T1.9M: extension price from the catalog (the price the server charges).
+  const reactivationPrice = useReactivationPrice();
   const params = useLocalSearchParams<{
     section?: string;
     reportId?: string;
@@ -823,7 +825,7 @@ function MyReportsScreen() {
                   <Text style={dialogStyles.paymentLabel}>
                     {t("cases.test.price")}
                   </Text>
-                  <Text style={dialogStyles.paymentPrice}>{formatMoney(REACTIVATION_TEST_PRICE, STORED_MONEY_CURRENCY, language)}</Text>
+                  <Text style={dialogStyles.paymentPrice}>{reactivationPrice == null ? "…" : formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language)}</Text>
                 </View>
                 <Text style={dialogStyles.testModeText}>
                   {t("cases.test.payment.notice")}

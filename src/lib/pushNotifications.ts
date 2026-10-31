@@ -146,6 +146,7 @@ function navigateFromData(router: ReturnType<typeof useRouter>, data: any) {
   const kind = String(data?.targetKind ?? "");
   const id = String(data?.targetId ?? "");
   if (kind === "chat" && id) return router.push(`/chat/${id}`);
+  if (kind === "safety_report" || kind === "safetyReports") return router.push("/safety-reports");
   if (kind === "match" && id) return router.push(`/matches/${id}`);
   if (kind === "observation" && id) return router.push(`/observation/${id}`);
   if (kind === "report" && id) return router.push({ pathname: "/my-reports", params: { section: data?.section ?? "active", reportId: id } });

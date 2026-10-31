@@ -23,5 +23,17 @@
   "push.resolutionConfirmed.title": "The case is confirmed resolved",
   "push.resolutionConfirmed.body": "The other party confirmed that the case is resolved.",
   "push.observationMessage.title": "New observation message",
-  "push.observationMessage.body": "You received a new message about an observation or possible find."
+  "push.observationMessage.body": "You received a new message about an observation or possible find.",
+  "push.safetyReport.title": "New chat report",
+  "push.safetyReport.body": "Reason: {{reason}}. Open Reports in Profile.",
+  "push.safetyReport.bodySuspended": "Reason: {{reason}}. The account was suspended automatically after reports from several people.",
+  "safety.reason.SCAM": "Scam or asking for money",
+  "safety.reason.PERSONAL_DATA": "Asking for card, BankID or password details",
+  "safety.reason.HARASSMENT": "Harassment or threats",
+  "safety.reason.SPAM": "Advertising or spam",
+  "safety.reason.OTHER": "Something else",
+  "email.safetyReport.subject": "Lost or Found: new chat report",
+  "email.safetyReport.body": "A new chat report has arrived.\n\nReason: {{reason}}\nDescription: {{details}}\n{{suspended}}\nHandle the report in the app: Profile → Reports.",
+  "email.safetyReport.suspended": "The reported account was suspended automatically after reports from several people. You can reopen it in the app.",
+  "email.safetyReport.noDetails": "(none)"
 }

@@ -25,6 +25,7 @@ import { AreaAlertServiceCard } from "../../src/ui/AreaAlertServiceCard";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { formatDate, formatDistance, formatLocalizedDateTime, formatMoney, formatTimeAgo } from "../../src/i18n/formatters";
 import { LongTermSheet } from "../../src/ui/LongTermSheet";
+import { useReactivationPrice } from "../../src/lib/useReactivationPrice";
 import { STORED_MONEY_CURRENCY } from "../../src/lib/market";
 import { reportDescriptionText } from "../../src/lib/reportDescription";
 import { caseColors, caseTitle } from "../../src/lib/caseDisplay";
@@ -40,7 +41,6 @@ import {
   isReportExpired,
   extendLostRequest,
   reportDaysLeft,
-  REACTIVATION_TEST_PRICE,
 } from "../../src/lib/reportLifecycle";
 import {
   activityTarget,
@@ -70,6 +70,7 @@ function Screen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { language, t } = useI18n();
+  const reactivationPrice = useReactivationPrice();
   const [data, setData] = useState<D | null>(null);
   const [activity, setActivity] = useState<ReportActivity>(EMPTY_ACTIVITY);
   const [loading, setLoading] = useState(true);
@@ -336,9 +337,11 @@ function Screen() {
       title: expired ? t("cases.reactivate.lost.report") : t("caseDetail.confirm.extendTitle"),
       body: [
         t("caseDetail.extendLostBody", { count: activity.summary.paidExtensions + 1 }),
-        `${t("cases.test.price")}: ${formatMoney(REACTIVATION_TEST_PRICE, STORED_MONEY_CURRENCY, language)}`,
+        reactivationPrice == null ? null : `${t("cases.test.price")}: ${formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language)}`,
         t("cases.test.payment.notice"),
-      ].join("\n\n"),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
       label: t("cases.complete.test.payment"),
     },
   };

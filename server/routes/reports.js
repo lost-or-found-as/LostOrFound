@@ -18,6 +18,7 @@ const requireUserOrGuest = authModule.requireUserOrGuest;
 const { normalizeSecondaryColor } = require("../lib/colorKeys");
 const { normalizeCustody, normalizeOccurredPrecision } = require("../lib/reportCustody");
 const { checkLimit, limitResponse } = require("../lib/rateLimits");
+const { isSuspended } = require("../lib/chatSafetyStore");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -459,6 +460,8 @@ router.post("/", requireUserOrGuest, async (req, res) => {
         candidates: [],
         idempotent_replay: true,
       });
+    // T1.9M: a suspended account cannot create reports.
+    if (await isSuspended(user.id)) return res.status(403).json({ error: "ACCOUNT_SUSPENDED" });
     // T1.9L: found reports per day (accounts 5, guests 2).
     if (normalizedType === "FOUND") {
       const found = await checkLimit(supaAdmin, {

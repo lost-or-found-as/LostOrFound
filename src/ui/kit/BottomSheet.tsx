@@ -2,7 +2,7 @@
 // T1.9F: panel that slides up from the bottom (info texts, confirmations, menus).
 // Tapping the dimmed area or the system back gesture closes it.
 import React from "react";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../theme";
 
@@ -17,13 +17,14 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel }: 
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.root}>
+      {/* T1.9M: lifts the sheet above the keyboard when it holds a text field. */}
+      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel={accessibilityLabel} />
         <View style={[styles.sheet, { paddingBottom: Math.max(24, insets.bottom + 12) }]} accessibilityViewIsModal>
           <View style={styles.handle} />
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

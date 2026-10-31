@@ -1,5 +1,5 @@
 // app/(tabs)/profile.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +12,7 @@ import { theme } from "../../src/ui/theme";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { sendSentryTestEvent } from "../../src/lib/sentry";
 import { useNewRegistration } from "../../src/lib/newRegistration";
+import { fetchIsAdmin } from "../../src/lib/chatSafety";
 
 export default function ProfileTab() {
   const router = useRouter();
@@ -22,6 +23,16 @@ export default function ProfileTab() {
   // T1.9K: try the new one-page registration next to the current one.
   const [newRegistration, setNewRegistration] = useNewRegistration();
   const email = session?.user?.email;
+  // T1.9M: admins (server list) get the chat report list.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user || isGuest) return;
+    let live = true;
+    void fetchIsAdmin().then((value) => live && setIsAdmin(value));
+    return () => {
+      live = false;
+    };
+  }, [user?.id, isGuest]);
   // T1.9D: test builds (staging) can prove that errors reach Sentry.
   const isTestBuild = process.env.EXPO_PUBLIC_APP_ENV === "staging";
   const [sentryTest, setSentryTest] = useState<"idle" | "sending" | "sent" | "failed">("idle");
@@ -71,6 +82,9 @@ export default function ProfileTab() {
       title: t("profile.how"),
       onPress: () => router.push("/how"),
     },
+    ...(isAdmin
+      ? [{ icon: "shield-checkmark-outline" as const, title: t("profile.safetyReports"), onPress: () => router.push("/safety-reports") }]
+      : []),
   ];
 
   // T1.9A: guests only get language and help; everything else needs an account.

@@ -3,15 +3,13 @@
 // My cases and Saksdetaljer so both offer the same actions on the same conditions.
 import { API_BASE_URL } from "./config";
 import { supabase } from "./supabase";
-import { activateTestReportOrder, createReportOrder } from "./reportCommerce";
+import { activateTestReportOrder, createReportOrder, fetchReportProductCatalog } from "./reportCommerce";
 import { REPORT_PRODUCT_CODES } from "./reportProducts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A FOUND case can be extended when this many days or fewer remain (server rule in /extend-found).
 export const FOUND_EXTENSION_WINDOW_DAYS = 7;
 export const FOUND_MAX_EXTENSIONS = 2;
-// Test price shown before a test-mode reactivation, in STORED_MONEY_CURRENCY. Store prices replace it.
-export const REACTIVATION_TEST_PRICE = 99;
 // T1.9H: a LOST case gets 30 days twice; after that it can become a historic case.
 export const LOST_MAX_EXTENSIONS = 2;
 // T1.9I: a LOST case can be extended from this many days before it ends (same rule on the server).
@@ -134,4 +132,21 @@ export async function extendLostRequest(id: string) {
     provider: "TEST",
   });
   return activateTestReportOrder(created.order.id);
+}
+
+/**
+ * T1.9M: the 30-day extension price from the product catalog, in kroner (null when unknown).
+ * The server charges the catalog price, so the app shows the same number instead of a fixed one.
+ */
+export async function fetchReactivationPrice(): Promise<number | null> {
+  try {
+    const { products } = await fetchReportProductCatalog();
+    const row = (products as { code?: string; base_price_ore?: number }[]).find(
+      (p) => p.code === REPORT_PRODUCT_CODES.REPORT_REACTIVATION,
+    );
+    const ore = Number(row?.base_price_ore);
+    return Number.isFinite(ore) && ore > 0 ? ore / 100 : null;
+  } catch {
+    return null;
+  }
 }

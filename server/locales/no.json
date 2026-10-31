@@ -23,5 +23,17 @@
   "push.resolutionConfirmed.title": "Saken er bekreftet løst",
   "push.resolutionConfirmed.body": "Motparten har bekreftet at saken er løst.",
   "push.observationMessage.title": "Ny melding om observasjon",
-  "push.observationMessage.body": "Du har fått en ny melding om en observasjon eller et mulig funn."
+  "push.observationMessage.body": "Du har fått en ny melding om en observasjon eller et mulig funn.",
+  "push.safetyReport.title": "Ny rapport i chat",
+  "push.safetyReport.body": "Grunn: {{reason}}. Åpne Rapporter i Profil.",
+  "push.safetyReport.bodySuspended": "Grunn: {{reason}}. Kontoen er stengt automatisk etter rapporter fra flere personer.",
+  "safety.reason.SCAM": "Svindel eller ber om penger",
+  "safety.reason.PERSONAL_DATA": "Ber om kort-, BankID- eller passordopplysninger",
+  "safety.reason.HARASSMENT": "Trakassering eller truende språk",
+  "safety.reason.SPAM": "Reklame eller spam",
+  "safety.reason.OTHER": "Noe annet",
+  "email.safetyReport.subject": "Lost or Found: ny rapport i chat",
+  "email.safetyReport.body": "Det har kommet en ny rapport i chat.\n\nGrunn: {{reason}}\nBeskrivelse: {{details}}\n{{suspended}}\nBehandle rapporten i appen: Profil → Rapporter.",
+  "email.safetyReport.suspended": "Kontoen til den rapporterte er stengt automatisk etter rapporter fra flere personer. Du kan åpne den igjen i appen.",
+  "email.safetyReport.noDetails": "(ingen)"
 }

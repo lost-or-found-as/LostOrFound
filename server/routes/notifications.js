@@ -15,6 +15,7 @@ const supaAdmin =
 const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const { getAreaAlertAccess } = require("../lib/areaAlertAccess");
+const { isAdmin } = require("../lib/chatSafety");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -90,6 +91,13 @@ async function resolveNotificationTarget(notification, userId) {
       kind: entityType || "unknown",
       id: null,
     };
+  }
+
+  // T1.9M: chat reports open the admin report list (admins only).
+  if (type === "SAFETY_REPORT" || entityType === "safety_report") {
+    return isAdmin(userId)
+      ? { ok: true, kind: "safetyReports", id: entityId }
+      : { ok: false, reason: "TARGET_NOT_FOUND", kind: "safetyReports", id: entityId };
   }
 
   if (type === "AREA_ALERT_OBSERVATION" || entityType === "observation") {

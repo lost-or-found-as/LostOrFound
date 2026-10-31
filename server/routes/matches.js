@@ -27,6 +27,7 @@ const { notifyUser } = require("../lib/userNotify");
 const { localizedPair } = require("../lib/messages");
 const { redactCustodyForViewer } = require("../lib/reportCustody");
 const { checkLimit, limitResponse } = require("../lib/rateLimits");
+const { isChatClosed } = require("../lib/chatSafetyStore");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -419,6 +420,9 @@ router.post("/:id/messages", requireUser, async (req, res) => {
     const users = [m?.lost?.user_id, m?.found?.user_id];
     if (!m || !users.includes(req.user.id))
       return res.status(404).json({ error: "MATCH_NOT_FOUND" });
+    // T1.9M: no messages when either side has blocked the other or an account is suspended.
+    const otherUser = users.find((x) => x && x !== req.user.id);
+    if (otherUser && (await isChatClosed(req.user.id, otherUser))) return res.status(403).json({ error: "CHAT_CLOSED" });
     // T1.9L: 30 messages per minute and 500 per day per user.
     for (const name of ["messagesPerMinute", "messagesPerDay"]) {
       const limit = await checkLimit(supaAdmin, { name, table: "messages", column: "sender_id", userId: req.user.id });

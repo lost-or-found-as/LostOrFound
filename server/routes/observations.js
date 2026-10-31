@@ -7,6 +7,7 @@ const {requireUser}=require("../mw/auth");
 const {notifyUser}=require("../lib/userNotify");
 const {localizedPair}=require("../lib/messages");
 const {checkLimit,limitResponse}=require("../lib/rateLimits");
+const {isSuspended}=require("../lib/chatSafetyStore");
 function cleanText(v,n){const s=String(v||"").trim();return s?s.slice(0,n):null;}
 function validPoint(lat,lng){return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180;}
 async function getCampaign(id){const q=await supaAdmin.from("geo_alert_campaigns").select("id,user_id,report_id,status,ends_at,reports(id,user_id,type,status,deleted_at,title)").eq("id",id).maybeSingle();if(q.error)throw q.error;return q.data||null;}
@@ -25,6 +26,8 @@ router.post("/",requireUser,async(req,res)=>{try{
  if(String(campaign.status).toUpperCase()!=="ACTIVE"||(campaign.ends_at&&new Date(campaign.ends_at)<=new Date()))return res.status(409).json({error:"AREA_ALERT_NOT_ACTIVE"});
  if(report.user_id===userId)return res.status(409).json({error:"OWNER_CANNOT_OBSERVE_OWN_REPORT"});
  if(!(await received(campaignId,userId)))return res.status(403).json({error:"AREA_ALERT_ACCESS_DENIED"});
+ // T1.9M: a suspended account cannot send observations.
+ if(await isSuspended(userId))return res.status(403).json({error:"ACCOUNT_SUSPENDED"});
  // T1.9L: 20 observations per day per user.
  const observationLimit=await checkLimit(supaAdmin,{name:"observations",table:"area_alert_observations",column:"observer_user_id",userId});
  if(!observationLimit.allowed)return res.status(429).json(limitResponse(observationLimit));

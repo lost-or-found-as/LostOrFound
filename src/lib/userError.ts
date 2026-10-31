@@ -33,6 +33,10 @@ const EXACT: Record<string, TranslationKey> = {
   MESSAGE_RATE_LIMIT: "errors.messageRateLimit",
   OBSERVATION_DAILY_LIMIT: "errors.observationLimit",
   TOO_MANY_REQUESTS: "errors.rateLimited",
+  // T1.9M: report and block in chat.
+  CHAT_CLOSED: "errors.chatClosed",
+  ACCOUNT_SUSPENDED: "errors.accountSuspended",
+  REPORT_ALREADY_OPEN: "errors.reportAlreadyOpen",
   RESOLUTION_ALREADY_PENDING: "errors.resolutionAlreadyPending",
   OWNER_CANNOT_OBSERVE_OWN_REPORT: "errors.ownReport",
   WATCH_AREA_LIMIT_REACHED: "errors.watchAreaLimit",

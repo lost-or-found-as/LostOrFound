@@ -351,6 +351,10 @@ function NotificationsScreen() {
           });
           return;
         }
+        if (resolved.target_kind === "safetyReports") {
+          router.push("/safety-reports");
+          return;
+        }
         if (resolved.target_kind === "chat") {
           router.push(`/chat/${resolved.target_id}`);
           return;

@@ -11,6 +11,7 @@ export type NotificationIcon =
   | "time-outline"
   | "megaphone-outline"
   | "eye-outline"
+  | "shield-checkmark-outline"
   | "notifications-outline";
 
 export function notificationIcon(type: string | null | undefined): { icon: NotificationIcon; tone: NotificationTone } {
@@ -36,6 +37,8 @@ export function notificationIcon(type: string | null | undefined): { icon: Notif
     case "AREA_ALERT_OBSERVATION":
     case "OBSERVATION_STATUS":
       return { icon: "eye-outline", tone: "info" };
+    case "SAFETY_REPORT":
+      return { icon: "shield-checkmark-outline", tone: "warning" };
     default:
       return { icon: "notifications-outline", tone: "neutral" };
   }

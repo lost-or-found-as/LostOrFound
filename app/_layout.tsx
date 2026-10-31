@@ -50,6 +50,7 @@ function RootLayout() {
               options={{ headerShown: false }}
             />
             <Stack.Screen name="start" options={{ headerShown: false }} />
+            <Stack.Screen name="safety-reports" options={{ headerShown: false }} />
             <Stack.Screen
               name="report-details/[id]"
               options={{ headerShown: false }}
