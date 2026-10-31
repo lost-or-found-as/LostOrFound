@@ -513,7 +513,8 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       area_radius_m: toIntegerOrNull(area_radius_m),
       location_radius_m: toIntegerOrNull(location_radius_m),
       search_areas: normalizeSearchAreas(search_areas),
-      ...custodyFields,
+      // T1.9K: only sent when set, so a report without them never depends on the new columns.
+      ...(custodyFields.custody ? custodyFields : {}),
       ...precisionFields,
     };
 

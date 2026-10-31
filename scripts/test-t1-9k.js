@@ -54,7 +54,7 @@ ok(/add column if not exists custody text/.test(mig) && /add column if not exist
 ok(/type = 'FOUND' and custody in \('WITH_FINDER', 'LEFT_AT_PLACE', 'HANDED_IN'\)/.test(mig), "only found reports have custody");
 ok(/custody = 'HANDED_IN' and char_length\(custody_place\) between 2 and 200/.test(mig), "place only with handed in");
 const reports = read("server/routes/reports.js");
-ok(/\.\.\.custodyFields,\s*\.\.\.precisionFields,/.test(reports), "create stores custody and precision");
+ok(/\.\.\.\(custodyFields\.custody \? custodyFields : \{\}\),\s*\.\.\.precisionFields,/.test(reports), "create stores custody (only when set) and precision");
 ok(/normalizeCustody\(existing\.type, body\.custody, body\.custody_place\)/.test(reports), "edit uses the stored type");
 const matches = read("server/routes/matches.js");
 ok((matches.match(/reward_ore, custody, custody_place,/g) || []).length === 2, "match select returns custody for both sides");
