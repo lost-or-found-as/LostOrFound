@@ -23,7 +23,7 @@ import * as Location from "expo-location";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useReportDraft } from "../../src/contexts/ReportDraftContext";
 import { useI18n } from "../../src/i18n/I18nProvider";
-import { colorName, itemName, categoryName, COLOR_CATALOG } from "../../src/i18n/catalog";
+import { colorName, itemName, categoryName } from "../../src/i18n/catalog";
 import { formatDate, formatDateTimeCustom, formatMoney, formatTime } from "../../src/i18n/formatters";
 import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
@@ -45,7 +45,7 @@ import {
   type Custody,
   type OccurredPrecision,
 } from "../../src/lib/registerForm";
-import { COLOR_SWATCHES, COMMON_COLOR_KEYS, nextColors } from "../../src/ui/colorSwatches";
+import { ALL_COLOR_KEYS, COLOR_SWATCHES, COMMON_COLOR_KEYS, nextColors } from "../../src/ui/colorSwatches";
 import { theme } from "../../src/ui/theme";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { BottomSheet, Button, ConfirmSheet, ScreenHeader } from "../../src/ui/kit";
@@ -145,7 +145,7 @@ export default function RegisterScreen() {
   }, []);
 
   const hits = useMemo(() => searchItems(query, language), [query, language]);
-  const swatchKeys = allColors ? COLOR_CATALOG.map((c) => c.key) : COMMON_COLOR_KEYS;
+  const swatchKeys = allColors ? ALL_COLOR_KEYS : COMMON_COLOR_KEYS;
   const longAgo = type === "LOST" && isLongAgo(draft.occurredAtISO);
   const areaCount = (draft.searchAreas || []).length;
 
@@ -519,21 +519,6 @@ export default function RegisterScreen() {
               {numberBadge(3)}
               <Text style={s.h2}>{type === "FOUND" ? t("register.when.titleFound") : t("register.when.titleLost")}</Text>
             </View>
-            {type === "LOST" && (
-              <View style={s.segment} accessibilityRole="radiogroup">
-                {(["EXACT", "MONTH", "YEAR"] as OccurredPrecision[]).map((p) => (
-                  <Pressable
-                    key={p}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: precision === p }}
-                    style={[s.segmentItem, precision === p && s.segmentOn]}
-                    onPress={() => setDate(occurred || new Date(), p)}
-                  >
-                    <Text style={[s.segmentText, precision === p && s.segmentTextOn]}>{t(`register.when.precision.${p}` as TranslationKey)}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
             <View style={s.twoCols}>
               <Pressable accessibilityRole="button" style={[s.input, s.pick]} onPress={() => setPicker("date")}>
                 <Text style={s.pickText}>{dateLabel}</Text>
@@ -553,13 +538,12 @@ export default function RegisterScreen() {
               <Pressable accessibilityRole="button" style={s.chip} onPress={() => quickDay(0)}>
                 <Text style={s.chipText}>{t("register.when.today")}</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" style={s.chip} onPress={() => quickDay(1)}>
-                <Text style={s.chipText}>{t("register.when.yesterday")}</Text>
-              </Pressable>
+              {/* T1.9Q: one choice for old losses; the date then shows only the year. */}
               {type === "LOST" && (
                 <Pressable
                   accessibilityRole="button"
-                  style={s.chip}
+                  accessibilityState={{ selected: precision === "YEAR" }}
+                  style={[s.chip, precision === "YEAR" && s.chipStrong]}
                   onPress={() => {
                     const d = new Date();
                     d.setFullYear(d.getFullYear() - 1);
@@ -567,7 +551,7 @@ export default function RegisterScreen() {
                     setPicker("date");
                   }}
                 >
-                  <Text style={s.chipText}>{t("register.when.longAgo")}</Text>
+                  <Text style={[s.chipText, precision === "YEAR" && s.chipStrongText]}>{t("register.when.longAgo")}</Text>
                 </Pressable>
               )}
             </View>
@@ -878,11 +862,6 @@ const s = StyleSheet.create({
   swatchText: { fontSize: 14, fontWeight: "900" },
   swatchMore: { width: 98, backgroundColor: theme.colors.card },
   swatchMoreText: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
-  segment: { flexDirection: "row", gap: 4, backgroundColor: "#EEF2F6", borderRadius: 14, padding: 4 },
-  segmentItem: { flex: 1, minHeight: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  segmentOn: { backgroundColor: theme.colors.card },
-  segmentText: { fontSize: 13, fontWeight: "800", color: theme.colors.textSecondary },
-  segmentTextOn: { color: theme.colors.text, fontWeight: "900" },
   twoCols: { flexDirection: "row", gap: 10 },
   pick: { flex: 1, justifyContent: "center" },
   pickText: { fontSize: 15, fontWeight: "800", color: theme.colors.text },

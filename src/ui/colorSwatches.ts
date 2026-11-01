@@ -37,8 +37,15 @@ export const COLOR_SWATCHES: Record<string, Swatch> = {
   other: { fill: "#F1F5F9", dark: false, icon: "ellipsis-horizontal" },
 };
 
-/** The colours shown before "Flere farger" is opened. */
-export const COMMON_COLOR_KEYS = ["black", "white", "gray", "red", "orange", "yellow", "green", "blue", "purple", "brown", "pink"];
+/** The colours shown before "Flere farger" is opened, in rainbow order with the neutrals last. */
+export const COMMON_COLOR_KEYS = ["red", "orange", "yellow", "green", "blue", "purple", "pink", "brown", "black", "gray", "white"];
+
+/** Every colour under "Flere farger": rainbow order, similar colours next to each other, then neutrals and the special choices. */
+export const ALL_COLOR_KEYS = [
+  "burgundy", "red", "orange", "bronze", "gold", "yellow", "lime", "green", "olive", "turquoise", "cyan",
+  "light-blue", "blue", "navy", "purple", "magenta", "pink", "beige", "brown", "black", "gray", "silver", "white",
+  "camo", "multicolor", "patterned", "unknown", "other",
+];
 
 /**
  * Tapping a swatch: the first chosen colour is the main colour, the second the secondary one.
