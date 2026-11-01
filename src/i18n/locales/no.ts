@@ -689,7 +689,7 @@ export const no: TranslationDictionary = {
   "matchDetail.brand": "Merke",
   "matchDetail.case.updated": "Sak oppdatert",
   "matchDetail.chat.opens.only.when.the.owner.has.confirmed.the":
-    "Chat åpnes først når eieren har bekreftet treffet.",
+    "Eieren må først bekrefte at dette er gjenstanden deres. Du får varsel med en gang chatten åpnes.",
   "matchDetail.color": "Farge",
   "matchDetail.confirm.match": "Bekreft treff",
   "matchDetail.could.not.open.maps.on.this.device":
@@ -731,7 +731,7 @@ export const no: TranslationDictionary = {
   "matchDetail.today": "i dag",
   "matchDetail.unknown.error": "Ukjent feil",
   "matchDetail.waiting.for.approval.from.the.owner":
-    "Venter på bekreftelse fra eieren",
+    "Du kan ikke skrive til eieren ennå",
   "matchDetail.within.selected.area": "Innenfor markert område",
   "matchDetail.you.can.open.the.exact.find.location.in.maps":
     "Du kan åpne nøyaktig funnsted i kart.",
@@ -1343,10 +1343,8 @@ export const no: TranslationDictionary = {
   "matchDetail.foundAt": "Funnet",
   "matchDetail.finderDescription": "Finnerens beskrivelse",
   "matchDetail.mapPinLabel": "Funnet her",
-  "matchDetail.ownerHint": "Chatten med finneren åpnes når du bekrefter at dette kan være din gjenstand. Nøyaktig funnsted vises først da.",
+  "matchDetail.ownerHint": "Trykk Bekreft treff hvis dette kan være din gjenstand. Finneren får beskjed, chatten åpnes, og du ser nøyaktig funnsted.",
   "matchDetail.notMine": "Ikke min",
-  "matchDetail.confirmSheet.title": "Bekrefte treffet?",
-  "matchDetail.confirmSheet.body": "Finneren får beskjed, og dere kan chatte. Du ser nøyaktig funnsted.",
   "matchDetail.dismissSheet.title": "Ikke din gjenstand?",
   "matchDetail.dismissSheet.body": "Treffet fjernes fra listen din. Finneren får ikke beskjed.",
   "matchDetail.dismissedNotice": "Du har sagt at dette ikke er din gjenstand.",

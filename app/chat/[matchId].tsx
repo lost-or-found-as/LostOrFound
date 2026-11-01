@@ -322,7 +322,7 @@ function ChatScreen() {
         </View>
       </View>
     );
-  } else if (match) {
+  } else if (match && !safety.state.closed) {
     resolutionBar = (
       <View style={styles.resolveBar}>
         <Ionicons name="checkmark-circle-outline" size={20} color={theme.tone.success.icon} />
@@ -392,10 +392,12 @@ function ChatScreen() {
               </View>
             }
             ListEmptyComponent={
+              safety.state.closed ? null : (
               <View style={styles.empty}>
                 <Text style={styles.emptyTitle}>{t("chat.emptyTitle")}</Text>
                 <Text style={styles.muted}>{t("chat.emptyBody")}</Text>
               </View>
+              )
             }
             renderItem={({ item, index }) => {
               const mine = item.sender_id === user?.id;

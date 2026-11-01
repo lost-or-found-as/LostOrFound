@@ -689,7 +689,7 @@ export const en = {
   "matchDetail.brand": "Brand",
   "matchDetail.case.updated": "Case updated",
   "matchDetail.chat.opens.only.when.the.owner.has.confirmed.the":
-    "Chat opens only when the owner has confirmed the match.",
+    "The owner must first confirm that this is their item. You are notified as soon as the chat opens.",
   "matchDetail.color": "Color",
   "matchDetail.confirm.match": "Confirm match",
   "matchDetail.could.not.open.maps.on.this.device":
@@ -731,7 +731,7 @@ export const en = {
   "matchDetail.today": "today",
   "matchDetail.unknown.error": "Unknown error",
   "matchDetail.waiting.for.approval.from.the.owner":
-    "Waiting for approval from the owner",
+    "You cannot write to the owner yet",
   "matchDetail.within.selected.area": "Within selected area",
   "matchDetail.you.can.open.the.exact.find.location.in.maps":
     "You can open the exact find location in maps.",
@@ -1348,10 +1348,8 @@ export const en = {
   "matchDetail.foundAt": "Found",
   "matchDetail.finderDescription": "The finder's description",
   "matchDetail.mapPinLabel": "Found here",
-  "matchDetail.ownerHint": "The chat with the finder opens when you confirm that this may be your item. You will see the exact place it was found then.",
+  "matchDetail.ownerHint": "Tap Confirm match if this may be your item. The finder is notified, the chat opens and you see the exact place it was found.",
   "matchDetail.notMine": "Not mine",
-  "matchDetail.confirmSheet.title": "Confirm this match?",
-  "matchDetail.confirmSheet.body": "The finder is told, and the two of you can chat. You will see the exact place it was found.",
   "matchDetail.dismissSheet.title": "Not your item?",
   "matchDetail.dismissSheet.body": "The match is removed from your list. The finder is not told.",
   "matchDetail.dismissedNotice": "You have said this is not your item.",

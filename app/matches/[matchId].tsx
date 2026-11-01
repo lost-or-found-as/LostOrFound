@@ -226,7 +226,9 @@ function MatchDetailsScreen() {
   const [thumbs, setThumbs] = useState<Record<string, string[]>>({});
   const [lastMsg, setLastMsg] = useState<LastMsg | null>(null);
   const [unread, setUnread] = useState(false);
-  const [sheet, setSheet] = useState<null | "confirm" | "dismiss">(null);
+  // T1.9O: "Bekreft treff" confirms at once (the hint above the buttons explains what happens);
+  // "Ikke min" still asks first.
+  const [sheet, setSheet] = useState<null | "dismiss">(null);
   const [busy, setBusy] = useState(false);
   const [viewer, setViewer] = useState<{ images: { uri: string }[]; index: number } | null>(null);
   const lastSeenRef = useRef<Record<string, string>>({});
@@ -607,7 +609,7 @@ function MatchDetailsScreen() {
           {showOwnerActions ? (
             <>
               <Button label={t("matchDetail.notMine")} variant="neutral" onPress={() => setSheet("dismiss")} style={styles.flex1} />
-              <Button label={t("matchDetail.confirm.match")} onPress={() => setSheet("confirm")} style={styles.flex2} />
+              <Button label={t("matchDetail.confirm.match")} onPress={() => void setStatus("CONFIRMED")} busy={busy} style={styles.flex2} />
             </>
           ) : (
             <Button
@@ -619,16 +621,6 @@ function MatchDetailsScreen() {
         </View>
       )}
 
-      <ConfirmSheet
-        visible={sheet === "confirm"}
-        title={t("matchDetail.confirmSheet.title")}
-        body={t("matchDetail.confirmSheet.body")}
-        confirmLabel={t("matchDetail.confirm.match")}
-        cancelLabel={t("common.cancel")}
-        onConfirm={() => void setStatus("CONFIRMED")}
-        onCancel={() => setSheet(null)}
-        busy={busy}
-      />
       <ConfirmSheet
         visible={sheet === "dismiss"}
         title={t("matchDetail.dismissSheet.title")}
