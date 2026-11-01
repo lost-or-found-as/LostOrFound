@@ -3,7 +3,7 @@
 // Set the session with access_token and refresh_token.
 // PKCE callbacks using ?code=... are handled with exchangeCodeForSession().
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Pressable } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
@@ -11,14 +11,7 @@ import * as Linking from "expo-linking";
 import { supabase } from "../../src/lib/supabase";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { userErrorMessage } from "../../src/lib/userError";
-
-function safeUrl(u: string) {
-  return u
-    .replace(/(access_token=)[^&]+/g, "$1***")
-    .replace(/(refresh_token=)[^&]+/g, "$1***")
-    .replace(/(provider_token=)[^&]+/g, "$1***")
-    .replace(/(code=)[^&]+/g, "$1***");
-}
+import { theme } from "../../src/ui/theme";
 
 function getHashParams(url: string) {
   const hash = url.split("#")[1] || "";
@@ -44,7 +37,6 @@ export default function AuthCallbackScreen() {
   const [status, setStatus] = useState<"idle" | "working" | "ok" | "error">("idle");
   const [message, setMessage] = useState<string>("");
 
-  const prettyUrl = useMemo(() => (url ? safeUrl(url) : ""), [url]);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,8 +78,11 @@ export default function AuthCallbackScreen() {
         setStatus("ok");
         setMessage(t("auth.callback.successMessage"));
 
+        // T1.9S: a password-reset link continues to "Velg nytt passord".
+        const next = getQueryParam(url, "next");
+        const recovery = next === "new-password" || hash.type === "recovery";
         setTimeout(() => {
-          router.replace("/(tabs)");
+          router.replace(recovery ? ("/(auth)/new-password" as any) : "/(tabs)");
         }, 250);
       } catch (e: any) {
         if (cancelled) return;
@@ -122,7 +117,6 @@ export default function AuthCallbackScreen() {
             <>
               <Text style={styles.errTitle}>{t("auth.callback.error")}</Text>
               <Text style={styles.err}>{message}</Text>
-              {!!prettyUrl && <Text style={styles.debug}>URL: {prettyUrl}</Text>}
               <Pressable
                 onPress={() => router.replace("/(auth)/login")}
                 style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }]}
@@ -132,9 +126,6 @@ export default function AuthCallbackScreen() {
             </>
           )}
 
-          {(status === "working" || status === "idle") && !!prettyUrl && (
-            <Text style={styles.debug}>URL: {prettyUrl}</Text>
-          )}
         </View>
       </View>
     </>
@@ -142,14 +133,13 @@ export default function AuthCallbackScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F6F7FB", paddingHorizontal: 18, justifyContent: "center" },
-  card: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 16, padding: 16 },
-  title: { fontSize: 20, fontWeight: "900", color: "#111827" },
-  sub: { marginTop: 6, color: "#6B7280", fontWeight: "700" },
+  safe: { flex: 1, backgroundColor: theme.colors.bg, paddingHorizontal: 18, justifyContent: "center" },
+  card: { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 16, padding: 16 },
+  title: { fontSize: 20, fontWeight: "900", color: theme.colors.text },
+  sub: { marginTop: 6, color: theme.colors.textSecondary, fontWeight: "700" },
   ok: { color: "#065F46", fontWeight: "800" },
   errTitle: { color: "#991B1B", fontWeight: "900", marginTop: 6 },
   err: { color: "#991B1B", marginTop: 6 },
-  debug: { color: "#6B7280", marginTop: 12, fontSize: 12 },
-  btn: { marginTop: 14, backgroundColor: "#635BFF", paddingVertical: 12, borderRadius: 12, alignItems: "center" },
+  btn: { marginTop: 14, backgroundColor: theme.colors.primary, minHeight: 48, justifyContent: "center", borderRadius: 12, alignItems: "center" },
   btnTxt: { color: "#fff", fontWeight: "900" },
 });

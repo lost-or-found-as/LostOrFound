@@ -6,19 +6,13 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const { pickLanguage } = require("../lib/pageLanguage");
 
 const router = express.Router();
 const DOCS = new Set(["privacy", "terms"]);
 const pages = new Map();
 for (const doc of DOCS)
   for (const lang of ["no", "en"]) pages.set(`${doc}.${lang}`, fs.readFileSync(path.join(__dirname, "..", "legal", `${doc}.${lang}.html`), "utf8"));
-
-function pickLanguage(query, acceptLanguage) {
-  const q = String(query || "").toLowerCase();
-  if (q === "no" || q === "nb" || q === "nn") return "no";
-  if (q === "en") return "en";
-  return /^(nb|nn|no)\b/i.test(String(acceptLanguage || "").trim()) ? "no" : "en";
-}
 
 router.get("/:doc", (req, res) => {
   const doc = String(req.params.doc || "").toLowerCase();

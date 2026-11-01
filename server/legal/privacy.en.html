@@ -5,17 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy Policy for Lost or Found</title>
 <style>
-:root{--bg:#F7F8FA;--card:#FFFFFF;--text:#0F172A;--muted:#475569;--border:#E5E7EB;--link:#1D4ED8;--head:#F1F5F9}
-@media (prefers-color-scheme: dark){:root{--bg:#0B1120;--card:#111827;--text:#E5E7EB;--muted:#9CA3AF;--border:#1F2937;--link:#93C5FD;--head:#1F2937}}
+:root{--bg:#F7F8FA;--card:#FFFFFF;--text:#0F172A;--muted:#475569;--border:#E5E7EB;--link:#1D4ED8;--head:#F1F5F9;--ink:#111827;--ink-text:#FFFFFF}
+@media (prefers-color-scheme: dark){:root{--bg:#0B1120;--card:#111827;--text:#E5E7EB;--muted:#9CA3AF;--border:#1F2937;--link:#93C5FD;--head:#1F2937;--ink:#E5E7EB;--ink-text:#0B1120}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}
-.brand{font-weight:800;font-size:15px;color:var(--muted)}
-nav a{color:var(--link);font-weight:700;margin-left:12px;text-decoration:none}
-nav a:hover{text-decoration:underline}
-h1{font-size:30px;line-height:1.2;margin:8px 0 4px}
-.updated{color:var(--muted);margin:0 0 24px}
+a{color:var(--link)}
+.bar{position:sticky;top:0;z-index:2;background:var(--card);border-bottom:1px solid var(--border)}
+.bar-in{max-width:760px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--text);text-decoration:none;font-weight:900;font-size:17px;letter-spacing:-0.01em}
+.mark{width:32px;height:32px;border-radius:9px;background:var(--ink);display:flex;align-items:center;justify-content:center}
+.lang{display:flex;border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px}
+.lang a,.lang span{min-width:44px;min-height:32px;display:flex;align-items:center;justify-content:center;border-radius:999px;font-size:13px;font-weight:800;text-decoration:none;color:var(--muted);padding:0 10px}
+.lang span{background:var(--ink);color:var(--ink-text)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 20px}
+.tabs a,.tabs span{min-height:40px;display:flex;align-items:center;padding:0 14px;border-radius:999px;border:1px solid var(--border);font-size:14px;font-weight:800;text-decoration:none;color:var(--text);background:var(--card)}
+.tabs span{background:var(--ink);color:var(--ink-text);border-color:var(--ink)}
+h1{font-size:30px;line-height:1.2;margin:8px 0 4px;letter-spacing:-0.02em}
+.updated{color:var(--muted);margin:0 0 24px;font-size:14px;font-weight:600}
 h2{font-size:20px;margin:32px 0 8px}
 p,li{color:var(--text)}
 ul{padding-left:22px}
@@ -24,14 +31,23 @@ table{border-collapse:collapse;width:100%;min-width:520px;font-size:14px}
 th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--border)}
 th{background:var(--head);font-weight:800}
 tr:last-child td{border-bottom:0}
-footer{margin-top:40px;color:var(--muted);font-size:14px}
+footer{border-top:1px solid var(--border);background:var(--card)}
+.foot-in{max-width:760px;margin:0 auto;padding:24px 16px 32px;display:flex;flex-wrap:wrap;gap:16px 40px;font-size:14px;color:var(--muted)}
+.foot-in strong{display:block;color:var(--text);font-size:15px;margin-bottom:4px}
+.foot-in a{font-weight:700}
+.center{max-width:520px;margin:0 auto;padding:48px 16px 56px;display:flex;flex-direction:column;gap:16px}
+.icon{width:72px;height:72px;border-radius:999px;display:flex;align-items:center;justify-content:center;border:1px solid}
+.ok{background:#F0FDF4;border-color:#BBF7D0}
+.bad{background:#FFF1F2;border-color:#FECDD3}
+.btn{min-height:52px;border-radius:14px;background:var(--ink);color:var(--ink-text);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;text-decoration:none}
+.note{font-size:14px;color:var(--muted)}
+.hidden{display:none}
 </style>
 </head>
-<body><main>
-<header>
-<span class="brand">Lost or Found</span>
-<nav><a href="/legal/terms?lang=en">Terms of Use</a><a href="/legal/privacy?lang=no">Norsk</a></nav>
-</header>
+<body>
+<header class="bar"><div class="bar-in"><span class="brand"><span class="mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true" style="color:var(--ink-text)"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg></span>Lost or Found</span><nav class="lang" aria-label="Språk / Language"><a href="/legal/privacy?lang=no" hreflang="nb">Norsk</a><span aria-current="true">English</span></nav></div></header>
+<main>
+<nav class="tabs" aria-label="Dokumenter"><span aria-current="page">Privacy</span><a href="/legal/terms?lang=en">Terms</a></nav>
 <h1>Privacy Policy for Lost or Found</h1>
 <p class="updated">Last updated 1 November 2026</p>
 <h2>1. Who is responsible</h2>
@@ -57,5 +73,6 @@ footer{margin-top:40px;color:var(--muted);font-size:14px}
 <p>The app is not made for children under 13. We do not knowingly collect data from children under this age.</p>
 <h2>10. Changes</h2>
 <p>We update this policy when the service changes. We will tell you in the app about significant changes.</p>
-<footer>Lost or Found AS · org.nr. 938 439 877 · admin@lostorfound.app</footer>
-</main></body></html>
+</main>
+<footer><div class="foot-in"><div><strong>Lost or Found AS</strong>Org.nr. 938 439 877<br>Storåsveien 10, 1169 Oslo</div><div><strong>Contact</strong><a href="mailto:admin@lostorfound.app">admin@lostorfound.app</a></div><div><strong>Lost or Found</strong><a href="/legal/privacy?lang=en">Privacy</a> · <a href="/legal/terms?lang=en">Terms</a></div></div></footer>
+</body></html>

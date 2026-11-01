@@ -132,7 +132,7 @@ const GUEST_ALLOWED = new Set([
   "geo.js GET /search",
 ]);
 // T1.9R: public pages (privacy policy and terms) need no sign-in at all.
-const PUBLIC = new Set(["legal.js GET /:doc"]);
+const PUBLIC = new Set(["legal.js GET /:doc", "authPages.js GET /confirmed"]);
 
 async function call(file, method, p, token, { body = {}, query = {}, params = {} } = {}) {
   const route = routes.find((r) => r.file === file && r.method === method && r.path === p);

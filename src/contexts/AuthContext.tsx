@@ -13,6 +13,10 @@ import { supabase } from "../lib/supabase";
 import { ensureProfileRow } from "../lib/profile";
 import { claimPendingGuestReports, rememberGuestForClaim } from "../lib/guestClaim";
 import { codedError } from "../lib/userError";
+import { useI18n } from "../i18n/I18nProvider";
+
+// T1.9S: new passwords need at least this many characters (also set in Supabase → Email).
+export const MIN_PASSWORD_LENGTH = 8;
 
 export type AuthCtx = {
   user: User | null;
@@ -62,6 +66,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setSession(nextSession);
     setUser(nextSession?.user ?? null);
   }, []);
+
+  // T1.9S: the account remembers the app language, so Supabase e-mails (confirmation, password
+  // reset) use the same language. Updated whenever it differs, including after a language change.
+  const { language } = useI18n();
+  useEffect(() => {
+    if (!user || isAnonymousUser(user)) return;
+    if ((user.user_metadata as any)?.language === language) return;
+    void supabase.auth.updateUser({ data: { language } }).catch(() => {});
+  }, [user?.id, (user?.user_metadata as any)?.language, language]);
 
   const refresh = useCallback(async () => {
     const { data, error } = await supabase.auth.getSession();
@@ -139,7 +152,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!normalizedEmail || !password) {
       throw codedError("EMAIL_PASSWORD_REQUIRED");
     }
-    if (password.length < 6) {
+    if (password.length < MIN_PASSWORD_LENGTH) {
       throw codedError("PASSWORD_TOO_SHORT");
     }
 
@@ -152,6 +165,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
+        options: { data: { language } },
       });
 
       if (error) throw error;
@@ -163,7 +177,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setInitialized(true);
       setLoading(false);
     }
-  }, [applySession]);
+  }, [applySession, language]);
 
   const signOut = useCallback(async () => {
     setLoading(true);

@@ -31,7 +31,8 @@ check((auth.match(/await rememberGuestForClaim\(\);/g) || []).length === 2, "GUE
 // Signing the guest out first revokes its token on the server, so the claim would be refused.
 check(!/signOutIfAnonymousSession/.test(auth), "GUEST_SIGNED_OUT_BEFORE_LOGIN");
 check(/claimPendingGuestReports\(nextSession\.access_token\)/.test(auth), "CLAIM_NOT_RUN_AFTER_LOGIN");
-check(/await rememberGuestForClaim\(\);\s*\n\s*const res = \(await withTimeout<OAuthStartResult>/.test(read("app/(auth)/login.tsx")), "GUEST_NOT_REMEMBERED_BEFORE_OAUTH");
+// T1.9S: the new sign-in screen keeps the same order (remember the guest, then start OAuth).
+check(/await rememberGuestForClaim\(\);\s*\n\s*const res[^=]*= (\(await withTimeout<OAuthStartResult>|await withTimeout\(supabase\.auth\.signInWithOAuth)/.test(read("app/(auth)/login.tsx")), "GUEST_NOT_REMEMBERED_BEFORE_OAUTH");
 
 const claim = read("src/lib/guestClaim.ts");
 check(claim.includes("/account/claim-guest-reports"), "CLAIM_ENDPOINT_MISSING");

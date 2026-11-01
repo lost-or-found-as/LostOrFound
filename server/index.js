@@ -241,6 +241,15 @@ try {
   console.warn("[BOOT] /legal NOT mounted:", e?.message || e);
 }
 
+// ---- Mount /auth (T1.9S: page after e-mail confirmation) ----
+try {
+  const authPageRoutes = require("./routes/authPages");
+  app.use("/auth", authPageRoutes);
+  console.log("[BOOT] Mounted /auth routes");
+} catch (e) {
+  console.warn("[BOOT] /auth NOT mounted:", e?.message || e);
+}
+
 // ---- Mount /safety (T1.9M: report and block in chat) ----
 try {
   const safetyRoutes = require("./routes/safety");
