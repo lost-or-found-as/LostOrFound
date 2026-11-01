@@ -16,15 +16,19 @@ type Props = {
   onCancel: () => void;
   destructive?: boolean;
   busy?: boolean;
+  // T1.9R: extra content above the buttons (e.g. a consent) and a confirm that waits for it.
+  children?: React.ReactNode;
+  confirmDisabled?: boolean;
 };
 
-export function ConfirmSheet({ visible, title, body, confirmLabel, cancelLabel, onConfirm, onCancel, destructive, busy }: Props) {
+export function ConfirmSheet({ visible, title, body, confirmLabel, cancelLabel, onConfirm, onCancel, destructive, busy, children, confirmDisabled }: Props) {
   return (
     <BottomSheet visible={visible} onClose={onCancel} accessibilityLabel={cancelLabel}>
       <Text style={styles.title} accessibilityRole="header">
         {title}
       </Text>
       {!!body && <Text style={styles.body}>{body}</Text>}
+      {children}
       <View style={styles.row}>
         <Button label={cancelLabel} variant="neutral" onPress={onCancel} style={styles.flex} disabled={busy} />
         <Button
@@ -33,6 +37,7 @@ export function ConfirmSheet({ visible, title, body, confirmLabel, cancelLabel, 
           onPress={onConfirm}
           style={styles.flex}
           busy={busy}
+          disabled={confirmDisabled}
         />
       </View>
     </BottomSheet>

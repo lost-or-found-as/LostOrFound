@@ -11,6 +11,7 @@ import { userErrorMessage } from "../lib/userError";
 import { theme } from "./theme";
 import { InlineNotice } from "./InlineNotice";
 import { BottomSheet, Button } from "./kit";
+import { WithdrawalConsent } from "./WithdrawalConsent";
 
 type Props = {
   visible: boolean;
@@ -26,6 +27,11 @@ export function LongTermSheet({ visible, reportId, onClose, onDone }: Props) {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // T1.9R: consent that the service starts at once (right of withdrawal lapses).
+  const [consent, setConsent] = useState(false);
+  useEffect(() => {
+    if (visible) setConsent(false);
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -102,6 +108,7 @@ export function LongTermSheet({ visible, reportId, onClose, onDone }: Props) {
       </View>
 
       <Text style={styles.test}>{t("cases.test.payment.notice")}</Text>
+      <WithdrawalConsent checked={consent} onChange={setConsent} />
       {!!error && <InlineNotice tone="warning" title={t("caseDetail.actionFailed")} body={error} style={styles.notice} />}
 
       <View style={styles.actions}>
@@ -111,7 +118,7 @@ export function LongTermSheet({ visible, reportId, onClose, onDone }: Props) {
           onPress={() => void buy()}
           style={styles.flex}
           busy={busy}
-          disabled={!quote || loading}
+          disabled={!quote || loading || !consent}
         />
       </View>
     </BottomSheet>

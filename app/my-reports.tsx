@@ -43,6 +43,7 @@ import {
 } from "../src/lib/reportLifecycle";
 import { LongTermSheet } from "../src/ui/LongTermSheet";
 import { useReactivationPrice } from "../src/lib/useReactivationPrice";
+import { WithdrawalConsent } from "../src/ui/WithdrawalConsent";
 
 // Test price shown in the reactivation dialog until RevenueCat supplies the store price.
 
@@ -180,6 +181,9 @@ function MyReportsScreen() {
     kind: "extend" | "reactivateLost" | "close" | "delete";
     report: Report;
   } | null>(null);
+  // T1.9R: consent before a paid extension (reset each time the dialog opens).
+  const [consent, setConsent] = useState(false);
+  useEffect(() => setConsent(false), [confirmDialog]);
   const [menuReport, setMenuReport] = useState<Report | null>(null);
   const [reactivatingReportId, setReactivatingReportId] = useState<
     string | null
@@ -830,6 +834,7 @@ function MyReportsScreen() {
                 <Text style={dialogStyles.testModeText}>
                   {t("cases.test.payment.notice")}
                 </Text>
+                <WithdrawalConsent checked={consent} onChange={setConsent} />
               </View>
             )}
             <View
@@ -856,7 +861,10 @@ function MyReportsScreen() {
                     dialogStyles.paymentActionButton,
                   confirmDialog?.kind === "delete" &&
                     dialogStyles.deleteConfirmBtn,
+                  confirmDialog?.kind === "reactivateLost" && !consent && dialogStyles.confirmOff,
                 ]}
+                disabled={confirmDialog?.kind === "reactivateLost" && !consent}
+                accessibilityState={{ disabled: confirmDialog?.kind === "reactivateLost" && !consent }}
                 onPress={() => void runDialogAction()}
               >
                 <Text style={dialogStyles.confirmText}>
@@ -1186,6 +1194,7 @@ const dialogStyles = StyleSheet.create({
     textAlign: "right",
     marginLeft: 12,
   },
+  confirmOff: { opacity: 0.45 },
   paymentPrice: { color: "#1D4ED8", fontWeight: "900", fontSize: 20 },
   testModeText: {
     marginTop: 5,

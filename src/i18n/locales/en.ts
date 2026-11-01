@@ -1640,6 +1640,10 @@ export const en = {
   "profile.deleteAccount.body": "Your account is deleted for good, together with your cases, matches, chats, alert areas and notifications. Purchase receipts are kept as long as bookkeeping rules require, without contact details. This cannot be undone.",
   "profile.deleteAccount.confirm": "Delete account",
   "profile.deleteAccount.failed": "The account could not be deleted. Try again, or contact Lost or Found.",
+  "legal.privacy": "Privacy",
+  "legal.terms": "Terms",
+  "purchase.withdrawalConsent": "I want the service to start at once, and understand that the right of withdrawal then lapses.",
+  "purchase.readTerms": "Read the terms",
 } as const;
 
 export type TranslationKey = keyof typeof en;

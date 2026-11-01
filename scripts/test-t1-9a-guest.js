@@ -131,6 +131,8 @@ const GUEST_ALLOWED = new Set([
   "geo.js GET /reverse",
   "geo.js GET /search",
 ]);
+// T1.9R: public pages (privacy policy and terms) need no sign-in at all.
+const PUBLIC = new Set(["legal.js GET /:doc"]);
 
 async function call(file, method, p, token, { body = {}, query = {}, params = {} } = {}) {
   const route = routes.find((r) => r.file === file && r.method === method && r.path === p);
@@ -167,7 +169,9 @@ async function call(file, method, p, token, { body = {}, query = {}, params = {}
   for (const route of routes) {
     const key = `${route.file} ${route.method} ${route.path}`;
     const guards = route.handlers.slice(0, -1);
-    if (GUEST_ALLOWED.has(key)) {
+    if (PUBLIC.has(key)) {
+      ok(guards.length === 0, `PUBLIC_ROUTE_WITH_GUARD: ${key}`);
+    } else if (GUEST_ALLOWED.has(key)) {
       ok(guards.includes(auth.requireUserOrGuest), `GUEST_ROUTE_WITHOUT_AUTH: ${key}`);
     } else {
       ok(guards.includes(auth.requireUser), `ROUTE_NOT_REGISTERED_ONLY: ${key}`);

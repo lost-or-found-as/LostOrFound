@@ -232,6 +232,15 @@ try {
   console.warn("[BOOT] /account NOT mounted:", e?.message || e);
 }
 
+// ---- Mount /legal (T1.9R: public privacy policy and terms) ----
+try {
+  const legalRoutes = require("./routes/legal");
+  app.use("/legal", legalRoutes);
+  console.log("[BOOT] Mounted /legal routes");
+} catch (e) {
+  console.warn("[BOOT] /legal NOT mounted:", e?.message || e);
+}
+
 // ---- Mount /safety (T1.9M: report and block in chat) ----
 try {
   const safetyRoutes = require("./routes/safety");

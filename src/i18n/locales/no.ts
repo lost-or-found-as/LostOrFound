@@ -1635,4 +1635,8 @@ export const no: TranslationDictionary = {
   "profile.deleteAccount.body": "Kontoen din slettes for godt, sammen med sakene, treffene, chattene, varselområdene og varslene dine. Kvitteringer for kjøp tas vare på så lenge regnskapsreglene krever, uten kontaktopplysninger. Dette kan ikke angres.",
   "profile.deleteAccount.confirm": "Slett kontoen",
   "profile.deleteAccount.failed": "Kontoen kunne ikke slettes. Prøv igjen, eller ta kontakt med Lost or Found.",
+  "legal.privacy": "Personvern",
+  "legal.terms": "Vilkår",
+  "purchase.withdrawalConsent": "Jeg vil at tjenesten starter med en gang, og forstår at angreretten da faller bort.",
+  "purchase.readTerms": "Les vilkårene",
 };

@@ -40,6 +40,7 @@ import {
   type GeoAlertStatus,
 } from "../src/lib/areaAlertStatus";
 import { InlineNotice } from "../src/ui/InlineNotice";
+import { WithdrawalConsent } from "../src/ui/WithdrawalConsent";
 import { Ionicons } from "@expo/vector-icons";
 import { formatArea, formatDistance, formatLocalizedDateTime, formatMoney } from "../src/i18n/formatters";
 import { STORED_MONEY_CURRENCY } from "../src/lib/market";
@@ -79,6 +80,8 @@ function GeoAlertCreateScreen() {
   const [radiusM, setRadiusM] = useState(1500);
   const [busy, setBusy] = useState(false);
   const [activating, setActivating] = useState(false);
+  // T1.9R: consent that the alert starts at once (right of withdrawal lapses).
+  const [consent, setConsent] = useState(false);
   const [result, setResult] = useState<GeoAlertPreviewResult | null>(null);
   const [activatedUntil, setActivatedUntil] = useState<string | null>(null);
   const [status, setStatus] = useState<GeoAlertStatus | null>(null);
@@ -439,10 +442,13 @@ function GeoAlertCreateScreen() {
                   busy={activating}
                 />
               )}
+              {!activatedUntil && !noticeView && <WithdrawalConsent checked={consent} onChange={setConsent} />}
               {!activatedUntil && !noticeView ? (
                 <Pressable
-                  disabled={activating}
-                  style={[styles.activate, activating && styles.disabled]}
+                  disabled={activating || !consent}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: activating || !consent }}
+                  style={[styles.activate, (activating || !consent) && styles.disabled]}
                   onPress={createAndActivate}
                 >
                   {activating ? (

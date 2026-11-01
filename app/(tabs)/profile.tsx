@@ -14,13 +14,14 @@ import { sendSentryTestEvent } from "../../src/lib/sentry";
 import { useNewRegistration } from "../../src/lib/newRegistration";
 import { fetchIsAdmin } from "../../src/lib/chatSafety";
 import { deleteAccountRequest } from "../../src/lib/accountDeletion";
+import { openLegal } from "../../src/lib/legal";
 import { userErrorMessage } from "../../src/lib/userError";
 import { ConfirmSheet } from "../../src/ui/kit";
 
 export default function ProfileTab() {
   const router = useRouter();
   const { user, session, signOut } = useAuth();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
 
   const isGuest = isAnonymousUser(user as any);
   // T1.9K: try the new one-page registration next to the current one.
@@ -104,6 +105,17 @@ export default function ProfileTab() {
       title: t("profile.how"),
       onPress: () => router.push("/how"),
     },
+    // T1.9R: privacy policy and terms (also for guests).
+    {
+      icon: "shield-outline" as const,
+      title: t("legal.privacy"),
+      onPress: () => void openLegal("privacy", language),
+    },
+    {
+      icon: "document-text-outline" as const,
+      title: t("legal.terms"),
+      onPress: () => void openLegal("terms", language),
+    },
     ...(isAdmin
       ? [{ icon: "shield-checkmark-outline" as const, title: t("profile.safetyReports"), onPress: () => router.push("/safety-reports") }]
       : []),
@@ -111,7 +123,7 @@ export default function ProfileTab() {
 
   // T1.9A: guests only get language and help; everything else needs an account.
   const visibleRows = isGuest
-    ? rows.filter((row) => row.title === t("profile.language") || row.title === t("profile.how"))
+    ? rows.filter((row) => [t("profile.language"), t("profile.how"), t("legal.privacy"), t("legal.terms")].includes(row.title))
     : rows;
 
   return (

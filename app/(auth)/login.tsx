@@ -21,6 +21,7 @@ import { ensureProfileRow } from "../../src/lib/profile";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { rememberGuestForClaim } from "../../src/lib/guestClaim";
 import { codedError, userErrorMessage } from "../../src/lib/userError";
+import { openLegal } from "../../src/lib/legal";
 
 type OAuthStartResult = {
   data?: { url?: string | null } | null;
@@ -360,6 +361,15 @@ export default function LoginScreen() {
         </View>
 
         <Text style={styles.foot}> {t("auth.login.by.logging.in.continuing.you.accept.the.terms.and.priva")}</Text>
+        {/* T1.9R: the terms and privacy policy the sentence above refers to. */}
+        <View style={styles.legalRow}>
+          <Pressable accessibilityRole="link" onPress={() => void openLegal("terms", language)} style={styles.legalLink}>
+            <Text style={styles.legalText}>{t("legal.terms")}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="link" onPress={() => void openLegal("privacy", language)} style={styles.legalLink}>
+            <Text style={styles.legalText}>{t("legal.privacy")}</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     </>
   );
@@ -490,4 +500,7 @@ const styles = StyleSheet.create({
   guestInfoTitle: { color: STRIPE_TEXT, fontWeight: "900", marginBottom: 6 },
   guestInfoLine: { color: STRIPE_MUTED, lineHeight: 18 },
   foot: { marginTop: 14, color: STRIPE_MUTED, fontSize: 12, lineHeight: 16, paddingHorizontal: 2 },
+  legalRow: { flexDirection: "row", gap: 16, paddingHorizontal: 2 },
+  legalLink: { minHeight: 44, justifyContent: "center" },
+  legalText: { fontSize: 13, fontWeight: "800", color: theme.colors.text, textDecorationLine: "underline" },
 });

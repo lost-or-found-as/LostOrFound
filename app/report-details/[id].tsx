@@ -3,7 +3,7 @@
 // "Neste steg" card says what to do now, then Detaljer, Område, the area-alert offer and one
 // Aktivitet timeline. Case actions (edit, extend, close, delete) live in the ⋯ menu.
 import { requireAccount } from "../../src/ui/AccountRequired";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +26,7 @@ import { InlineNotice } from "../../src/ui/InlineNotice";
 import { formatDate, formatDistance, formatLocalizedDateTime, formatMoney, formatTimeAgo } from "../../src/i18n/formatters";
 import { LongTermSheet } from "../../src/ui/LongTermSheet";
 import { useReactivationPrice } from "../../src/lib/useReactivationPrice";
+import { WithdrawalConsent } from "../../src/ui/WithdrawalConsent";
 import { STORED_MONEY_CURRENCY } from "../../src/lib/market";
 import { reportDescriptionText } from "../../src/lib/reportDescription";
 import { caseColors, caseTitle } from "../../src/lib/caseDisplay";
@@ -82,6 +83,9 @@ function Screen() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [longTermOpen, setLongTermOpen] = useState(false);
+  // T1.9R: consent before a paid extension (reset each time the sheet opens).
+  const [consent, setConsent] = useState(false);
+  useEffect(() => setConsent(false), [confirm]);
   // T1.9N: right after registration the case opens with a confirmation and the first matches.
   const [createdOpen, setCreatedOpen] = useState(created === "1");
   const [activityReady, setActivityReady] = useState(false);
@@ -529,9 +533,12 @@ function Screen() {
         cancelLabel={t("common.cancel")}
         destructive={current?.destructive}
         busy={busy}
+        confirmDisabled={confirm === "reactivate" && !consent}
         onCancel={() => setConfirm(null)}
         onConfirm={() => void runConfirm()}
-      />
+      >
+        {confirm === "reactivate" && <WithdrawalConsent checked={consent} onChange={setConsent} />}
+      </ConfirmSheet>
 
       <BottomSheet
         visible={createdOpen && activityReady}
