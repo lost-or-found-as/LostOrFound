@@ -59,4 +59,44 @@ router.post("/claim-guest-reports", requireUser, async (req, res) => {
   }
 });
 
+// T1.9P: delete the account and everything tied to it (Apple and Google require this in the app).
+// Each report goes through the same deletion as "Slett sak"; a report with purchases is kept
+// archived without contact details (bookkeeping). Rows not removed by the auth cascade are
+// deleted here; then the sign-in itself is deleted.
+const LEFTOVER_ROWS = [
+  { table: "notifications", column: "user_id" },
+  { table: "report_creation_events", column: "user_id" },
+];
+
+// DELETE /account   (registered accounts; a guest has no sign-in to delete beyond its found reports)
+router.delete("/", requireUser, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const { deleteOwnedReport } = require("./reports");
+    const { data: reports, error } = await supaAdmin.from("reports").select("id").eq("user_id", userId).is("deleted_at", null);
+    if (error) throw error;
+    for (const r of reports || []) {
+      const result = await deleteOwnedReport(r.id, userId);
+      if (result.status !== 200 && result.status !== 404) {
+        console.error(`[account] delete: report ${r.id} failed`, result.body?.error);
+        return res.status(500).json({ error: "ACCOUNT_DELETE_FAILED" });
+      }
+    }
+    for (const { table, column } of LEFTOVER_ROWS) {
+      const del = await supaAdmin.from(table).delete().eq(column, userId);
+      if (del.error) console.warn(`[account] delete: ${table} cleanup failed`, del.error.message);
+    }
+    const { error: authError } = await supaAdmin.auth.admin.deleteUser(userId);
+    if (authError) {
+      console.error("[account] delete: auth user failed", authError.message);
+      return res.status(500).json({ error: "ACCOUNT_DELETE_FAILED" });
+    }
+    console.log(`[account] deleted account ${userId} (${(reports || []).length} report(s))`);
+    return res.json({ ok: true, deletedReports: (reports || []).length });
+  } catch (e) {
+    console.error("[account] delete error", e?.message ?? e);
+    return res.status(500).json({ error: "ACCOUNT_DELETE_FAILED" });
+  }
+});
+
 module.exports = router;

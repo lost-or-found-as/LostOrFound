@@ -969,34 +969,37 @@ router.post("/:id/close", requireUser, async (req, res) => {
  * DELETE /reports/:id
  * Delete a report and perform best-effort cleanup of images, matches, notifications, and conversation data.
  */
-router.delete("/:id", requireUser, async (req, res) => {
+/**
+ * Deletes one report owned by userId with its matches, chats, notifications and images.
+ * A report with purchases is kept as archived (bookkeeping). Returns { status, body }.
+ * T1.9P: shared by DELETE /reports/:id and account deletion.
+ */
+async function deleteOwnedReport(reportId, userId) {
+  const reply = (status, body) => ({ status, body });
   try {
-    const user = req.user;
-    const reportId = req.params.id;
-
     const { data: report, error: rErr } = await supaAdmin
       .from("reports")
       .select("id")
       .eq("id", reportId)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
 
-    if (rErr) return res.status(400).json({ error: rErr.message });
-    if (!report) return res.status(404).json({ error: "Report not found" });
+    if (rErr) return reply(400, { error: rErr.message });
+    if (!report) return reply(404, { error: "Report not found" });
 
     const { data: imgs, error: iErr } = await supaAdmin
       .from("report_images")
       .select("path")
       .eq("report_id", reportId);
 
-    if (iErr) return res.status(400).json({ error: iErr.message });
+    if (iErr) return reply(400, { error: iErr.message });
 
     const { data: matches, error: mErr } = await supaAdmin
       .from("matches")
       .select("id")
       .or(`lost_id.eq.${reportId},found_id.eq.${reportId}`);
 
-    if (mErr) return res.status(400).json({ error: mErr.message });
+    if (mErr) return reply(400, { error: mErr.message });
 
     const matchIds = (matches || []).map((m) => m.id).filter(Boolean);
     const cleanupResults = [];
@@ -1053,7 +1056,7 @@ router.delete("/:id", requireUser, async (req, res) => {
       .select("id", { count: "exact", head: true })
       .eq("report_id", reportId);
     if (orderCheckError)
-      return res.status(400).json({ error: "REPORT_DELETE_CHECK_FAILED" });
+      return reply(400, { error: "REPORT_DELETE_CHECK_FAILED" });
     if (Number(orderCount || 0) > 0) {
       const deletedAt = new Date().toISOString();
       const { error: softDeleteError } = await supaAdmin
@@ -1064,10 +1067,10 @@ router.delete("/:id", requireUser, async (req, res) => {
           archived_at: deletedAt,
         })
         .eq("id", reportId)
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
       if (softDeleteError)
-        return res.status(400).json({ error: "REPORT_DELETE_FAILED" });
-      return res.json({
+        return reply(400, { error: "REPORT_DELETE_FAILED" });
+      return reply(200, {
         ok: true,
         deleted: reportId,
         deletionMode: "SOFT",
@@ -1078,11 +1081,9 @@ router.delete("/:id", requireUser, async (req, res) => {
       .from("reports")
       .delete()
       .eq("id", reportId)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
     if (dErr)
-      return res
-        .status(400)
-        .json({ error: "REPORT_DELETE_FAILED", cleanupResults });
+      return reply(400, { error: "REPORT_DELETE_FAILED", cleanupResults });
 
     const byBucket = new Map();
     for (const p of paths) {
@@ -1112,7 +1113,7 @@ router.delete("/:id", requireUser, async (req, res) => {
       }
     }
 
-    return res.json({
+    return reply(200, {
       ok: true,
       deleted: reportId,
       matchCleanupCount: matchIds.length,
@@ -1120,8 +1121,13 @@ router.delete("/:id", requireUser, async (req, res) => {
       storageCleanup,
     });
   } catch (e) {
-    return res.status(500).json({ error: e?.message ?? "Server error" });
+    return reply(500, { error: e?.message ?? "Server error" });
   }
+}
+
+router.delete("/:id", requireUser, async (req, res) => {
+  const result = await deleteOwnedReport(req.params.id, req.user.id);
+  return res.status(result.status).json(result.body);
 });
 
 /**
@@ -1255,3 +1261,4 @@ router.get("/:id", requireUser, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.deleteOwnedReport = deleteOwnedReport;

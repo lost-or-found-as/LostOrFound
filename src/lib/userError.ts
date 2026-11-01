@@ -37,6 +37,8 @@ const EXACT: Record<string, TranslationKey> = {
   CHAT_CLOSED: "errors.chatClosed",
   ACCOUNT_SUSPENDED: "errors.accountSuspended",
   REPORT_ALREADY_OPEN: "errors.reportAlreadyOpen",
+  // T1.9P
+  ACCOUNT_DELETE_FAILED: "profile.deleteAccount.failed",
   RESOLUTION_ALREADY_PENDING: "errors.resolutionAlreadyPending",
   OWNER_CANNOT_OBSERVE_OWN_REPORT: "errors.ownReport",
   WATCH_AREA_LIMIT_REACHED: "errors.watchAreaLimit",

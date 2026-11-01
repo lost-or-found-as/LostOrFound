@@ -13,6 +13,9 @@ import { InlineNotice } from "../../src/ui/InlineNotice";
 import { sendSentryTestEvent } from "../../src/lib/sentry";
 import { useNewRegistration } from "../../src/lib/newRegistration";
 import { fetchIsAdmin } from "../../src/lib/chatSafety";
+import { deleteAccountRequest } from "../../src/lib/accountDeletion";
+import { userErrorMessage } from "../../src/lib/userError";
+import { ConfirmSheet } from "../../src/ui/kit";
 
 export default function ProfileTab() {
   const router = useRouter();
@@ -39,6 +42,25 @@ export default function ProfileTab() {
   const runSentryTest = async () => {
     setSentryTest("sending");
     setSentryTest((await sendSentryTestEvent()) ? "sent" : "failed");
+  };
+
+  // T1.9P: delete the account from the app (required by Apple and Google).
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteAccount = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAccountRequest();
+      setDeleteOpen(false);
+      await signOut().catch(() => {});
+      router.replace("/(auth)/login");
+    } catch (e) {
+      setDeleteError(userErrorMessage(e, t, "profile.deleteAccount.failed", "account.delete"));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const logout = async () => {
@@ -198,12 +220,35 @@ export default function ProfileTab() {
             <Text style={styles.primaryText}>{t("profile.login")}</Text>
           </Pressable>
         )}
+
+        {!!user && !isGuest && (
+          <Pressable accessibilityRole="button" style={styles.deleteAccount} onPress={() => setDeleteOpen(true)}>
+            <Text style={styles.deleteAccountText}>{t("profile.deleteAccount.button")}</Text>
+          </Pressable>
+        )}
       </ScrollView>
+
+      <ConfirmSheet
+        visible={deleteOpen}
+        title={t("profile.deleteAccount.title")}
+        body={deleteError ?? t("profile.deleteAccount.body")}
+        confirmLabel={t("profile.deleteAccount.confirm")}
+        cancelLabel={t("common.cancel")}
+        destructive
+        busy={deleting}
+        onCancel={() => {
+          setDeleteOpen(false);
+          setDeleteError(null);
+        }}
+        onConfirm={() => void deleteAccount()}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  deleteAccount: { alignSelf: "center", minHeight: 44, justifyContent: "center", marginTop: 8, paddingHorizontal: 12 },
+  deleteAccountText: { fontSize: 15, fontWeight: "800", color: theme.colors.dangerStrong, textDecorationLine: "underline" },
   switchCard: {
     flexDirection: "row",
     alignItems: "center",

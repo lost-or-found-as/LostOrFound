@@ -1639,6 +1639,11 @@ export const en = {
   "caseDetail.created.noneBodyLost": "We compare with every new find and notify you as soon as something looks similar.",
   "caseDetail.created.noneBodyFound": "We compare with everyone who has lost something and notify you if the owner turns up.",
   "caseDetail.created.areaAlert": "Alert people nearby",
+  "profile.deleteAccount.button": "Delete account",
+  "profile.deleteAccount.title": "Delete your account?",
+  "profile.deleteAccount.body": "Your account is deleted for good, together with your cases, matches, chats, alert areas and notifications. Purchase receipts are kept as long as bookkeeping rules require, without contact details. This cannot be undone.",
+  "profile.deleteAccount.confirm": "Delete account",
+  "profile.deleteAccount.failed": "The account could not be deleted. Try again, or contact Lost or Found.",
 } as const;
 
 export type TranslationKey = keyof typeof en;
