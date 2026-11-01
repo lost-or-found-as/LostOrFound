@@ -1629,6 +1629,18 @@ export const en = {
   "admin.reports.suspendBody": "The person cannot send messages, create cases or send observations until you reopen the account.",
   "admin.reports.restoreTitle": "Reopen the account?",
   "admin.reports.restoreBody": "The account can be used as before. Open reports about the person are marked as handled with no action, so they do not suspend the account again.",
+  "register.when.now": "Now",
+  "caseDetail.created.title": "Your case is registered",
+  "caseDetail.created.titleFound": "Your find is registered",
+  "caseDetail.created.matches": "{{count}} possible matches already",
+  "caseDetail.created.matches_one": "1 possible match already",
+  "caseDetail.created.best": "Best match: {{level}}",
+  "caseDetail.created.seeMatches": "See the matches",
+  "caseDetail.created.goToCase": "Go to the case",
+  "caseDetail.created.noneTitle": "No matches yet",
+  "caseDetail.created.noneBodyLost": "We compare with every new find and notify you as soon as something looks similar.",
+  "caseDetail.created.noneBodyFound": "We compare with everyone who has lost something and notify you if the owner turns up.",
+  "caseDetail.created.areaAlert": "Alert people nearby",
 } as const;
 
 export type TranslationKey = keyof typeof en;

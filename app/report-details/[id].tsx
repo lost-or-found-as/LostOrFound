@@ -51,7 +51,7 @@ import {
   type ActivityEvent,
   type ReportActivity,
 } from "../../src/lib/reportActivity";
-import { BottomSheet, Button, ConfirmSheet, IconButton, InfoButton, ScreenHeader } from "../../src/ui/kit";
+import { BottomSheet, Button, ConfirmSheet, IconButton, InfoButton, SCORE_LABEL_KEYS, ScreenHeader, scoreLevel } from "../../src/ui/kit";
 import { custodyText } from "../../src/lib/custodyDisplay";
 
 type D = {
@@ -68,7 +68,7 @@ type Confirm = "close" | "delete" | "extend" | "reactivate" | null;
 
 function Screen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, created } = useLocalSearchParams<{ id: string; created?: string }>();
   const { language, t } = useI18n();
   const reactivationPrice = useReactivationPrice();
   const [data, setData] = useState<D | null>(null);
@@ -82,6 +82,9 @@ function Screen() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [longTermOpen, setLongTermOpen] = useState(false);
+  // T1.9N: right after registration the case opens with a confirmation and the first matches.
+  const [createdOpen, setCreatedOpen] = useState(created === "1");
+  const [activityReady, setActivityReady] = useState(false);
 
   const load = useCallback(
     async (quiet = false) => {
@@ -108,6 +111,7 @@ function Screen() {
       } catch {
         setActivity(EMPTY_ACTIVITY);
       }
+      setActivityReady(true);
       try {
         setGeoStatus(await fetchGeoAlertStatus(String(id)));
       } catch {
@@ -529,6 +533,77 @@ function Screen() {
         onConfirm={() => void runConfirm()}
       />
 
+      <BottomSheet
+        visible={createdOpen && activityReady}
+        onClose={() => {
+          setCreatedOpen(false);
+          router.setParams({ created: undefined });
+        }}
+        accessibilityLabel={t("common.close")}
+      >
+        <View style={s.createdIcon}>
+          <Ionicons name="checkmark" size={28} color={theme.tone.success.icon} />
+        </View>
+        <View style={s.createdHead}>
+          <Text style={s.createdTitle} accessibilityRole="header">
+            {lost ? t("caseDetail.created.title") : t("caseDetail.created.titleFound")}
+          </Text>
+          <Text style={s.muted}>{[title, r.location_label].filter(Boolean).join(" · ")}</Text>
+        </View>
+        {activity.summary.possibleMatches > 0 ? (
+          <InlineNotice
+            tone="info"
+            icon="search-outline"
+            title={t("caseDetail.created.matches", { count: activity.summary.possibleMatches })}
+            body={
+              activity.summary.bestScore != null
+                ? t("caseDetail.created.best", { level: t(SCORE_LABEL_KEYS[scoreLevel(activity.summary.bestScore)]) })
+                : undefined
+            }
+            style={s.createdNotice}
+          />
+        ) : (
+          <InlineNotice
+            tone="info"
+            icon="notifications-outline"
+            title={t("caseDetail.created.noneTitle")}
+            body={lost ? t("caseDetail.created.noneBodyLost") : t("caseDetail.created.noneBodyFound")}
+            style={s.createdNotice}
+          />
+        )}
+        {activity.summary.possibleMatches > 0 && (
+          <Button
+            label={t("caseDetail.created.seeMatches")}
+            onPress={() => {
+              setCreatedOpen(false);
+              router.setParams({ created: undefined });
+              openMatches();
+            }}
+          />
+        )}
+        <Button
+          label={t("caseDetail.created.goToCase")}
+          variant={activity.summary.possibleMatches > 0 ? "neutral" : "primary"}
+          onPress={() => {
+            setCreatedOpen(false);
+            router.setParams({ created: undefined });
+          }}
+        />
+        {activity.summary.possibleMatches === 0 && showAreaAlert && (
+          <Pressable
+            accessibilityRole="button"
+            style={s.createdLink}
+            onPress={() => {
+              setCreatedOpen(false);
+              router.setParams({ created: undefined });
+              openAreaAlert();
+            }}
+          >
+            <Text style={s.createdLinkText}>{t("caseDetail.created.areaAlert")}</Text>
+          </Pressable>
+        )}
+      </BottomSheet>
+
       <LongTermSheet
         visible={longTermOpen}
         reportId={String(r.id)}
@@ -650,6 +725,21 @@ const s = StyleSheet.create({
   menuLabel: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
   menuHint: { fontSize: 13, fontWeight: "600", color: theme.colors.textSecondary },
   menuDanger: { color: theme.colors.dangerStrong },
+  createdIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    backgroundColor: theme.tone.success.bg,
+    borderWidth: 1,
+    borderColor: theme.tone.success.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  createdHead: { gap: 4 },
+  createdTitle: { fontSize: 22, fontWeight: "900", color: theme.colors.text },
+  createdNotice: { marginTop: 0, marginBottom: 0 },
+  createdLink: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
+  createdLinkText: { fontSize: 15, fontWeight: "800", color: theme.colors.text, textDecorationLine: "underline" },
 });
 
 // T1.9A: registered accounts only; guests see the account-required screen.

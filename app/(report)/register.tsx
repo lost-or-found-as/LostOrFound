@@ -19,6 +19,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Circle, Marker } from "react-native-maps";
+import * as Location from "expo-location";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useReportDraft } from "../../src/contexts/ReportDraftContext";
 import { useI18n } from "../../src/i18n/I18nProvider";
@@ -51,6 +52,8 @@ import { BottomSheet, Button, ConfirmSheet, ScreenHeader } from "../../src/ui/ki
 import type { TranslationKey } from "../../src/i18n/locales/en";
 
 const MAX_IMAGES = 3;
+// T1.9N: map shown before a place is chosen when the phone's position is not available.
+const NORWAY_REGION = { latitude: 64.5, longitude: 12.5, latitudeDelta: 14, longitudeDelta: 14 };
 const REWARD_PRESETS = [0, 200, 500];
 // The reward is only offered where the app knows the currency rules (same as today).
 const rewardEnabledForLocale = () => {
@@ -121,6 +124,26 @@ export default function RegisterScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lat, lng, confirmed]);
 
+  // T1.9N: before a place is chosen, the map shows where the phone is (only when location access
+  // was already given; the map screen asks for it).
+  const [here, setHere] = useState<{ latitude: number; longitude: number } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      try {
+        const permission = await Location.getForegroundPermissionsAsync();
+        if (!permission.granted) return;
+        const pos =
+          (await Location.getLastKnownPositionAsync()) ??
+          (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+        if (live && pos) setHere({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      } catch {}
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
   const hits = useMemo(() => searchItems(query, language), [query, language]);
   const swatchKeys = allColors ? COLOR_CATALOG.map((c) => c.key) : COMMON_COLOR_KEYS;
   const longAgo = type === "LOST" && isLongAgo(draft.occurredAtISO);
@@ -167,7 +190,8 @@ export default function RegisterScreen() {
       router.replace({ pathname: "/found-receipt", params: { title, images: String(images.length) } });
       return;
     }
-    router.replace({ pathname: "/report-details/[id]", params: { id: reportId } });
+    // T1.9N: the case screen opens with a confirmation and the first matches.
+    router.replace({ pathname: "/report-details/[id]", params: { id: reportId, created: "1" } });
   };
 
   const submit = async (testOverrideWeeklyLimit = false) => {
@@ -521,6 +545,11 @@ export default function RegisterScreen() {
               )}
             </View>
             <View style={s.chips}>
+              {type === "FOUND" && (
+                <Pressable accessibilityRole="button" style={[s.chip, s.chipStrong]} onPress={() => setDate(new Date(), "EXACT")}>
+                  <Text style={[s.chipText, s.chipStrongText]}>{t("register.when.now")}</Text>
+                </Pressable>
+              )}
               <Pressable accessibilityRole="button" style={s.chip} onPress={() => quickDay(0)}>
                 <Text style={s.chipText}>{t("register.when.today")}</Text>
               </Pressable>
@@ -572,10 +601,19 @@ export default function RegisterScreen() {
                   )}
                 </MapView>
               ) : (
-                <View style={s.mapEmpty}>
-                  <Ionicons name="map-outline" size={26} color={theme.colors.textSecondary} />
-                  <Text style={s.mapEmptyText}>{type === "FOUND" ? t("register.where.pickFound") : t("register.where.pickLost")}</Text>
-                </View>
+                <>
+                  <MapView
+                    pointerEvents="none"
+                    style={StyleSheet.absoluteFill}
+                    region={here ? { ...here, latitudeDelta: 0.02, longitudeDelta: 0.02 } : NORWAY_REGION}
+                    showsUserLocation={!!here}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                  />
+                  <View style={s.mapHint}>
+                    <Text style={s.mapPillText}>{type === "FOUND" ? t("register.where.pickFound") : t("register.where.pickLost")}</Text>
+                  </View>
+                </>
               )}
               <View style={s.mapPill}>
                 <Text style={s.mapPillText}>{confirmed ? t("register.where.change") : t("register.where.choose")}</Text>
@@ -860,12 +898,13 @@ const s = StyleSheet.create({
   },
   chipOn: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
   chipText: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  chipStrong: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  chipStrongText: { color: "#FFFFFF", fontWeight: "900" },
   chipTextOn: { color: "#FFFFFF" },
   notice: { marginTop: 0 },
   divider: { height: 1, backgroundColor: theme.colors.border },
-  mapBox: { height: 140, borderRadius: 14, overflow: "hidden", backgroundColor: "#E0E7EF" },
-  mapEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
-  mapEmptyText: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  mapBox: { height: 180, borderRadius: 14, overflow: "hidden", backgroundColor: "#E0E7EF" },
+  mapHint: { position: "absolute", left: 10, top: 10, maxWidth: "80%", backgroundColor: theme.colors.card, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
   mapPill: { position: "absolute", right: 10, bottom: 10, backgroundColor: theme.colors.card, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
   mapPillText: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
   option: {
