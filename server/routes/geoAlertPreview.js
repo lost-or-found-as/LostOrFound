@@ -30,11 +30,9 @@ router.post("/", requireUser, async (req, res) => {
     if (!preview) return res.status(404).json({ error: "LOST_REPORT_WITH_LOCATION_NOT_FOUND" });
 
     const quote = calculateGeoAlertQuote({
+      radiusM,
       areaSqKm: Number(preview.area_sq_km),
-      populationDensityBand,
-      estimatedEligibleUsers: Number(preview.eligible_users || 0),
-      durationHours,
-      reminderCount,
+      estimatedEligibleInstallations: Number(preview.eligible_installations || 0),
     });
 
     return res.json({
@@ -46,8 +44,6 @@ router.post("/", requireUser, async (req, res) => {
         radiusM,
         areaSqKm: Number(preview.area_sq_km),
         categoryKey: preview.category_key,
-        eligibleUsers: Number(preview.eligible_users || 0),
-        eligibleInstallations: Number(preview.eligible_installations || 0),
         durationHours,
         reminderCount,
         populationDensityBand,

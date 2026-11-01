@@ -50,7 +50,7 @@ ok(/\/legal\/\$\{doc\}\?lang=\$\{language\}/.test(read("src/lib/legal.ts")), "li
 ok(/<WithdrawalConsent checked=\{consent\}[\s\S]{0,1200}disabled=\{!quote \|\| loading \|\| !consent\}/.test(read("src/ui/LongTermSheet.tsx")), "historic case");
 ok(/confirmDisabled=\{confirm === "reactivate" && !consent\}/.test(read("app/report-details/[id].tsx")) && /\{confirm === "reactivate" && <WithdrawalConsent/.test(read("app/report-details/[id].tsx")), "extension from the case");
 ok(/disabled=\{confirmDialog\?\.kind === "reactivateLost" && !consent\}/.test(read("app/my-reports.tsx")), "extension from My cases");
-ok(/disabled=\{activating \|\| !consent\}/.test(read("app/geo-alert-create.tsx")), "area alert");
+ok(/disabled=\{activating \|\| !consent( \|\||\})/.test(read("app/geo-alert-create.tsx")), "area alert");
 ok(/children\?: React\.ReactNode;\s*confirmDisabled\?: boolean;/.test(read("src/ui/kit/ConfirmSheet.tsx")), "ConfirmSheet takes a consent");
 
 // 4. Deletion after 12 months.

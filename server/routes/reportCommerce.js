@@ -299,6 +299,7 @@ router.post("/geo-alert/quote", requireUser, async (req, res) => {
       return res.status(400).json({ error: "GEO_ALERT_REQUIRES_LOST_REPORT" });
 
     const quote = calculateGeoAlertQuote(req.body || {});
+    const pilotFree = quote.pilotFree;
     const product = await activeProduct(quote.productCode);
     if (!product)
       return res.status(409).json({ error: "PRODUCT_NOT_AVAILABLE" });
@@ -313,7 +314,8 @@ router.post("/geo-alert/quote", requireUser, async (req, res) => {
         reportId,
         expiresAt,
         ...quote,
-        amountOre: product.base_price_ore,
+        amountOre: pilotFree ? 0 : product.base_price_ore,
+        listPriceOre: product.base_price_ore,
         currency: product.currency,
       },
       note: "TEST_PRICE_NOT_FOR_STORE_RELEASE",
@@ -404,12 +406,14 @@ router.post("/orders", requireUser, async (req, res) => {
     if (!product)
       return res.status(404).json({ error: "PRODUCT_NOT_AVAILABLE" });
 
+    // T1.9T: area alerts are free during the pilot (GEO_ALERT_PILOT_FREE on the server).
+    const pilotFree = !!geoQuote?.pilotFree;
     const payload = {
       user_id: userId,
       report_id: reportId,
       product_code: productCode,
       status: "PENDING",
-      amount_ore: product.base_price_ore,
+      amount_ore: pilotFree ? 0 : product.base_price_ore,
       currency: product.currency,
       platform: String(req.body?.platform || "TEST").toUpperCase(),
       provider: String(req.body?.provider || "TEST").toUpperCase(),
@@ -492,9 +496,12 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
     const isGeoAlertOrder = String(order.product_code || "").startsWith(
       "GEO_ALERT_TIER_",
     );
+    // T1.9T: a free pilot area alert can be activated by anyone (there is nothing to pay).
+    const pilotFreeOrder = isGeoAlertOrder && order.price_snapshot?.pilot_free === true && Number(order.amount_ore || 0) === 0;
     const activationAllowed =
       testModeAllowed(userId) ||
-      (isGeoAlertOrder && geoAlertTestModeAllowed(userId));
+      (isGeoAlertOrder && geoAlertTestModeAllowed(userId)) ||
+      pilotFreeOrder;
     if (!activationAllowed)
       return res.status(403).json({ error: "TEST_ACTIVATION_NOT_ALLOWED" });
     if (["ACTIVE", "REFUNDED", "CANCELLED"].includes(order.status)) {
@@ -881,6 +888,15 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         areaAlertDispatch = await dispatchAreaAlertCampaign(
           order.created_campaign_id,
         );
+        // T1.9T: the product is the push; when nobody got it, the purchase is flagged for refund.
+        if (areaAlertDispatch?.ok && Number(areaAlertDispatch.sent || 0) === 0 && Number(order.amount_ore || 0) > 0) {
+          const { error: flagError } = await supaAdmin
+            .from("report_orders")
+            .update({ refund_reason: "NO_PUSH_RECIPIENTS", refund_flagged_at: new Date().toISOString() })
+            .eq("id", order.id);
+          if (flagError) console.error("[geo-alert][refund-flag-failed]", { orderId: order.id, error: flagError.message });
+          else areaAlertDispatch.refundFlagged = true;
+        }
         console.info("[geo-alert][dispatch-complete]", {
           orderId: order.id,
           reportId: order.report_id,

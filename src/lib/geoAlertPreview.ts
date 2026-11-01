@@ -18,8 +18,6 @@ export type GeoAlertPreviewResult = {
     radiusM: number;
     areaSqKm: number;
     categoryKey: string;
-    eligibleUsers: number;
-    eligibleInstallations: number;
     durationHours: number;
     reminderCount: number;
     populationDensityBand: string;
@@ -28,6 +26,10 @@ export type GeoAlertPreviewResult = {
     productCode: string;
     tier: number;
     amountOre: number;
+    // T1.9T: list price, free during the pilot, and the push recipients as a band.
+    listPriceOre: number;
+    pilotFree: boolean;
+    recipients: { kind: "NONE" | "FEW" | "ABOUT"; value: number };
     currency: string;
     validForMinutes: number;
     priceSnapshot: Record<string, unknown>;

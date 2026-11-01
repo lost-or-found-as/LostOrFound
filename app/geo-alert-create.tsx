@@ -177,8 +177,6 @@ function GeoAlertCreateScreen() {
           radiusM: result.preview.radiusM,
           areaSqKm: result.preview.areaSqKm,
           populationDensityBand: result.preview.populationDensityBand,
-          estimatedEligibleUsers: result.preview.eligibleUsers,
-          estimatedEligibleInstallations: result.preview.eligibleInstallations,
           durationHours: DURATION_HOURS,
           reminderCount: REMINDER_COUNT,
         },
@@ -413,18 +411,29 @@ function GeoAlertCreateScreen() {
               <Text style={styles.resultTitle}>
                 {tr(language, "areaAlertCreate.relevantUsersMayBeNotified")}
               </Text>
-              <Text style={styles.resultMeta}>
-                {formatArea(result.preview.areaSqKm * 1_000_000, language, t)} ·{" "}
-                {tr(language, "areaAlertCreate.recipientCountPrivate")}
+              <Text style={styles.resultMeta}>{formatArea(result.preview.areaSqKm * 1_000_000, language, t)}</Text>
+              {/* T1.9T: how many get the push (a band, not an exact number) and the price. */}
+              <Text style={styles.recipients}>
+                {result.quote.recipients.kind === "NONE"
+                  ? t("areaAlertCreate.recipients.none")
+                  : result.quote.recipients.kind === "FEW"
+                    ? t("areaAlertCreate.recipients.few")
+                    : t("areaAlertCreate.recipients.about", { count: result.quote.recipients.value })}
               </Text>
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>
-                  {tr(language, "areaAlertCreate.test.price")}
-                </Text>
+                <Text style={styles.priceLabel}>{t("areaAlertCreate.priceLabel")}</Text>
                 <Text style={styles.price}>
-                  {formatMoney(result.quote.amountOre / 100, STORED_MONEY_CURRENCY, language)}
+                  {result.quote.pilotFree
+                    ? t("areaAlertCreate.pilotFree")
+                    : formatMoney(result.quote.amountOre / 100, STORED_MONEY_CURRENCY, language)}
                 </Text>
               </View>
+              {result.quote.pilotFree && (
+                <Text style={styles.listPrice}>
+                  {t("areaAlertCreate.listPrice", { price: formatMoney(result.quote.listPriceOre / 100, STORED_MONEY_CURRENCY, language) })}
+                </Text>
+              )}
+              <Text style={styles.rules}>{t("areaAlertCreate.rules")}</Text>
               <Text style={styles.warning}>
                 {tr(
                   language,
@@ -445,10 +454,10 @@ function GeoAlertCreateScreen() {
               {!activatedUntil && !noticeView && <WithdrawalConsent checked={consent} onChange={setConsent} />}
               {!activatedUntil && !noticeView ? (
                 <Pressable
-                  disabled={activating || !consent}
+                  disabled={activating || !consent || result.quote.recipients.kind === "NONE"}
                   accessibilityRole="button"
-                  accessibilityState={{ disabled: activating || !consent }}
-                  style={[styles.activate, (activating || !consent) && styles.disabled]}
+                  accessibilityState={{ disabled: activating || !consent || result.quote.recipients.kind === "NONE" }}
+                  style={[styles.activate, (activating || !consent || result.quote.recipients.kind === "NONE") && styles.disabled]}
                   onPress={createAndActivate}
                 >
                   {activating ? (
@@ -534,6 +543,9 @@ function Chip({
 }
 
 const styles = StyleSheet.create({
+  recipients: { fontSize: 15, fontWeight: "800", color: theme.colors.text, marginTop: 6 },
+  listPrice: { fontSize: 13, fontWeight: "600", color: theme.colors.textSecondary },
+  rules: { fontSize: 13, lineHeight: 19, fontWeight: "600", color: theme.colors.textSecondary, marginTop: 6 },
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   content: { padding: 14, paddingBottom: 40 },
   center: {

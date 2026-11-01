@@ -625,7 +625,7 @@ export const en = {
   "notifications.deleted.unavailable.count":
     "Deleted {{count}} unavailable notification(s).",
   "notifications.unread.count": "{{count}} unread",
-  "areaAlertCreate.activate.test.area.alert": "Activate test area alert",
+  "areaAlertCreate.activate.test.area.alert": "Send area alert",
   "areaAlertCreate.active.installations": "active installations",
   "areaAlertCreate.active.until": "Active until",
   "areaAlertCreate.area.alert": "Area alert",
@@ -644,7 +644,6 @@ export const en = {
   "areaAlertCreate.qualified.users": "qualified users",
   "areaAlertCreate.test.mode.no.real.payment.is.made.activation.cre":
     "Test mode: no real payment is made. Activation creates a test order and campaign.",
-  "areaAlertCreate.test.price": "Test price",
   "areaAlertCreate.the.blue.circle.is.centered.on.the.report.locati":
     "The blue circle is centered on the report location.",
   "areaAlertCreate.the.notification.is.sent.once.recipients.can.fin":
@@ -1084,8 +1083,6 @@ export const en = {
     "The area alert could not be activated. Please try again.",
   "areaAlertCreate.relevantUsersMayBeNotified":
     "Relevant users in the area may be notified.",
-  "areaAlertCreate.recipientCountPrivate":
-    "Recipient numbers are not shown for privacy.",
   "areaAlertCreate.relevantUsersWillBeNotified":
     "Relevant users in the area will be notified.",
   "alertAreas.disableCurrentLocation": "Turn off current-location alert",
@@ -1632,6 +1629,13 @@ export const en = {
   "signin.newPassword.repeat": "Repeat the password",
   "signin.newPassword.mismatch": "The passwords do not match.",
   "signin.newPassword.save": "Save and continue",
+  "areaAlertCreate.recipients.none": "Nobody follows this area yet. Choose a larger area, or try again later.",
+  "areaAlertCreate.recipients.few": "Fewer than 10 people get the alert",
+  "areaAlertCreate.recipients.about": "About {{count}} people get the alert",
+  "areaAlertCreate.priceLabel": "Price",
+  "areaAlertCreate.pilotFree": "Free during the pilot",
+  "areaAlertCreate.listPrice": "Regular price {{price}}",
+  "areaAlertCreate.rules": "Everyone who follows the area gets one alert now, and the case is shown in “Nearby” for 7 days. If nobody gets the alert, you get your money back.",
 } as const;
 
 export type TranslationKey = keyof typeof en;

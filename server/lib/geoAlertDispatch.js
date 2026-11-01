@@ -1,6 +1,7 @@
 "use strict";
 const { supaAdmin } = require("../supabaseClient");
 const { message } = require("./messages");
+const { SAME_CASE_DAYS, SENT_STATUSES, applyRecipientCaps } = require("./areaAlertCaps");
 
 async function expoSend(messages) {
   const response = await fetch("https://exp.host/--/api/v2/push/send", {
@@ -19,6 +20,50 @@ async function expoSend(messages) {
     throw error;
   }
   return Array.isArray(body?.data) ? body.data : [body?.data].filter(Boolean);
+}
+
+/** Loads what each candidate already got and applies the per-person limits. */
+async function capRecipients(campaignId, candidates) {
+  const users = [...new Set(candidates.map((c) => c.recipient_user_id).filter(Boolean))];
+  if (!users.length) return { send: candidates, skipped: [] };
+  const now = Date.now();
+  const recent = await supaAdmin
+    .from("geo_alert_recipients")
+    .select("user_id,campaign_id")
+    .in("user_id", users)
+    .in("status", SENT_STATUSES)
+    .neq("campaign_id", campaignId)
+    .gte("created_at", new Date(now - 24 * 3600 * 1000).toISOString());
+  if (recent.error) throw recent.error;
+  const byUser = new Map();
+  for (const r of recent.data || []) {
+    if (!byUser.has(r.user_id)) byUser.set(r.user_id, new Set());
+    byUser.get(r.user_id).add(r.campaign_id);
+  }
+  const campaign = await supaAdmin.from("geo_alert_campaigns").select("report_id").eq("id", campaignId).maybeSingle();
+  if (campaign.error) throw campaign.error;
+  const sameCase = new Set();
+  if (campaign.data?.report_id) {
+    const earlier = await supaAdmin
+      .from("geo_alert_campaigns")
+      .select("id")
+      .eq("report_id", campaign.data.report_id)
+      .neq("id", campaignId)
+      .gte("created_at", new Date(now - SAME_CASE_DAYS * 24 * 3600 * 1000).toISOString());
+    if (earlier.error) throw earlier.error;
+    const ids = (earlier.data || []).map((c) => c.id);
+    if (ids.length) {
+      const got = await supaAdmin
+        .from("geo_alert_recipients")
+        .select("user_id")
+        .in("campaign_id", ids)
+        .in("user_id", users)
+        .in("status", SENT_STATUSES);
+      if (got.error) throw got.error;
+      for (const r of got.data || []) sameCase.add(r.user_id);
+    }
+  }
+  return applyRecipientCaps(candidates, byUser, sameCase);
 }
 
 /**
@@ -66,7 +111,33 @@ async function dispatchAreaAlertCampaign(campaignId) {
     { p_campaign_id: id },
   );
   if (candidateError) throw candidateError;
-  const candidates = candidateRows || [];
+  const allCandidates = candidateRows || [];
+
+  // T1.9T: per-person limits. Skipped people still have the in-app notice from layer 1.
+  // A failed lookup never stops the alert itself: then everyone is sent to, as before.
+  let capResult = { send: allCandidates, skipped: [] };
+  try {
+    capResult = await capRecipients(id, allCandidates);
+  } catch (capError) {
+    console.error("[geo-alert][recipient-caps-failed]", { campaignId: id, error: capError?.message || String(capError) });
+  }
+  const { send: candidates, skipped: capped } = capResult;
+  for (const c of capped) {
+    const { error: skipError } = await supaAdmin.from("geo_alert_recipients").upsert(
+      {
+        campaign_id: id,
+        user_id: c.recipient_user_id,
+        installation_id: c.installation_id,
+        expo_push_token: c.expo_push_token,
+        watch_area_id: c.watch_area_id,
+        category_key: c.category_key,
+        status: "SKIPPED",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "campaign_id,installation_id", ignoreDuplicates: true },
+    );
+    if (skipError) console.error("[geo-alert][recipient-skip-record-failed]", { campaignId: id, error: skipError.message });
+  }
 
   const accepted = [];
   for (const candidate of candidates) {
@@ -172,8 +243,9 @@ async function dispatchAreaAlertCampaign(campaignId) {
     ok: true,
     eligible: eligibleUsers,
     notificationsCreated,
-    pushEligible: candidates.length,
+    pushEligible: allCandidates.length,
     sent: accepted.length,
+    skippedByCap: capped.length,
     skippedAsDuplicate,
     failed,
     pushError,
@@ -184,8 +256,9 @@ async function dispatchAreaAlertCampaign(campaignId) {
     campaignId: id,
     eligibleUsers,
     notificationsCreated,
-    pushEligible: candidates.length,
+    pushEligible: allCandidates.length,
     sent: accepted.length,
+    skippedByCap: capped.length,
     skippedAsDuplicate,
     failed,
     pushError,

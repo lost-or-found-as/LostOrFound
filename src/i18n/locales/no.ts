@@ -624,7 +624,7 @@ export const no: TranslationDictionary = {
   "notifications.deleted.unavailable.count":
     "Slettet {{count}} utilgjengelige varsel.",
   "notifications.unread.count": "{{count}} uleste",
-  "areaAlertCreate.activate.test.area.alert": "Aktiver test-områdevarsel",
+  "areaAlertCreate.activate.test.area.alert": "Send områdevarsel",
   "areaAlertCreate.active.installations": "aktive installasjoner",
   "areaAlertCreate.active.until": "Aktiv til",
   "areaAlertCreate.area.alert": "Områdevarsel",
@@ -644,7 +644,6 @@ export const no: TranslationDictionary = {
   "areaAlertCreate.qualified.users": "kvalifiserte brukere",
   "areaAlertCreate.test.mode.no.real.payment.is.made.activation.cre":
     "Testmodus: Ingen ekte betaling gjennomføres. Aktivering oppretter en testordre og kampanje.",
-  "areaAlertCreate.test.price": "Testpris",
   "areaAlertCreate.the.blue.circle.is.centered.on.the.report.locati":
     "Den blå sirkelen er sentrert på rapportens sted.",
   "areaAlertCreate.the.notification.is.sent.once.recipients.can.fin":
@@ -1080,8 +1079,6 @@ export const no: TranslationDictionary = {
     "Områdevarselet kunne ikke aktiveres. Prøv igjen.",
   "areaAlertCreate.relevantUsersMayBeNotified":
     "Relevante brukere i området kan bli varslet.",
-  "areaAlertCreate.recipientCountPrivate":
-    "Antall mottakere vises ikke av personvernhensyn.",
   "areaAlertCreate.relevantUsersWillBeNotified":
     "Relevante brukere i området blir varslet.",
   "alertAreas.disableCurrentLocation": "Slå av posisjonsvarsel",
@@ -1628,4 +1625,11 @@ export const no: TranslationDictionary = {
   "signin.newPassword.repeat": "Gjenta passordet",
   "signin.newPassword.mismatch": "Passordene er ikke like.",
   "signin.newPassword.save": "Lagre og fortsett",
+  "areaAlertCreate.recipients.none": "Ingen følger dette området ennå. Velg et større område, eller prøv igjen senere.",
+  "areaAlertCreate.recipients.few": "Færre enn 10 personer får varsel",
+  "areaAlertCreate.recipients.about": "Ca. {{count}} personer får varsel",
+  "areaAlertCreate.priceLabel": "Pris",
+  "areaAlertCreate.pilotFree": "Gratis i piloten",
+  "areaAlertCreate.listPrice": "Vanlig pris {{price}}",
+  "areaAlertCreate.rules": "Alle som følger området får ett varsel nå, og saken vises i «I nærheten» i 7 dager. Når ingen får varselet, får du pengene tilbake.",
 };
