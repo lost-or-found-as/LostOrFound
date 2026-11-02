@@ -58,6 +58,10 @@ function testModeAllowed(userId) {
       "true" && testUsers().has(String(userId))
   );
 }
+// T1.9T: 30-day extensions are free during the pilot (EXTENSION_PILOT_FREE=true on the server).
+function extensionPilotFree() {
+  return String(process.env.EXTENSION_PILOT_FREE || "").toLowerCase() === "true";
+}
 function geoAlertTestUsers() {
   return new Set(
     String(process.env.GEO_ALERT_TEST_USER_IDS || "")
@@ -261,7 +265,12 @@ router.get("/catalog", requireUser, async (req, res) => {
       .eq("active", true)
       .order("code");
     if (error) return res.status(400).json({ error: error.message });
-    return res.json({ products: data || [] });
+    const products = (data || []).map((p) =>
+      p.code === "REPORT_REACTIVATION" && extensionPilotFree()
+        ? { ...p, list_price_ore: p.base_price_ore, base_price_ore: 0, pilot_free: true }
+        : p,
+    );
+    return res.json({ products });
   } catch (e) {
     return res.status(500).json({ error: e?.message || "Server error" });
   }
@@ -407,7 +416,7 @@ router.post("/orders", requireUser, async (req, res) => {
       return res.status(404).json({ error: "PRODUCT_NOT_AVAILABLE" });
 
     // T1.9T: area alerts are free during the pilot (GEO_ALERT_PILOT_FREE on the server).
-    const pilotFree = !!geoQuote?.pilotFree;
+    const pilotFree = !!geoQuote?.pilotFree || (productCode === "REPORT_REACTIVATION" && extensionPilotFree());
     const payload = {
       user_id: userId,
       report_id: reportId,
@@ -423,6 +432,7 @@ router.post("/orders", requireUser, async (req, res) => {
         ...priceSnapshot,
         catalog_price_ore: product.base_price_ore,
         catalog_currency: product.currency,
+        ...(pilotFree ? { pilot_free: true } : {}),
       },
       request_payload: {
         occurredPrecision: req.body?.occurredPrecision || null,
@@ -497,7 +507,10 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       "GEO_ALERT_TIER_",
     );
     // T1.9T: a free pilot area alert can be activated by anyone (there is nothing to pay).
-    const pilotFreeOrder = isGeoAlertOrder && order.price_snapshot?.pilot_free === true && Number(order.amount_ore || 0) === 0;
+    const pilotFreeOrder =
+      (isGeoAlertOrder || order.product_code === "REPORT_REACTIVATION") &&
+      order.price_snapshot?.pilot_free === true &&
+      Number(order.amount_ore || 0) === 0;
     const activationAllowed =
       testModeAllowed(userId) ||
       (isGeoAlertOrder && geoAlertTestModeAllowed(userId)) ||

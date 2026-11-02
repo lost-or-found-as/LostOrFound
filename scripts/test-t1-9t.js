@@ -54,9 +54,13 @@ ok(/recipient-caps-failed/.test(dispatch), "a failed lookup does not stop the al
 // 3. Orders.
 const commerce = read("server/routes/reportCommerce.js");
 ok(/amount_ore: pilotFree \? 0 : product\.base_price_ore/.test(commerce), "pilot orders cost nothing");
-ok(/pilotFreeOrder;/.test(commerce) && /order\.price_snapshot\?\.pilot_free === true && Number\(order\.amount_ore \|\| 0\) === 0/.test(commerce), "anyone can start a free pilot alert");
+ok(/pilotFreeOrder;/.test(commerce) && /order\.price_snapshot\?\.pilot_free === true &&\s*Number\(order\.amount_ore \|\| 0\) === 0/.test(commerce), "anyone can start a free pilot alert");
 ok(/Number\(areaAlertDispatch\.sent \|\| 0\) === 0 && Number\(order\.amount_ore \|\| 0\) > 0[\s\S]{0,200}refund_reason: "NO_PUSH_RECIPIENTS"/.test(commerce), "refund flag when nobody got it");
 ok(/const GEO_ALERT_DURATION_HOURS = 168;/.test(commerce) && /const GEO_ALERT_REMINDER_COUNT = 0;/.test(commerce), "7 days, no reminders");
+
+ok(/function extensionPilotFree\(\)/.test(commerce) && /productCode === "REPORT_REACTIVATION" && extensionPilotFree\(\)/.test(commerce), "extensions free during the pilot");
+ok(/order\.product_code === "REPORT_REACTIVATION"\) &&\s*order\.price_snapshot\?\.pilot_free === true/.test(commerce), "anyone can start a free pilot extension");
+ok(/if \(row\?\.pilot_free\) return 0;/.test(read("src/lib/reportLifecycle.ts")) && /reactivationPrice === 0 \? t\("areaAlertCreate\.pilotFree"\)/.test(read("app/my-reports.tsx")), "app shows free extension");
 
 // 4. Catalog.
 const sql = read("supabase/migrations/20261102100000_t1_9t_prices_and_area_alert_rules.sql");

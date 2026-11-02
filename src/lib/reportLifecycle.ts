@@ -141,9 +141,11 @@ export async function extendLostRequest(id: string) {
 export async function fetchReactivationPrice(): Promise<number | null> {
   try {
     const { products } = await fetchReportProductCatalog();
-    const row = (products as { code?: string; base_price_ore?: number }[]).find(
+    const row = (products as { code?: string; base_price_ore?: number; pilot_free?: boolean }[]).find(
       (p) => p.code === REPORT_PRODUCT_CODES.REPORT_REACTIVATION,
     );
+    // T1.9T: 0 means free during the pilot.
+    if (row?.pilot_free) return 0;
     const ore = Number(row?.base_price_ore);
     return Number.isFinite(ore) && ore > 0 ? ore / 100 : null;
   } catch {

@@ -829,7 +829,7 @@ function MyReportsScreen() {
                   <Text style={dialogStyles.paymentLabel}>
                     {t("cases.test.price")}
                   </Text>
-                  <Text style={dialogStyles.paymentPrice}>{reactivationPrice == null ? "…" : formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language)}</Text>
+                  <Text style={dialogStyles.paymentPrice}>{reactivationPrice == null ? "…" : reactivationPrice === 0 ? t("areaAlertCreate.pilotFree") : formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language)}</Text>
                 </View>
                 <Text style={dialogStyles.testModeText}>
                   {t("cases.test.payment.notice")}

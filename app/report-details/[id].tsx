@@ -345,7 +345,9 @@ function Screen() {
       title: expired ? t("cases.reactivate.lost.report") : t("caseDetail.confirm.extendTitle"),
       body: [
         t("caseDetail.extendLostBody", { count: activity.summary.paidExtensions + 1 }),
-        reactivationPrice == null ? null : `${t("cases.test.price")}: ${formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language)}`,
+        reactivationPrice == null
+          ? null
+          : `${t("cases.test.price")}: ${reactivationPrice === 0 ? t("areaAlertCreate.pilotFree") : formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language)}`,
         t("cases.test.payment.notice"),
       ]
         .filter(Boolean)

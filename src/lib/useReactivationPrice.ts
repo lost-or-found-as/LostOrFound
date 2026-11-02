@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { fetchReactivationPrice } from "./reportLifecycle";
 
+// 0 = free during the pilot.
 let cached: number | null = null;
 
 export function useReactivationPrice(): number | null {
