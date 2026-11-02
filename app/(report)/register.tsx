@@ -566,14 +566,33 @@ export default function RegisterScreen() {
               {numberBadge(3)}
               <Text style={s.h2}>{type === "FOUND" ? t("register.when.titleFound") : t("register.when.titleLost")}</Text>
             </View>
+            {/* T1.9X: a label over each field so it is clear which one is the date and which the time. */}
             <View style={s.twoCols}>
-              <Pressable accessibilityRole="button" style={[s.input, s.pick]} onPress={() => setPicker("date")}>
-                <Text style={s.pickText}>{dateLabel}</Text>
-              </Pressable>
-              {precision === "EXACT" && (
-                <Pressable accessibilityRole="button" style={[s.input, s.pick]} onPress={() => setPicker("time")}>
-                  <Text style={s.pickText}>{occurred ? t("register.when.about", { time: formatTime(occurred, language) }) : "–"}</Text>
+              <View style={[s.flex, s.field]}>
+                <Text style={s.label}>{t("register.when.dateLabel")}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("register.when.dateLabel")}: ${dateLabel}`}
+                  style={[s.input, s.pick, s.pickRow]}
+                  onPress={() => setPicker("date")}
+                >
+                  <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+                  <Text style={s.pickText}>{dateLabel}</Text>
                 </Pressable>
+              </View>
+              {precision === "EXACT" && (
+                <View style={[s.flex, s.field]}>
+                  <Text style={s.label}>{t("register.when.timeLabel")}</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("register.when.timeLabel")}
+                    style={[s.input, s.pick, s.pickRow]}
+                    onPress={() => setPicker("time")}
+                  >
+                    <Ionicons name="time-outline" size={18} color={theme.colors.textSecondary} />
+                    <Text style={s.pickText}>{occurred ? t("register.when.about", { time: formatTime(occurred, language) }) : "–"}</Text>
+                  </Pressable>
+                </View>
               )}
             </View>
             <View style={s.chips}>
@@ -792,11 +811,16 @@ export default function RegisterScreen() {
       )}
       <BottomSheet visible={!!picker && Platform.OS === "ios"} onClose={() => setPicker(null)} accessibilityLabel={t("common.close")}>
         {picker && Platform.OS === "ios" && (
+          // T1.9X: a fresh native picker per mode (key) with a fixed spinner height. Reusing one
+          // picker for both date (inline) and time (spinner) crashed iOS when the time was tapped.
           <DateTimePicker
+            key={picker}
             value={occurred || new Date()}
             mode={picker}
             display={picker === "date" ? "inline" : "spinner"}
             maximumDate={picker === "date" ? new Date() : undefined}
+            style={picker === "time" ? s.timeSpinner : undefined}
+            themeVariant="light"
             onChange={(_event: any, d?: Date) => d && setDate(d)}
           />
         )}
@@ -913,6 +937,8 @@ const s = StyleSheet.create({
   swatchMoreText: { fontSize: 13, fontWeight: "800", color: theme.colors.text },
   twoCols: { flexDirection: "row", gap: 10 },
   pick: { flex: 1, justifyContent: "center" },
+  pickRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  timeSpinner: { height: 216, alignSelf: "stretch" },
   pickText: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {

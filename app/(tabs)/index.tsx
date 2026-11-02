@@ -95,6 +95,7 @@ export default function DashboardScreen() {
           <Text style={styles.tileBody}>{t("home.lostTileBody")}</Text>
         )}
       </View>
+      <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
     </Pressable>
   );
 
@@ -113,6 +114,7 @@ export default function DashboardScreen() {
         <Text style={styles.tileTitle}>{t("dashboard.foundTitle")}</Text>
         <Text style={styles.tileBody}>{t("home.foundTileBody")}</Text>
       </View>
+      <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
     </Pressable>
   );
 
@@ -173,8 +175,11 @@ export default function DashboardScreen() {
 
         <Text style={styles.sectionTitle}>{t("dashboard.whatToDo")}</Text>
 
-        {/* T1.9A: guests see the found report first; lost reports need an account. */}
-        <View style={styles.tiles}>{isGuest ? [foundTile, lostTile] : [lostTile, foundTile]}</View>
+        {/* T1.9X: lost always on top, found below (guests see the lock on lost). */}
+        <View style={styles.tiles}>
+          {lostTile}
+          {foundTile}
+        </View>
 
         {hasAccount && (
           <Pressable
@@ -192,6 +197,22 @@ export default function DashboardScreen() {
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </Pressable>
         )}
+
+        {/* T1.9X: the steps are shown on the page as well, so the start page explains itself. */}
+        <View style={styles.howCard}>
+          <Text style={styles.howCardTitle}>{t("profile.how")}</Text>
+          {HOW_STEPS.map((step, index) => (
+            <View key={step.title} style={styles.howStep}>
+              <View style={styles.howBadge}>
+                <Text style={styles.howBadgeText}>{index + 1}</Text>
+              </View>
+              <View style={styles.howText}>
+                <Text style={styles.howTitle}>{t(step.title)}</Text>
+                <Text style={styles.howBody}>{t(step.body)}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
 
         {isGuest && <Text style={styles.footnote}>{t("guest.homeFootnote")}</Text>}
 
@@ -250,25 +271,34 @@ const styles = StyleSheet.create({
   },
   summaryButtonText: { color: theme.colors.text, fontSize: 15, fontWeight: "800" },
   sectionTitle: { marginTop: 4, color: theme.colors.text, fontWeight: "900", fontSize: 17 },
-  tiles: { flexDirection: "row", gap: 10 },
+  tiles: { gap: 10 },
   tile: {
-    flex: 1,
-    minHeight: 150,
+    minHeight: 92,
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.card,
-    justifyContent: "space-between",
+    gap: 14,
+  },
+  howCard: {
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
     gap: 12,
   },
+  howCardTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "900" },
   tileHighlighted: { borderWidth: 2, borderColor: theme.colors.primary },
-  tileIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  tileIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   lostIcon: { backgroundColor: "#FFE4E6" },
   foundIcon: { backgroundColor: "#E0F2FE" },
-  tileText: { gap: 4 },
-  tileTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "900" },
-  tileBody: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  tileText: { flex: 1, gap: 4 },
+  tileTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "900" },
+  tileBody: { color: theme.colors.textSecondary, fontSize: 14, lineHeight: 20, fontWeight: "600" },
   lockPill: {
     alignSelf: "flex-start",
     flexDirection: "row",

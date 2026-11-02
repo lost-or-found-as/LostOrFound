@@ -138,3 +138,32 @@ export async function activateTestReportOrder(orderId: string) {
     return reconcileSuccessfulAreaAlertActivation(orderId, error);
   }
 }
+
+// T1.9X: the account's orders, pilot-free ones included (Mine kjøp).
+export type MyPurchase = {
+  id: string;
+  reportId: string | null;
+  productCode: string;
+  status: string;
+  amountOre: number | null;
+  currency: string | null;
+  provider: string | null;
+  purchasedAt: string | null;
+  startsAt: string | null;
+  currentPeriodEnd: string | null;
+  autoRenews: boolean;
+  report: {
+    id: string;
+    title?: string | null;
+    type?: string | null;
+    category?: string | null;
+    subcategory_key?: string | null;
+    subcategory_custom?: string | null;
+    color?: string | null;
+    brand?: string | null;
+    deleted_at?: string | null;
+  } | null;
+};
+export function fetchMyPurchases() {
+  return request<{ activePurchases: MyPurchase[]; purchaseHistory: MyPurchase[] }>("/my-purchases");
+}
