@@ -1,5 +1,9 @@
+// app/(report)/map.tsx
+// Map picker: search areas for a LOST case (place, route or area, max three) or one pin for a
+// FOUND case. Used by the old and the new registration. T1.9W: floating header card, dark search
+// button, bottom panel with kit buttons and in-panel notices instead of system alerts.
 import React, { useMemo, useRef, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Circle, Marker, MapPressEvent, Polygon, Polyline, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,11 +14,15 @@ import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
 import { userErrorMessage } from "../../src/lib/userError";
 import { formatDistance } from "../../src/i18n/formatters";
+import { Button, IconButton, InfoButton } from "../../src/ui/kit";
+import { InlineNotice } from "../../src/ui/InlineNotice";
+import { theme } from "../../src/ui/theme";
 
 const MAX_SEARCH_AREAS = 3;
 const RADIUS_OPTIONS = [100, 250, 500, 1000, 2000, 5000];
 type Mode = "CIRCLE" | "ROUTE" | "POLYGON";
 type Point = { latitude: number; longitude: number };
+type Notice = { tone: "warning" | "info" | "error"; title: string; body?: string };
 const uid = () => `area_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 export default function MapPickerScreen() {
@@ -43,11 +51,15 @@ export default function MapPickerScreen() {
   const [addressQuery, setAddressQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [addressResults, setAddressResults] = useState<any[]>([]);
+  // In-panel message (validation, search and location problems). Cleared on the next user action.
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const clearNotice = () => setNotice(null);
 
   const selectedArea = areas.find((area) => area.id === selectedAreaId) ?? null;
   const atLimit = areas.length >= MAX_SEARCH_AREAS;
   const editableRadius = selectedArea?.kind === "CIRCLE" || selectedArea?.kind === "ROUTE";
   const displayedRadius = editableRadius ? selectedArea?.radiusMeters ?? radius : radius;
+  const distance = (meters: number | null | undefined) => formatDistance(meters, language, t);
 
   const initialRegion = useMemo<Region>(() => ({
     latitude: isFound ? foundPin.latitude : draft.location?.latitude ?? areas[0]?.points[0]?.latitude ?? 59.9139,
@@ -56,10 +68,11 @@ export default function MapPickerScreen() {
     longitudeDelta: 0.08,
   }), []);
 
-  const limitAlert = () => Alert.alert(
-    t("report.map.maximum.three.search.areas"),
-    t("report.map.delete.an.existing.place.route.or")
-  );
+  const limitNotice = () => setNotice({
+    tone: "warning",
+    title: t("report.map.maximum.three.search.areas"),
+    body: t("report.map.delete.an.existing.place.route.or"),
+  });
 
   const fitArea = (area: SearchArea) => {
     if (!area.points?.length) return;
@@ -79,6 +92,7 @@ export default function MapPickerScreen() {
   const selectArea = (id: string) => {
     const area = areas.find((item) => item.id === id);
     if (!area) return;
+    clearNotice();
     setSelectedAreaId(id);
     setWorkingPoints([]);
     if (area.kind !== "POLYGON") setRadius(area.radiusMeters ?? 500);
@@ -86,10 +100,17 @@ export default function MapPickerScreen() {
   };
 
   const startNewArea = () => {
-    if (atLimit) return limitAlert();
+    clearNotice();
+    if (atLimit) return limitNotice();
     setSelectedAreaId(null);
     setWorkingPoints([]);
     setMode("CIRCLE");
+  };
+
+  const changeMode = (next: Mode) => {
+    clearNotice();
+    setMode(next);
+    setWorkingPoints([]);
   };
 
   const stopAndSelect = (event: any, id: string) => {
@@ -104,17 +125,18 @@ export default function MapPickerScreen() {
     }
     const point = event.nativeEvent.coordinate;
     if (mode === "CIRCLE") {
-      if (atLimit) return limitAlert();
+      if (atLimit) return limitNotice();
       const newArea: SearchArea = { id: uid(), kind: "CIRCLE", radiusMeters: radius, points: [point] };
       setAreas((current) => [...current, newArea]);
       setSelectedAreaId(newArea.id);
     } else {
-      if (atLimit && workingPoints.length === 0) return limitAlert();
+      if (atLimit && workingPoints.length === 0) return limitNotice();
       setWorkingPoints((current) => [...current, point]);
     }
   };
 
   const onMapPress = (event: MapPressEvent) => {
+    clearNotice();
     if (isFound) {
       setFoundPin(event.nativeEvent.coordinate);
       return;
@@ -123,13 +145,15 @@ export default function MapPickerScreen() {
   };
 
   const addWorkingArea = () => {
-    if (atLimit) return limitAlert();
+    clearNotice();
+    if (atLimit) return limitNotice();
     const minimum = mode === "ROUTE" ? 2 : 3;
     if (workingPoints.length < minimum) {
-      Alert.alert(
-        t("report.map.more.points.needed"),
-        t("report.map.add.at.least.p0.points", { p0: minimum })
-      );
+      setNotice({
+        tone: "warning",
+        title: t("report.map.more.points.needed"),
+        body: t("report.map.add.at.least.p0.points", { p0: minimum }),
+      });
       return;
     }
     const newArea: SearchArea = {
@@ -142,6 +166,7 @@ export default function MapPickerScreen() {
 
   const undo = () => {
     if (isFound) return;
+    clearNotice();
     if (workingPoints.length) {
       setWorkingPoints((points) => points.slice(0, -1));
       return;
@@ -155,11 +180,13 @@ export default function MapPickerScreen() {
 
   const deleteSelected = () => {
     if (!selectedAreaId) return;
+    clearNotice();
     setAreas((current) => current.filter((area) => area.id !== selectedAreaId));
     setSelectedAreaId(null);
   };
 
   const changeSelectedRadius = (nextRadius: number) => {
+    clearNotice();
     setRadius(nextRadius);
     if (!selectedAreaId) return;
     setAreas((current) => current.map((area) =>
@@ -177,53 +204,67 @@ export default function MapPickerScreen() {
       setAreas((current) => [...current, newArea]);
       setSelectedAreaId(newArea.id);
     } else {
-      limitAlert();
+      limitNotice();
       return;
     }
     mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 250);
   };
+
   const searchAddress = async () => {
+    clearNotice();
     const q = addressQuery.trim();
-    if (q.length < 3) return;
+    if (q.length < 3) {
+      setNotice({ tone: "info", title: t("report.map.search.tooShort") });
+      return;
+    }
     try {
       setSearching(true);
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
-      if (!token) throw new Error(t("report.map.log.in.to.search"));
+      if (!token) {
+        setNotice({ tone: "warning", title: t("report.map.address.search.failed"), body: t("report.map.log.in.to.search") });
+        return;
+      }
       const url = API_BASE_URL + "/geo/search?q=" + encodeURIComponent(q) + "&language=" + encodeURIComponent(language);
       const response = await fetch(url, { headers: { Authorization: "Bearer " + token } });
       const json = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(json?.error || "ADDRESS_SEARCH_FAILED");
-      setAddressResults(json?.results || []);
+      const results = json?.results || [];
+      setAddressResults(results);
+      if (!results.length) setNotice({ tone: "info", title: t("report.map.search.noResults") });
     } catch (e: any) {
-      Alert.alert(t("report.map.address.search.failed"), userErrorMessage(e, t, "errors.generic", "report.map.search"));
+      setNotice({
+        tone: "error",
+        title: t("report.map.address.search.failed"),
+        body: userErrorMessage(e, t, "errors.generic", "report.map.search"),
+      });
     } finally {
       setSearching(false);
     }
   };
+
   const chooseAddress = (item: any) => {
+    clearNotice();
     const point = { latitude: Number(item.latitude), longitude: Number(item.longitude) };
     placePoint(point);
     setAddressQuery(String(item.label || ""));
     setAddressResults([]);
   };
-  const renderAddressSearch = () => (
-    <View style={[styles.searchBox, { top: insets.top + 66 }]}>
-      <View style={styles.searchRow}>
-        <TextInput style={styles.searchInput} value={addressQuery} onChangeText={setAddressQuery} onSubmitEditing={searchAddress} returnKeyType="search" placeholder={t("report.map.search.address.or.place")} />
-        <Pressable style={styles.searchButton} onPress={searchAddress}><Text style={styles.searchButtonText}>{searching ? "…" : t("report.map.search")}</Text></Pressable>
-      </View>
-      {addressResults.length > 0 && <View style={styles.searchResults}>{addressResults.map((item) => <Pressable key={item.id || item.label} onPress={() => chooseAddress(item)} style={styles.searchResult}><Text style={styles.searchResultText} numberOfLines={2}>{item.label}</Text></Pressable>)}</View>}
-    </View>
-  );
+
   const centerOnUser = async () => {
+    clearNotice();
     try {
       setLocating(true);
       const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== "granted") return;
+      if (permission.status !== "granted") {
+        setNotice({ tone: "warning", title: t("report.map.location.deniedTitle"), body: t("report.map.location.deniedBody") });
+        return;
+      }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const point = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       placePoint(point);
+    } catch {
+      setNotice({ tone: "warning", title: t("report.map.location.failedTitle"), body: t("report.map.location.failedBody") });
     } finally {
       setLocating(false);
     }
@@ -237,14 +278,15 @@ export default function MapPickerScreen() {
 
   const confirmLost = () => {
     if (workingPoints.length) {
-      Alert.alert(
-        t("report.map.finish.the.area"),
-        t("report.map.add.or.discard.the.points.currently")
-      );
+      setNotice({
+        tone: "warning",
+        title: t("report.map.finish.the.area"),
+        body: t("report.map.add.or.discard.the.points.currently"),
+      });
       return;
     }
     if (!areas.length) {
-      Alert.alert(t("report.map.no.search.area"), t("report.map.add.at.least.one.area"));
+      setNotice({ tone: "warning", title: t("report.map.no.search.area"), body: t("report.map.add.at.least.one.area") });
       return;
     }
     const primary = areas[0].points[0];
@@ -253,7 +295,11 @@ export default function MapPickerScreen() {
     router.back();
   };
 
-  const confirm = () => isFound ? confirmFound() : confirmLost();
+  const confirm = () => {
+    clearNotice();
+    if (isFound) confirmFound();
+    else confirmLost();
+  };
 
   const renderArea = (area: SearchArea, index: number) => {
     const selected = area.id === selectedAreaId;
@@ -274,25 +320,91 @@ export default function MapPickerScreen() {
     return <Polygon key={area.id} coordinates={area.points} strokeWidth={selected ? 4 : 2} strokeColor={stroke} fillColor={selected ? "rgba(245,158,11,0.24)" : `${base}2E`} tappable onPress={(event) => stopAndSelect(event, area.id)} />;
   };
 
+  const renderTop = () => (
+    <View style={[styles.top, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
+      <View style={styles.headerCard}>
+        <IconButton icon="arrow-back" label={t("common.back")} onPress={() => router.back()} />
+        <View style={styles.headerText}>
+          <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
+            {isFound ? t("report.map.found.location") : t("report.map.search.areas")}
+          </Text>
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {isFound ? t("report.map.place.one.pin.where.the.item") : t("report.map.p0.of.p1.areas", { p0: areas.length, p1: MAX_SEARCH_AREAS })}
+          </Text>
+        </View>
+        {!isFound && (
+          <Pressable accessibilityRole="button" onPress={undo} style={styles.undo} hitSlop={4}>
+            <Text style={styles.undoText}>{t("report.map.undo")}</Text>
+          </Pressable>
+        )}
+        {isFound ? (
+          <InfoButton title={t("report.map.info.foundTitle")} body={t("report.map.info.foundBody")} />
+        ) : (
+          <InfoButton title={t("report.map.info.title")} body={t("report.map.info.body")} />
+        )}
+      </View>
+      <View style={styles.searchCard}>
+        <View style={styles.searchRow}>
+          <TextInput
+            style={styles.searchInput}
+            value={addressQuery}
+            onChangeText={(value) => { clearNotice(); setAddressQuery(value); }}
+            onSubmitEditing={searchAddress}
+            returnKeyType="search"
+            placeholder={t("report.map.search.address.or.place")}
+            placeholderTextColor={theme.colors.textSecondary}
+            accessibilityLabel={t("report.map.search.address.or.place")}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ busy: searching }}
+            disabled={searching}
+            style={styles.searchButton}
+            onPress={searchAddress}
+          >
+            {searching ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.searchButtonText}>{t("report.map.search")}</Text>}
+          </Pressable>
+        </View>
+        {addressResults.length > 0 && (
+          <View style={styles.searchResults}>
+            {addressResults.map((item) => (
+              <Pressable accessibilityRole="button" key={item.id || item.label} onPress={() => chooseAddress(item)} style={styles.searchResult}>
+                <Text style={styles.searchResultText} numberOfLines={2}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+
+  const renderNotice = () => notice ? (
+    <InlineNotice tone={notice.tone} title={notice.title} body={notice.body} style={styles.notice} />
+  ) : null;
+
+  const radiusHelp = () => {
+    if (selectedArea?.kind === "ROUTE") {
+      return t("report.map.routeWidth", { distance: distance(displayedRadius), total: distance(Number(displayedRadius) * 2) });
+    }
+    if (selectedArea?.kind === "CIRCLE") return t("report.map.radiusValue", { distance: distance(displayedRadius) });
+    if (mode === "ROUTE") return t("report.map.newRouteWidth", { distance: distance(radius) });
+    return t("report.map.newPlaceRadius", { distance: distance(radius) });
+  };
+
   if (isFound) {
     return (
       <View style={styles.safe}>
-        <View style={[styles.header, { paddingTop: insets.top + 6 }]}> 
-          <Pressable onPress={() => router.back()} style={styles.headerButton}><Text style={styles.headerButtonText}>‹</Text></Pressable>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{t("report.map.found.location")}</Text>
-            <Text style={styles.subtitle}>{t("report.map.place.one.pin.where.the.item")}</Text>
-          </View>
-        </View>
-        {renderAddressSearch()}
         <MapView ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} onPress={onMapPress}>
-          <Marker coordinate={foundPin} draggable onDragEnd={(event) => setFoundPin(event.nativeEvent.coordinate)} />
+          <Marker coordinate={foundPin} draggable onDragEnd={(event) => { clearNotice(); setFoundPin(event.nativeEvent.coordinate); }} />
         </MapView>
-        <View style={[styles.panel, { bottom: insets.bottom + 12 }]}> 
-          <Text style={styles.foundHelp}>{t("report.map.tap.the.map.drag.the.pin")}</Text>
+        {renderTop()}
+        <View style={[styles.panel, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.grabber} />
+          <Text style={styles.help}>{t("report.map.tap.the.map.drag.the.pin")}</Text>
+          {renderNotice()}
           <View style={styles.actions}>
-            <Pressable onPress={centerOnUser} style={styles.secondary}><Text style={styles.secondaryText}>{locating ? "…" : t("report.map.my.location")}</Text></Pressable>
-            <Pressable onPress={confirm} style={styles.primary}><Text style={styles.primaryText}>{t("report.map.confirm.found.location")}</Text></Pressable>
+            <Button label={t("report.map.my.location")} variant="secondary" busy={locating} onPress={() => void centerOnUser()} style={styles.flex} />
+            <Button label={t("report.map.confirm.found.location")} onPress={confirm} style={styles.flex} />
           </View>
         </View>
       </View>
@@ -301,31 +413,38 @@ export default function MapPickerScreen() {
 
   return (
     <View style={styles.safe}>
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}> 
-        <Pressable onPress={() => router.back()} style={styles.headerButton}><Text style={styles.headerButtonText}>‹</Text></Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{t("report.map.search.areas")}</Text>
-          <Text style={styles.subtitle}>{t("report.map.p0.of.p1.areas", { p0: areas.length, p1: MAX_SEARCH_AREAS })}</Text>
-        </View>
-        <Pressable onPress={undo} style={styles.undo}><Text style={styles.undoText}>{t("report.map.undo")}</Text></Pressable>
-      </View>
-      {renderAddressSearch()}
       <MapView ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} onPress={onMapPress}>
         {areas.map(renderArea)}
         {workingPoints.map((point, index) => <Marker key={`working-${index}`} coordinate={point} pinColor="#F59E0B" />)}
         {mode === "ROUTE" && workingPoints.length > 1 && <Polyline coordinates={workingPoints} strokeWidth={6} strokeColor="#F59E0B" />}
         {mode === "POLYGON" && workingPoints.length > 2 && <Polygon coordinates={workingPoints} strokeWidth={2} strokeColor="#F59E0B" fillColor="rgba(245,158,11,0.16)" />}
       </MapView>
-      <View style={[styles.panel, { bottom: insets.bottom + 12 }]}> 
+      {renderTop()}
+      <View style={[styles.panel, { paddingBottom: insets.bottom + 16 }]}>
+        <View style={styles.grabber} />
         {areas.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.areaList}>
             {areas.map((area, index) => {
               const selected = area.id === selectedAreaId;
-              const detail = area.kind === "POLYGON" ? `${area.points.length} ${t("report.map.points")}` : area.kind === "ROUTE" ? `${area.radiusMeters || 500} m ${t("report.map.each.side")}` : `${area.radiusMeters || 500} m`;
+              const detail = area.kind === "POLYGON"
+                ? `${area.points.length} ${t("report.map.points")}`
+                : area.kind === "ROUTE"
+                  ? `${distance(area.radiusMeters || 500)} ${t("report.map.each.side")}`
+                  : distance(area.radiusMeters || 500);
+              const kindLabel = area.kind === "CIRCLE" ? t("report.map.place") : area.kind === "ROUTE" ? t("report.map.route") : t("report.map.area");
               return (
-                <Pressable key={area.id} onPress={() => selectArea(area.id)} style={[styles.areaCard, selected && styles.areaCardSelected]}>
+                <Pressable
+                  key={area.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => selectArea(area.id)}
+                  style={[styles.areaCard, selected && styles.areaCardSelected]}
+                >
                   <Text style={[styles.areaNumber, selected && styles.areaNumberSelected]}>{index + 1}</Text>
-                  <View><Text style={[styles.areaTitle, selected && styles.areaTitleSelected]}>{area.kind === "CIRCLE" ? t("report.map.place") : area.kind === "ROUTE" ? t("report.map.route") : t("report.map.area")}</Text><Text style={styles.areaDetail}>{detail}</Text></View>
+                  <View>
+                    <Text style={[styles.areaTitle, selected && styles.areaTitleSelected]}>{kindLabel}</Text>
+                    <Text style={styles.areaDetail}>{detail}</Text>
+                  </View>
                 </Pressable>
               );
             })}
@@ -334,50 +453,223 @@ export default function MapPickerScreen() {
 
         {selectedArea ? (
           <View style={styles.selectedBar}>
-            <View style={{ flex: 1 }}><Text style={styles.selectedTitle}>{t("report.map.selected.area")}</Text><Text style={styles.selectedText}>{t("report.map.adjust.delete.or.continue.with.another")}</Text></View>
-            <Pressable onPress={deleteSelected} style={styles.deleteButton}><Text style={styles.deleteText}>{t("report.map.delete")}</Text></Pressable>
+            <View style={styles.flex}>
+              <Text style={styles.selectedTitle}>{t("report.map.selected.area")}</Text>
+              <Text style={styles.selectedText}>{t("report.map.adjust.delete.or.continue.with.another")}</Text>
+            </View>
+            <Pressable accessibilityRole="button" onPress={deleteSelected} style={styles.deleteButton}>
+              <Text style={styles.deleteText}>{t("report.map.delete")}</Text>
+            </Pressable>
           </View>
         ) : (
           <>
-            <View style={styles.modes}>
-              {(["CIRCLE", "ROUTE", "POLYGON"] as Mode[]).map((item) => (
-                <Pressable key={item} disabled={atLimit} onPress={() => { setMode(item); setWorkingPoints([]); }} style={[styles.mode, mode === item && styles.modeActive, atLimit && styles.disabled]}>
-                  <Text style={[styles.modeText, mode === item && styles.modeTextActive]}>{item === "CIRCLE" ? t("report.map.place.2") : item === "ROUTE" ? t("report.map.route.2") : t("report.map.area.2")}</Text>
-                </Pressable>
-              ))}
+            <View style={styles.modes} accessibilityRole="tablist">
+              {(["CIRCLE", "ROUTE", "POLYGON"] as Mode[]).map((item) => {
+                const active = mode === item;
+                return (
+                  <Pressable
+                    key={item}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: active, disabled: atLimit }}
+                    disabled={atLimit}
+                    onPress={() => changeMode(item)}
+                    style={[styles.mode, active && styles.modeActive, atLimit && styles.disabled]}
+                  >
+                    <Text style={[styles.modeText, active && styles.modeTextActive]}>
+                      {item === "CIRCLE" ? t("report.map.place.2") : item === "ROUTE" ? t("report.map.route.2") : t("report.map.area.2")}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            <Text style={styles.help}>{atLimit ? t("report.map.maximum.reached.select.an.area.above") : mode === "CIRCLE" ? t("report.map.tap.a.possible.place") : t("report.map.tap.points.in.order.then.save")}</Text>
+            <Text style={styles.help}>
+              {atLimit ? t("report.map.maximum.reached.select.an.area.above") : mode === "CIRCLE" ? t("report.map.tap.a.possible.place") : t("report.map.tap.points.in.order.then.save")}
+            </Text>
           </>
         )}
 
         {(editableRadius || (!selectedArea && mode !== "POLYGON")) && (
           <>
-            <View style={styles.radiusRow}>{RADIUS_OPTIONS.map((m) => <Pressable key={m} onPress={() => changeSelectedRadius(m)} style={[styles.radius, displayedRadius === m && styles.radiusActive]}><Text style={[styles.radiusText, displayedRadius === m && styles.radiusTextActive]}>{formatDistance(m, language, t)}</Text></Pressable>)}</View>
-            <Text style={styles.radiusHelp}>{selectedArea?.kind === "ROUTE" ? t("report.map.p0.m.on.each.side.approximately", { p0: displayedRadius, p1: Number(displayedRadius) * 2 }) : selectedArea?.kind === "CIRCLE" ? t("report.map.radius.p0.m", { p0: displayedRadius }) : mode === "ROUTE" ? t("report.map.p0.m.on.each.side.of", { p0: radius }) : t("report.map.radius.for.the.new.place.p0", { p0: radius })}</Text>
+            <View style={styles.radiusRow}>
+              {RADIUS_OPTIONS.map((m) => {
+                const active = displayedRadius === m;
+                return (
+                  <Pressable
+                    key={m}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => changeSelectedRadius(m)}
+                    style={[styles.radius, active && styles.radiusActive]}
+                  >
+                    <Text style={[styles.radiusText, active && styles.radiusTextActive]}>{distance(m)}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.radiusHelp}>{radiusHelp()}</Text>
           </>
         )}
 
-        {!selectedArea && mode !== "CIRCLE" && <Pressable onPress={addWorkingArea} disabled={atLimit} style={[styles.secondaryFull, atLimit && styles.disabled]}><Text style={styles.secondaryText}>{t("report.map.save.drawn.area")}</Text></Pressable>}
+        {!selectedArea && mode !== "CIRCLE" && (
+          <Button label={t("report.map.save.drawn.area")} variant="neutral" disabled={atLimit} onPress={addWorkingArea} />
+        )}
 
-        {selectedArea && !atLimit && <Pressable onPress={startNewArea} style={styles.addAnother}><Text style={styles.addAnotherText}>{t("report.map.save.and.add.another.area")}</Text></Pressable>}
+        {selectedArea && !atLimit && (
+          <Button label={t("report.map.save.and.add.another.area")} variant="neutral" onPress={startNewArea} />
+        )}
+
+        {renderNotice()}
 
         <View style={styles.actions}>
-          <Pressable onPress={centerOnUser} style={styles.secondary}><Text style={styles.secondaryText}>{locating ? "…" : t("report.map.my.location.2")}</Text></Pressable>
-          <Pressable onPress={confirm} style={styles.primary}><Text style={styles.primaryText}>{t("report.map.done.with.areas")}</Text></Pressable>
+          <Button label={t("report.map.my.location.2")} variant="secondary" busy={locating} onPress={() => void centerOnUser()} style={styles.flex} />
+          <Button label={t("report.map.done")} onPress={confirm} style={styles.flex} />
         </View>
       </View>
     </View>
   );
 }
 
+const floating = {
+  shadowColor: "#0F172A",
+  shadowOpacity: 0.12,
+  shadowRadius: 20,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 4,
+} as const;
+
 const styles = StyleSheet.create({
-  searchBox:{position:"absolute",zIndex:40,left:12,right:12,backgroundColor:"rgba(255,255,255,.98)",borderRadius:14,padding:8,borderWidth:1,borderColor:"#CBD5E1"},
-  searchRow:{flexDirection:"row",gap:8},
-  searchInput:{flex:1,minHeight:42,borderRadius:10,borderWidth:1,borderColor:"#CBD5E1",paddingHorizontal:12,backgroundColor:"#fff"},
-  searchButton:{minWidth:64,minHeight:42,borderRadius:10,backgroundColor:"#2563EB",alignItems:"center",justifyContent:"center",paddingHorizontal:10},
-  searchButtonText:{color:"#fff",fontWeight:"900"},
-  searchResults:{marginTop:6,borderTopWidth:1,borderTopColor:"#E2E8F0"},
-  searchResult:{paddingVertical:10,paddingHorizontal:6,borderBottomWidth:1,borderBottomColor:"#E2E8F0"},
-  searchResultText:{color:"#0F172A",fontWeight:"700"},
-  safe:{flex:1,backgroundColor:"#fff"},map:{flex:1},header:{position:"absolute",zIndex:20,top:0,left:0,right:0,backgroundColor:"rgba(255,255,255,.96)",paddingHorizontal:12,paddingBottom:9,flexDirection:"row",alignItems:"center",gap:10},headerButton:{width:42,height:42,borderRadius:21,backgroundColor:"#F1F5F9",alignItems:"center",justifyContent:"center"},headerButtonText:{fontSize:28,fontWeight:"900"},title:{fontSize:18,fontWeight:"900",color:"#0F172A"},subtitle:{fontSize:12,fontWeight:"700",color:"#64748B",marginTop:2},undo:{padding:9},undoText:{fontWeight:"900",color:"#2563EB"},panel:{position:"absolute",left:12,right:12,zIndex:30,backgroundColor:"rgba(255,255,255,.97)",borderRadius:20,padding:12,borderWidth:1,borderColor:"#CBD5E1"},areaList:{gap:7,paddingBottom:9},areaCard:{minWidth:112,flexDirection:"row",alignItems:"center",gap:8,padding:8,borderRadius:12,borderWidth:1,borderColor:"#CBD5E1",backgroundColor:"#F8FAFC"},areaCardSelected:{borderColor:"#F59E0B",backgroundColor:"#FFFBEB"},areaNumber:{width:26,height:26,borderRadius:13,textAlign:"center",lineHeight:26,overflow:"hidden",backgroundColor:"#E2E8F0",color:"#334155",fontWeight:"900"},areaNumberSelected:{backgroundColor:"#F59E0B",color:"#fff"},areaTitle:{fontWeight:"900",fontSize:12,color:"#0F172A"},areaTitleSelected:{color:"#92400E"},areaDetail:{fontWeight:"700",fontSize:10,color:"#64748B",marginTop:2},modes:{flexDirection:"row",gap:7},mode:{flex:1,minHeight:38,borderRadius:11,borderWidth:1,borderColor:"#CBD5E1",alignItems:"center",justifyContent:"center"},modeActive:{backgroundColor:"#0F172A",borderColor:"#0F172A"},modeText:{fontWeight:"900",color:"#64748B"},modeTextActive:{color:"#fff"},help:{color:"#64748B",fontWeight:"700",fontSize:12,marginTop:9},radiusRow:{flexDirection:"row",flexWrap:"wrap",gap:6,marginTop:9},radius:{paddingHorizontal:9,paddingVertical:6,borderRadius:999,backgroundColor:"#F1F5F9"},radiusActive:{backgroundColor:"#DBEAFE"},radiusText:{fontWeight:"800",fontSize:11,color:"#475569"},radiusTextActive:{color:"#1D4ED8"},radiusHelp:{color:"#475569",fontWeight:"700",fontSize:11,marginTop:7},actions:{flexDirection:"row",gap:8,marginTop:10},secondary:{flex:1,minHeight:42,borderRadius:12,borderWidth:1,borderColor:"#CBD5E1",alignItems:"center",justifyContent:"center"},secondaryFull:{minHeight:42,borderRadius:12,borderWidth:1,borderColor:"#CBD5E1",alignItems:"center",justifyContent:"center",marginTop:9},secondaryText:{fontWeight:"900",color:"#334155"},primary:{flex:1,minHeight:42,borderRadius:12,backgroundColor:"#2563EB",alignItems:"center",justifyContent:"center"},primaryText:{fontWeight:"900",color:"#fff"},disabled:{opacity:.4},selectedBar:{flexDirection:"row",alignItems:"center",gap:10,padding:10,borderRadius:13,backgroundColor:"#FFFBEB",borderWidth:1,borderColor:"#FCD34D"},selectedTitle:{fontWeight:"900",color:"#92400E"},selectedText:{fontWeight:"600",fontSize:12,color:"#92400E",marginTop:2},deleteButton:{minHeight:40,paddingHorizontal:14,borderRadius:11,backgroundColor:"#B91C1C",alignItems:"center",justifyContent:"center"},deleteText:{color:"#fff",fontWeight:"900"},addAnother:{minHeight:42,borderRadius:12,backgroundColor:"#E0F2FE",borderWidth:1,borderColor:"#7DD3FC",alignItems:"center",justifyContent:"center",marginTop:9},addAnotherText:{fontWeight:"900",color:"#075985"},foundHelp:{color:"#475569",fontWeight:"700",fontSize:13,lineHeight:18},
+  safe: { flex: 1, backgroundColor: theme.colors.bg },
+  map: { flex: 1 },
+  flex: { flex: 1 },
+
+  top: { position: "absolute", zIndex: 40, top: 0, left: 0, right: 0, paddingHorizontal: 12, gap: 8 },
+  headerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 8,
+    borderRadius: 18,
+    backgroundColor: theme.colors.card,
+    ...floating,
+  },
+  headerText: { flex: 1, minWidth: 0 },
+  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  subtitle: { fontSize: 13, fontWeight: "600", color: theme.colors.textSecondary, marginTop: 1 },
+  undo: { minHeight: 44, paddingHorizontal: 6, justifyContent: "center" },
+  undoText: { fontSize: 14, fontWeight: "800", color: theme.colors.primary },
+
+  searchCard: { padding: 6, borderRadius: 14, backgroundColor: theme.colors.card, ...floating },
+  searchRow: { flexDirection: "row", gap: 8 },
+  searchInput: { flex: 1, minHeight: 44, paddingHorizontal: 10, fontSize: 16, color: theme.colors.text },
+  searchButton: {
+    minWidth: 64,
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: theme.colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
+  searchResults: { marginTop: 6, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  searchResult: { minHeight: 44, justifyContent: "center", paddingVertical: 10, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
+  searchResultText: { color: theme.colors.text, fontWeight: "700" },
+
+  panel: {
+    position: "absolute",
+    zIndex: 30,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+    backgroundColor: theme.colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.18,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 12,
+  },
+  grabber: { alignSelf: "center", width: 40, height: 5, borderRadius: 999, backgroundColor: "#CBD5E1" },
+  notice: { marginTop: 0 },
+
+  areaList: { gap: 8 },
+  areaCard: {
+    minWidth: 112,
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.bg,
+  },
+  areaCardSelected: { borderColor: "#F59E0B", backgroundColor: "#FFFBEB" },
+  areaNumber: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    textAlign: "center",
+    lineHeight: 26,
+    overflow: "hidden",
+    backgroundColor: "#E2E8F0",
+    color: "#334155",
+    fontWeight: "900",
+  },
+  areaNumberSelected: { backgroundColor: "#F59E0B", color: "#FFFFFF" },
+  areaTitle: { fontWeight: "900", fontSize: 13, color: theme.colors.text },
+  areaTitleSelected: { color: "#92400E" },
+  areaDetail: { fontWeight: "700", fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
+
+  modes: { flexDirection: "row", gap: 4, padding: 4, borderRadius: 14, backgroundColor: "#E9EEF5" },
+  mode: { flex: 1, minHeight: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  modeActive: { backgroundColor: theme.colors.card, ...theme.shadow.card },
+  modeText: { fontSize: 14, fontWeight: "800", color: theme.colors.textSecondary },
+  modeTextActive: { fontWeight: "900", color: theme.colors.text },
+  help: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: theme.colors.textSecondary },
+
+  radiusRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  radius: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
+    justifyContent: "center",
+  },
+  radiusActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  radiusText: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  radiusTextActive: { color: "#FFFFFF" },
+  radiusHelp: { fontSize: 13, lineHeight: 18, fontWeight: "600", color: theme.colors.textSecondary },
+
+  selectedBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: theme.tone.warning.bg,
+    borderWidth: 1,
+    borderColor: theme.tone.warning.border,
+  },
+  selectedTitle: { fontWeight: "900", color: theme.tone.warning.fg },
+  selectedText: { fontWeight: "600", fontSize: 13, color: theme.tone.warning.icon, marginTop: 2 },
+  deleteButton: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: theme.colors.dangerStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteText: { color: "#FFFFFF", fontWeight: "900" },
+
+  actions: { flexDirection: "row", gap: 10 },
+  disabled: { opacity: 0.4 },
 });

@@ -67,6 +67,8 @@ const ACTIVE_CHECKS = [
   "test-t1-9s.js",
   "test-t1-9t.js",
   "test-t1-9u.js",
+  "test-t1-9v.js",
+  "test-t1-9w.js",
   "check-t1-9e-hardcoded-text.js",
   "check-t1-8e5j.js",
 ];

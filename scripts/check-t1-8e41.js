@@ -8,10 +8,10 @@ const read = (relativePath) =>
 
 const checks = {
   "app/alert-areas.tsx": [
-    "panelHeight",
-    "onPanelLayout",
+    "mapCard",
+    "fitOverview",
     "map-outline",
-    "panelCollapsed",
+    "onMapReady",
     "statusBoxOff",
     "locationStorageFailed",
   ],

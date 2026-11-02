@@ -1,6 +1,8 @@
 // app/(tabs)/profile.tsx
+// T1.9W: account card, menu rows in two labelled groups, log out and delete account (both
+// confirmed in a sheet).
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,12 +13,21 @@ import { isAnonymousUser } from "../../src/lib/authGate";
 import { theme } from "../../src/ui/theme";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { sendSentryTestEvent } from "../../src/lib/sentry";
-import { useNewRegistration } from "../../src/lib/newRegistration";
 import { fetchIsAdmin } from "../../src/lib/chatSafety";
 import { deleteAccountRequest } from "../../src/lib/accountDeletion";
 import { openLegal } from "../../src/lib/legal";
 import { userErrorMessage } from "../../src/lib/userError";
-import { ConfirmSheet } from "../../src/ui/kit";
+import { Button, ConfirmSheet } from "../../src/ui/kit";
+
+type MenuRow = {
+  key: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  title: string;
+  value?: string;
+  onPress: () => void;
+  // T1.9A: guests only see rows that work without an account.
+  guestOk?: boolean;
+};
 
 export default function ProfileTab() {
   const router = useRouter();
@@ -24,8 +35,6 @@ export default function ProfileTab() {
   const { language, t } = useI18n();
 
   const isGuest = isAnonymousUser(user as any);
-  // T1.9K: try the new one-page registration next to the current one.
-  const [newRegistration, setNewRegistration] = useNewRegistration();
   const email = session?.user?.email;
   // T1.9M: admins (server list) get the chat report list.
   const [isAdmin, setIsAdmin] = useState(false);
@@ -64,173 +73,172 @@ export default function ProfileTab() {
     }
   };
 
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const logout = async () => {
-    await signOut();
-    router.replace("/(auth)/login");
+    setLoggingOut(true);
+    try {
+      await signOut();
+      setLogoutOpen(false);
+      router.replace("/(auth)/login");
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
-  const rows = [
+  const caseRows: MenuRow[] = [
+    { key: "cases", icon: "folder-open-outline", title: t("profile.cases"), onPress: () => router.push("/my-reports") },
+    { key: "alertAreas", icon: "map-outline", title: t("profile.alertAreas"), onPress: () => router.push("/alert-areas") },
     {
-      icon: "folder-open-outline" as const,
-      title: t("profile.cases"),
-      onPress: () => router.push("/my-reports"),
-    },
-    {
-      icon: "notifications-outline" as const,
-      title: t("profile.notifications"),
-      onPress: () => router.push("/notifications"),
-    },
-    {
-      icon: "map-outline" as const,
-      title: t("profile.alertAreas"),
-      onPress: () => router.push("/alert-areas"),
-    },
-    {
-      icon: "settings-outline" as const,
+      key: "push",
+      icon: "notifications-outline",
       title: t("profile.pushNotifications"),
       onPress: () => router.push("/push-settings"),
     },
+    { key: "purchases", icon: "receipt-outline", title: t("profile.purchases"), onPress: () => router.push("/premium-status") },
+  ];
+
+  const helpRows: MenuRow[] = [
     {
-      icon: "receipt-outline" as const,
-      title: t("profile.purchases"),
-      onPress: () => router.push("/premium-status"),
-    },
-    {
-      icon: "language-outline" as const,
+      key: "language",
+      icon: "language-outline",
       title: t("profile.language"),
+      value: t("language.currentName"),
       onPress: () => router.push("/language"),
+      guestOk: true,
     },
+    { key: "how", icon: "help-circle-outline", title: t("profile.how"), onPress: () => router.push("/how"), guestOk: true },
     {
-      icon: "help-circle-outline" as const,
-      title: t("profile.how"),
-      onPress: () => router.push("/how"),
+      key: "feedback",
+      icon: "chatbox-ellipses-outline",
+      title: t("profile.feedback"),
+      onPress: () => router.push("/feedback"),
+      guestOk: true,
     },
     // T1.9R: privacy policy and terms (also for guests).
     {
-      icon: "shield-outline" as const,
+      key: "privacy",
+      icon: "shield-outline",
       title: t("legal.privacy"),
       onPress: () => void openLegal("privacy", language),
+      guestOk: true,
     },
     {
-      icon: "document-text-outline" as const,
+      key: "terms",
+      icon: "document-text-outline",
       title: t("legal.terms"),
       onPress: () => void openLegal("terms", language),
+      guestOk: true,
     },
     ...(isAdmin
-      ? [{ icon: "shield-checkmark-outline" as const, title: t("profile.safetyReports"), onPress: () => router.push("/safety-reports") }]
+      ? [
+          {
+            key: "admin",
+            icon: "shield-checkmark-outline" as const,
+            title: t("profile.safetyReports"),
+            onPress: () => router.push("/safety-reports"),
+          },
+          {
+            key: "adminFeedback",
+            icon: "chatbubbles-outline" as const,
+            title: t("profile.adminFeedback"),
+            onPress: () => router.push("/feedback-admin"),
+          },
+        ]
       : []),
   ];
 
-  // T1.9A: guests only get language and help; everything else needs an account.
-  const visibleRows = isGuest
-    ? rows.filter((row) => [t("profile.language"), t("profile.how"), t("legal.privacy"), t("legal.terms")].includes(row.title))
-    : rows;
+  const visible = (rows: MenuRow[]) => (isGuest ? rows.filter((row) => row.guestOk) : rows);
+  const sections = [
+    { key: "cases", label: t("profile.section.cases"), rows: visible(caseRows) },
+    { key: "help", label: t("profile.section.help"), rows: visible(helpRows) },
+  ].filter((section) => section.rows.length > 0);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.pageTitle}>{t("profile.title")}</Text>
+        <Text style={styles.pageTitle} accessibilityRole="header">
+          {t("profile.title")}
+        </Text>
 
         <View style={styles.accountCard}>
           <View style={styles.avatar}>
-            <Ionicons
-              name={isGuest ? "person-outline" : "person"}
-              size={32}
-              color={theme.colors.primary}
-            />
+            <Ionicons name={isGuest ? "person-outline" : "person"} size={26} color={theme.colors.primary} />
           </View>
-
           <View style={styles.accountText}>
-            <Text style={styles.accountTitle}>
-              {isGuest ? t("profile.guest") : t("profile.account")}
-            </Text>
-            <Text style={styles.accountSub}>
-              {email || (isGuest ? t("profile.guestBody") : t("profile.noEmail"))}
-            </Text>
+            <Text style={styles.accountTitle}>{isGuest ? t("profile.guest") : t("profile.account")}</Text>
+            <Text style={styles.accountSub}>{email || (isGuest ? t("profile.guestBody") : t("profile.noEmail"))}</Text>
           </View>
         </View>
 
         {isGuest && (
-          <>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.primary}
+          <View style={styles.stack}>
+            <Button
+              label={t("guest.createAccount")}
               onPress={() =>
                 router.push({
                   pathname: "/(auth)/login",
                   params: { mode: "signup", returnTo: "/(tabs)/profile" },
                 })
               }
-            >
-              <Text style={styles.primaryText}>{t("guest.createAccount")}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.secondary}
+            />
+            <Button
+              label={t("guest.haveAccount")}
+              variant="neutral"
               onPress={() =>
                 router.push({
                   pathname: "/(auth)/login",
                   params: { mode: "login", returnTo: "/(tabs)/profile" },
                 })
               }
-            >
-              <Text style={styles.secondaryText}>{t("guest.haveAccount")}</Text>
-            </Pressable>
-            <View style={styles.claimNote}>
-              <Ionicons name="information-circle-outline" size={20} color="#1D4ED8" />
-              <Text style={styles.claimNoteText}>{t("guest.profileClaimNote")}</Text>
-            </View>
-          </>
+            />
+            <InlineNotice tone="info" icon="information-circle-outline" title={t("guest.profileClaimNote")} style={styles.noMargin} />
+          </View>
         )}
+
+        {sections.map((section) => (
+          <View key={section.key} style={styles.section}>
+            <Text style={styles.sectionLabel}>{section.label}</Text>
+            <View style={styles.menuCard}>
+              {section.rows.map((row, index) => (
+                <React.Fragment key={row.key}>
+                  {index > 0 && <View style={styles.divider} />}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={row.value ? `${row.title}, ${row.value}` : row.title}
+                    style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                    onPress={row.onPress}
+                  >
+                    <Ionicons name={row.icon} size={22} color={theme.colors.primary} />
+                    <Text style={styles.rowTitle}>{row.title}</Text>
+                    {!!row.value && <Text style={styles.rowValue}>{row.value}</Text>}
+                    <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+                  </Pressable>
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+        ))}
 
         {isTestBuild && !isGuest && (
-          <>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.secondary}
-              disabled={sentryTest === "sending"}
-              onPress={runSentryTest}
-            >
-              <Text style={styles.secondaryText}>{t("profile.sentryTest")}</Text>
-            </Pressable>
-            {sentryTest === "sent" && <InlineNotice tone="info" icon="checkmark-circle-outline" title={t("profile.sentryTestSent")} />}
-            {sentryTest === "failed" && <InlineNotice tone="error" title={t("profile.sentryTestFailed")} />}
-          </>
+          <View style={styles.stack}>
+            <Button
+              label={t("profile.sentryTest")}
+              variant="neutral"
+              busy={sentryTest === "sending"}
+              onPress={() => void runSentryTest()}
+            />
+            {sentryTest === "sent" && (
+              <InlineNotice tone="info" icon="checkmark-circle-outline" title={t("profile.sentryTestSent")} style={styles.noMargin} />
+            )}
+            {sentryTest === "failed" && <InlineNotice tone="error" title={t("profile.sentryTestFailed")} style={styles.noMargin} />}
+          </View>
         )}
 
-        <View style={styles.menuCard}>
-          {visibleRows.map((row, index) => (
-            <React.Fragment key={row.title}>
-              <Pressable style={styles.row} onPress={row.onPress}>
-                <Ionicons name={row.icon} size={23} color={theme.colors.primary} />
-                <Text style={styles.rowTitle}>{row.title}</Text>
-                <Ionicons name="chevron-forward" size={20} color={theme.colors.muted} />
-              </Pressable>
-              {index < visibleRows.length - 1 && <View style={styles.divider} />}
-            </React.Fragment>
-          ))}
-        </View>
-
-        <View style={styles.switchCard}>
-          <View style={styles.switchText}>
-            <Text style={styles.switchTitle}>{t("profile.newRegistration")}</Text>
-            <Text style={styles.switchBody}>{t("profile.newRegistrationBody")}</Text>
-          </View>
-          <Switch
-            value={newRegistration}
-            onValueChange={setNewRegistration}
-            accessibilityLabel={t("profile.newRegistration")}
-          />
-        </View>
-
         {isGuest ? null : user ? (
-          <Pressable style={styles.logout} onPress={logout}>
-            <Text style={styles.logoutText}>{t("profile.logout")}</Text>
-          </Pressable>
+          <Button label={t("profile.logout")} variant="neutral" onPress={() => setLogoutOpen(true)} style={styles.logout} />
         ) : (
-          <Pressable style={styles.primary} onPress={() => router.push("/(auth)/login")}>
-            <Text style={styles.primaryText}>{t("profile.login")}</Text>
-          </Pressable>
+          <Button label={t("profile.login")} onPress={() => router.push("/(auth)/login")} style={styles.logout} />
         )}
 
         {!!user && !isGuest && (
@@ -241,9 +249,20 @@ export default function ProfileTab() {
       </ScrollView>
 
       <ConfirmSheet
+        visible={logoutOpen}
+        title={t("profile.logoutConfirm.title")}
+        body={t("profile.logoutConfirm.body")}
+        confirmLabel={t("profile.logout")}
+        cancelLabel={t("common.cancel")}
+        busy={loggingOut}
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={() => void logout()}
+      />
+
+      <ConfirmSheet
         visible={deleteOpen}
         title={t("profile.deleteAccount.title")}
-        body={deleteError ?? t("profile.deleteAccount.body")}
+        body={t("profile.deleteAccount.body")}
         confirmLabel={t("profile.deleteAccount.confirm")}
         cancelLabel={t("common.cancel")}
         destructive
@@ -253,152 +272,62 @@ export default function ProfileTab() {
           setDeleteError(null);
         }}
         onConfirm={() => void deleteAccount()}
-      />
+      >
+        {!!deleteError && <InlineNotice tone="error" title={deleteError} style={styles.noMargin} />}
+      </ConfirmSheet>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  deleteAccount: { alignSelf: "center", minHeight: 44, justifyContent: "center", marginTop: 8, paddingHorizontal: 12 },
-  deleteAccountText: { fontSize: 15, fontWeight: "800", color: theme.colors.dangerStrong, textDecorationLine: "underline" },
-  switchCard: {
+  safe: { flex: 1, backgroundColor: theme.colors.bg },
+  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 110, gap: 12 },
+  pageTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 26, paddingTop: 6 },
+  accountCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginTop: 14,
     padding: 16,
     backgroundColor: theme.colors.card,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 18,
   },
-  switchText: { flex: 1, gap: 4 },
-  switchTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
-  switchBody: { fontSize: 13, lineHeight: 18, fontWeight: "600", color: theme.colors.textSecondary },
-  safe: {
-    flex: 1,
-    backgroundColor: theme.colors.bg,
-  },
-  content: {
-    padding: theme.space.lg,
-    paddingBottom: 110,
-  },
-  pageTitle: {
-    color: theme.colors.text,
-    fontWeight: "900",
-    fontSize: 28,
-    marginBottom: 18,
-  },
-  accountCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 18,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 20,
-    ...theme.shadow.card,
-  },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#EEF2FF",
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: theme.colors.chipBg,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
   },
-  accountText: {
-    flex: 1,
-  },
-  accountTitle: {
-    color: theme.colors.text,
+  accountText: { flex: 1, gap: 2 },
+  accountTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 17 },
+  accountSub: { color: theme.colors.textSecondary, fontWeight: "600", lineHeight: 18 },
+  stack: { gap: 10 },
+  noMargin: { marginTop: 0 },
+  section: { gap: 8, marginTop: 4 },
+  sectionLabel: {
+    paddingHorizontal: 4,
+    color: theme.colors.textSecondary,
+    fontSize: 12,
     fontWeight: "900",
-    fontSize: 18,
-  },
-  accountSub: {
-    marginTop: 4,
-    color: theme.colors.muted,
-    fontWeight: "600",
-    lineHeight: 18,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   menuCard: {
-    marginTop: 20,
     backgroundColor: theme.colors.card,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: 20,
+    borderRadius: 18,
     overflow: "hidden",
   },
-  row: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-  },
-  rowTitle: {
-    flex: 1,
-    marginLeft: 13,
-    color: theme.colors.text,
-    fontWeight: "800",
-    fontSize: 15,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: theme.colors.border,
-    marginLeft: 52,
-  },
-  primary: {
-    marginTop: 16,
-    paddingVertical: 15,
-    borderRadius: 14,
-    alignItems: "center",
-    backgroundColor: theme.colors.primary,
-  },
-  primaryText: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-  },
-  secondary: {
-    marginTop: 10,
-    paddingVertical: 15,
-    borderRadius: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.card,
-  },
-  secondaryText: {
-    color: theme.colors.text,
-    fontWeight: "900",
-  },
-  claimNote: {
-    marginTop: 14,
-    flexDirection: "row",
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    backgroundColor: "#EFF6FF",
-  },
-  claimNoteText: {
-    flex: 1,
-    color: "#1E40AF",
-    fontWeight: "600",
-    lineHeight: 20,
-  },
-  logout: {
-    marginTop: 20,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#FCA5A5",
-    backgroundColor: "#FEF2F2",
-  },
-  logoutText: {
-    color: "#B91C1C",
-    fontWeight: "900",
-  },
+  row: { minHeight: 54, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16 },
+  rowTitle: { flex: 1, color: theme.colors.text, fontWeight: "800", fontSize: 15 },
+  rowValue: { color: theme.colors.textSecondary, fontWeight: "600", fontSize: 14 },
+  divider: { height: 1, backgroundColor: theme.colors.divider, marginLeft: 50 },
+  logout: { marginTop: 8 },
+  deleteAccount: { alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: 12 },
+  deleteAccountText: { fontSize: 15, fontWeight: "800", color: theme.colors.dangerStrong, textDecorationLine: "underline" },
+  pressed: { opacity: 0.7 },
 });

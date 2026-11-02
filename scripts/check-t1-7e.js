@@ -1,7 +1,8 @@
 "use strict";
 const fs = require("fs");
 const checks = [
-  ["app/my-reports.tsx", ["const { language, t } = useI18n();", "cases.active.count", "cases.history.count"]],
+  // T1.9W: the segmented tabs use cases.tab.active / cases.tab.history ("Aktive · n").
+  ["app/my-reports.tsx", ["const { language, t } = useI18n();", "cases.tab.active", "cases.tab.history"]],
   ["app/report-details/[id].tsx", ["const { language, t } = useI18n();", "caseDetail.case.details", "caseDetail.additional.services"]],
   ["app/notifications.tsx", ["const { language, t } = useI18n();", "notifications.possible.matches.count", "notifications.deleted.unavailable.count"]],
   ["app/area-alert/[id].tsx", ["const { language, t } = useI18n();", "areaAlert.area.alert", "areaAlert.i.found.this"]],

@@ -462,12 +462,15 @@ function GeoAlertCreateScreen() {
                 </Text>
               )}
               <Text style={styles.rules}>{t("areaAlertCreate.rules")}</Text>
-              <Text style={styles.warning}>
-                {tr(
-                  language,
-                  "areaAlertCreate.test.mode.no.real.payment.is.made.activation.cre",
-                )}
-              </Text>
+              {/* T1.9W: the test-payment note only when something would be charged. */}
+              {!result.quote.pilotFree && (
+                <Text style={styles.warning}>
+                  {tr(
+                    language,
+                    "areaAlertCreate.test.mode.no.real.payment.is.made.activation.cre",
+                  )}
+                </Text>
+              )}
               {noticeView && (
                 <InlineNotice
                   tone={noticeView.tone}

@@ -3,8 +3,8 @@ const files=["app/push-settings.tsx","src/lib/pushNotifications.ts","src/i18n/lo
 for(const f of files)if(!fs.existsSync(path.join(process.cwd(),f)))throw new Error(`Missing ${f}`);
 const screen=r("app/push-settings.tsx"),lib=r("src/lib/pushNotifications.ts");
 if(!screen.includes('(): PushPermissionState => "undetermined"'))throw new Error("Typed permission fallback missing");
-if(!screen.includes("pushSettings.systemPermission")||!screen.includes("pushSettings.appRegistration"))throw new Error("Separate notification statuses missing");
-if(!screen.includes("installationActive && <Pressable"))throw new Error("Active-installation controls are not gated");
+if(!screen.includes("pushSettings.deviceStatus"))throw Error("Device notification status missing");/* T1.9W: T1.8D.3 replaced the two status rows with one device status (check-t1-8d3 forbids the old keys). */
+if(!/!installationActive \? \([\s\S]*?\) : \(\s*<Button[\s\S]{0,200}?void test\(\)/.test(screen)||!/installationActive && \(\s*<Pressable[\s\S]{0,300}?setConfirmDisable\(true\)/.test(screen))throw Error("Test and disable controls are not gated on installationActive");
 if(!lib.includes("getCurrentPushInstallationState")||!lib.includes("/push/status"))throw new Error("Current installation status lookup missing");
 if(screen.includes('error?.message ?? String(error)'))throw new Error("Raw technical errors remain visible");
 console.log("OK: T1.8D.2 checks passed.");

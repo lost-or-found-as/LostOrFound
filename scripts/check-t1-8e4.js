@@ -8,7 +8,8 @@ const checks = {
     "updateCurrent",
     "AppState.addEventListener",
     "fitToCoordinates",
-    "/alert-area-editor",
+    "openNew",
+    "openEdit",
   ],
   "server/routes/alertAreas.js": [
     "/current-location",

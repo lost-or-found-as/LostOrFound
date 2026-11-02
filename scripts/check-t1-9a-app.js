@@ -10,13 +10,15 @@ const check = (ok, code) => { if (!ok) errors.push(code); };
 
 // Screens that need a registered account must be wrapped by requireAccount().
 const GATED = [
-  "app/my-reports.tsx", "app/notifications.tsx", "app/alert-areas.tsx", "app/alert-area-editor.tsx",
+  "app/my-reports.tsx", "app/notifications.tsx", "app/alert-areas.tsx",
   "app/push-settings.tsx", "app/match.tsx", "app/premium-status.tsx", "app/geo-alert-create.tsx",
   "app/observation-create.tsx",
   "app/area-alert/[id].tsx", "app/chat/[matchId].tsx", "app/match-comparison/[matchId].tsx",
   "app/matches/[matchId].tsx", "app/observation-chat/[id].tsx", "app/observation/[id].tsx",
   "app/report-details/[id].tsx",
 ];
+// T1.9W: the alert area editor was merged into app/alert-areas.tsx; its old route must not come back ungated.
+check(!fs.existsSync(path.join(root, "app/alert-area-editor.tsx")) || /^export default requireAccount\(\w+\);\s*$/m.test(read("app/alert-area-editor.tsx")), "SCREEN_NOT_GATED: app/alert-area-editor.tsx");
 for (const f of GATED) {
   const s = read(f);
   check(/^export default requireAccount\(\w+\);\s*$/m.test(s), `SCREEN_NOT_GATED: ${f}`);

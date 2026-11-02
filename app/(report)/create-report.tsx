@@ -44,7 +44,7 @@ import {
   objectSearchText,
 } from "../../src/lib/categories";
 import { theme } from "../../src/ui/theme";
-import { PremiumHeader } from "../../src/ui/PremiumHeader";
+import { ScreenHeader } from "../../src/ui/kit";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -1264,10 +1264,13 @@ export default function CreateReportScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.safe}>
-        <PremiumHeader
+        <ScreenHeader
+          raised
           title={
             isEditMode
-              ? t("report.create.edit.lost.report")
+              ? type === "FOUND"
+                ? t("report.create.edit.found.report")
+                : t("report.create.edit.lost.report")
               : type === "FOUND"
                 ? t("report.create.report.found")
                 : t("report.create.report.lost")
@@ -1289,7 +1292,8 @@ export default function CreateReportScreen() {
             keyboardShouldPersistTaps="handled"
             onScrollBeginDrag={closeMenus}
           >
-            {/* Premium segmented control */}
+            {/* T1.9W: the type cannot change while editing an existing case. */}
+            {!isEditMode && (
             <View style={styles.segmentedOuter}>
               <Pressable
                 style={[
@@ -1330,6 +1334,7 @@ export default function CreateReportScreen() {
                 </Text>
               </Pressable>
             </View>
+            )}
             {/* CARD: Objekt */}
             <View
               onLayout={(e) => setObjectSectionY(e.nativeEvent.layout.y)}

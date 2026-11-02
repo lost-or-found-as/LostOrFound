@@ -13,7 +13,8 @@ const no = read("src/i18n/locales/no.ts");
 const requiredAppFeatures = [
   "reactivationSuccessOpen",
   "setReactivationSuccessOpen(true)",
-  "successStyles.iconCircle",
+  // T1.9W: shown as a success InlineNotice (was a Modal with successStyles).
+  'tone="success"',
   "cases.reactivation.success.close",
 ];
 

@@ -259,6 +259,15 @@ try {
   console.warn("[BOOT] /safety NOT mounted:", e?.message || e);
 }
 
+// ---- Mount /feedback (T1.9V: feedback from the app) ----
+try {
+  const feedbackRoutes = require("./routes/feedback");
+  app.use("/feedback", feedbackRoutes);
+  console.log("[BOOT] Mounted /feedback routes");
+} catch (e) {
+  console.warn("[BOOT] /feedback NOT mounted:", e?.message || e);
+}
+
 // ---- Mount /resolutions ----
 try { const resolutionRoutes=require("./routes/resolutions"); app.use("/resolutions",resolutionRoutes); console.log("[BOOT] Mounted /resolutions routes"); } catch(e){ console.warn("[BOOT] /resolutions NOT mounted:",e?.message||e); }
 

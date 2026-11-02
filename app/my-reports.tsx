@@ -1,16 +1,17 @@
 // app/my-reports.tsx
-// Mine saker (language package A)
+// Mine saker. T1.9W: rebuilt in the shared kit style (ScreenHeader, segmented tabs, cards with a
+// thumbnail, BottomSheet menu, ConfirmSheet, InlineNotice, pull to refresh). Same data and actions.
 import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ScrollView,
-  Text,
-  StyleSheet,
   ActivityIndicator,
+  Image,
   Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
   View,
-  Alert,
-  Modal,
 } from "react-native";
 import {
   Stack,
@@ -24,28 +25,44 @@ import { theme } from "../src/ui/theme";
 import { getLastSeenMap } from "../src/lib/unread";
 import { useAuth } from "../src/contexts/AuthContext";
 import { shortPlace } from "../src/lib/places";
-import { PremiumHeader } from "../src/ui/PremiumHeader";
-import { AuthHeaderAction } from "../src/ui/AuthHeaderAction";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { caseAttributes, caseTitle, formatCaseDate } from "../src/lib/caseDisplay";
 import { reportHandledError } from "../src/lib/sentry";
 import { userErrorMessage } from "../src/lib/userError";
-import { formatMoney, formatTime as formatClock } from "../src/i18n/formatters";
+import { formatDate, formatMoney, formatTime as formatClock } from "../src/i18n/formatters";
 import { STORED_MONEY_CURRENCY } from "../src/lib/market";
 import {
   canBuyLongTerm,
   canExtendFound,
   canExtendLost,
+  closeReportRequest,
+  deleteReportRequest,
+  extendFoundRequest,
   extendLostRequest,
+  FOUND_EXTENSION_WINDOW_DAYS,
+  FOUND_MAX_EXTENSIONS,
   isInLostExtensionWindow,
+  isReportClosed,
   isReportExpired,
+  LOST_EXTENSION_WINDOW_DAYS,
+  LOST_MAX_EXTENSIONS,
+  reportDaysLeft,
 } from "../src/lib/reportLifecycle";
 import { LongTermSheet } from "../src/ui/LongTermSheet";
 import { useReactivationPrice } from "../src/lib/useReactivationPrice";
 import { WithdrawalConsent } from "../src/ui/WithdrawalConsent";
-
-// Test price shown in the reactivation dialog until RevenueCat supplies the store price.
+import { InlineNotice } from "../src/ui/InlineNotice";
+import { registerRoute, useNewRegistration } from "../src/lib/newRegistration";
+import {
+  BottomSheet,
+  Button,
+  ConfirmSheet,
+  EmptyState,
+  IconButton,
+  InfoButton,
+  ScreenHeader,
+} from "../src/ui/kit";
 
 type Report = {
   id: string;
@@ -69,6 +86,9 @@ type Report = {
   // T1.9I: from /reports/mine/with-activity.
   paid_extensions?: number | null;
   long_term_until?: string | null;
+  // T1.9W: shown as the card thumbnail when the list endpoint includes them (it does not yet).
+  thumbnail_url?: string | null;
+  images?: { signed_url?: string | null }[] | null;
 };
 
 type LastActivity = {
@@ -87,29 +107,17 @@ type MessageInsert = {
   created_at: string;
 };
 
+type DialogKind = "extend" | "reactivateLost" | "close" | "delete";
+type MenuItem = {
+  key: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  hint?: string;
+  onPress: () => void;
+  danger?: boolean;
+};
 
-function reportStatusInfo(r: Report, language: "no" | "en", t: Translate) {
-  if ((r as any).status === "ARCHIVED" || (r as any).archived_at)
-    return { label: t("cases.archived") };
-  if ((r as any).closed_at || (r as any).status === "CLOSED")
-    return { label: t("cases.closed") };
-  if (
-    (r as any).status === "EXPIRED" ||
-    ((r as any).visible_until &&
-      Date.parse((r as any).visible_until) <= Date.now())
-  )
-    return { label: t("cases.expired") };
-  if ((r as any).visible_until) {
-    const daysLeft = Math.ceil(
-      (Date.parse((r as any).visible_until) - Date.now()) /
-        (24 * 60 * 60 * 1000),
-    );
-    if (Number.isFinite(daysLeft) && daysLeft >= 0)
-      return { label: t("cases.active.days.left", { count: daysLeft }) };
-  }
-  return { label: t("cases.active") };
-}
-function lifecycleErrorCopy(code: string | undefined, t: (key: any) => string) {
+function lifecycleErrorCopy(code: string | undefined, t: Translate) {
   switch (String(code || "").toUpperCase()) {
     case "FOUND_EXTENSION_TOO_EARLY":
       return {
@@ -132,13 +140,9 @@ function lifecycleErrorCopy(code: string | undefined, t: (key: any) => string) {
 
 function shortMessage(body?: string) {
   if (!body) return "";
-  const t = body.replace(/\s+/g, " ").trim();
-  if (t.length <= 70) return t;
-  return t.slice(0, 67) + "…";
-}
-
-function formatTime(iso: string | undefined, language: "no" | "en") {
-  return formatClock(iso, language);
+  const text = body.replace(/\s+/g, " ").trim();
+  if (text.length <= 70) return text;
+  return text.slice(0, 67) + "…";
 }
 
 function sortReportsByActivity(
@@ -153,10 +157,47 @@ function sortReportsByActivity(
   });
 }
 
+function isActiveReport(r: Report) {
+  return (
+    String(r.status || "ACTIVE").toUpperCase() === "ACTIVE" &&
+    !r.closed_at &&
+    !r.archived_at &&
+    (!r.visible_until || Date.parse(r.visible_until) > Date.now())
+  );
+}
+
+function thumbnailOf(r: Report): string | null {
+  const first = (r.images || []).find((x) => !!x?.signed_url);
+  return r.thumbnail_url || first?.signed_url || null;
+}
+
+/** Status badge, same rules as Saksdetaljer (closed, historic period, expired, days left). */
+function reportStatus(r: Report, language: "no" | "en", t: Translate) {
+  const lost = String(r.type).toUpperCase() === "LOST";
+  const closed = isReportClosed(r);
+  const expired = isReportExpired(r);
+  const daysLeft = reportDaysLeft(r);
+  const longTermUntil = lost && !closed ? r.long_term_until || null : null;
+  const label = closed
+    ? r.archived_at || String(r.status || "").toUpperCase() === "ARCHIVED"
+      ? t("cases.archived")
+      : t("cases.closed")
+    : longTermUntil
+      ? t("caseDetail.historicUntil", { date: formatDate(longTermUntil, language) })
+      : expired
+        ? t("cases.expired")
+        : daysLeft != null
+          ? t("cases.active.days.left", { count: daysLeft })
+          : t("caseDetail.active");
+  const tone: "historic" | "muted" | "active" = longTermUntil ? "historic" : closed || expired ? "muted" : "active";
+  return { label, tone, closed, expired, longTermUntil };
+}
+
 function MyReportsScreen() {
   const router = useRouter();
-  // T1.9M: extension price from the catalog (the price the server charges).
+  // T1.9M: extension price from the catalog (the price the server charges); 0 = free in the pilot.
   const reactivationPrice = useReactivationPrice();
+  const [newRegistration] = useNewRegistration();
   const params = useLocalSearchParams<{
     section?: string;
     reportId?: string;
@@ -174,20 +215,26 @@ function MyReportsScreen() {
     Record<string, number>
   >({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const hasLoadedRef = useRef(false);
+  const loadSeqRef = useRef(0);
   const [section, setSection] = useState<"active" | "history">(
     params.section === "history" ? "history" : "active",
   );
   const [confirmDialog, setConfirmDialog] = useState<{
-    kind: "extend" | "reactivateLost" | "close" | "delete";
+    kind: DialogKind;
     report: Report;
   } | null>(null);
+  const [dialogBusy, setDialogBusy] = useState(false);
+  const [dialogError, setDialogError] = useState<{ title: string; body: string } | null>(null);
   // T1.9R: consent before a paid extension (reset each time the dialog opens).
   const [consent, setConsent] = useState(false);
-  useEffect(() => setConsent(false), [confirmDialog]);
+  useEffect(() => {
+    setConsent(false);
+    setDialogError(null);
+  }, [confirmDialog]);
   const [menuReport, setMenuReport] = useState<Report | null>(null);
-  const [reactivatingReportId, setReactivatingReportId] = useState<
-    string | null
-  >(null);
   const [reactivationSuccessOpen, setReactivationSuccessOpen] = useState(false);
   const [longTermReportId, setLongTermReportId] = useState<string | null>(null);
   const matchToReportRef = useRef<Record<string, string>>({});
@@ -199,31 +246,41 @@ function MyReportsScreen() {
   }, [params.section]);
   const lastSeenMapRef = useRef<Record<string, string>>({});
 
-  const load = useCallback(async () => {
+  const clearAll = () => {
+    setReports([]);
+    setUnreadByReport({});
+    setActivityByReport({});
+    setMatchCountByReport({});
+    matchToReportRef.current = {};
+    lastSeenMapRef.current = {};
+  };
+
+  // The full-screen spinner shows only on the first load; later loads (focus, pull to refresh)
+  // keep the list on screen.
+  const load = useCallback(async (mode: "auto" | "refresh" = "auto") => {
+    const seq = ++loadSeqRef.current;
     try {
-      setLoading(true);
+      if (mode === "refresh") setRefreshing(true);
+      else if (!hasLoadedRef.current) setLoading(true);
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       if (!token || !user) {
-        setReports([]);
-        setUnreadByReport({});
-        setActivityByReport({});
-        setMatchCountByReport({});
-        matchToReportRef.current = {};
-        lastSeenMapRef.current = {};
+        if (seq !== loadSeqRef.current) return;
+        clearAll();
+        setLoadError(false);
         return;
       }
 
-      lastSeenMapRef.current = await getLastSeenMap();
+      const lastSeen = await getLastSeenMap();
       const res = await fetch(`${API_BASE_URL}/reports/mine/with-activity`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(
-          data?.error ?? t("cases.could.not.load.cases.activity"),
-        );
+        throw new Error(data?.error ?? "MY_REPORTS_LOAD_FAILED");
       }
+      if (seq !== loadSeqRef.current) return;
+      lastSeenMapRef.current = lastSeen;
 
       const reps: Report[] = data.reports ?? [];
       const matchToReport: Record<string, string> = data.matchToReport ?? {};
@@ -269,14 +326,14 @@ function MyReportsScreen() {
         let hasUnread = false;
         let latest: LastActivity | null = null;
         for (const mid of matchIds) {
-          const lastSeen = lastSeenMapRef.current[mid];
+          const seenAt = lastSeenMapRef.current[mid];
           const lastAct = lastByMatch[mid];
           if (!lastAct) continue;
           if (!latest || new Date(lastAct.at) > new Date(latest.at)) {
             latest = lastAct;
           }
           const isNewerThanSeen =
-            !lastSeen || new Date(lastAct.at) > new Date(lastSeen);
+            !seenAt || new Date(lastAct.at) > new Date(seenAt);
           const fromOther = lastAct.sender_id !== user.id;
           if (isNewerThanSeen && fromOther) hasUnread = true;
         }
@@ -289,27 +346,25 @@ function MyReportsScreen() {
       setActivityByReport(activity);
       setMatchCountByReport(matchCounts);
       setReports(sortReportsByActivity(reps, activity));
+      setLoadError(false);
+      hasLoadedRef.current = true;
     } catch (e) {
       console.warn("[my-reports] could not load cases", e);
       reportHandledError(e, "cases.load");
-      setReports([]);
-      setUnreadByReport({});
-      setActivityByReport({});
-      setMatchCountByReport({});
-      matchToReportRef.current = {};
-      lastSeenMapRef.current = {};
+      // Keep what is already on screen; the notice says the list could not be updated.
+      if (seq === loadSeqRef.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [user, language]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
+  // Runs on mount and every time the screen gets focus (also when `load` changes).
   useFocusEffect(
     useCallback(() => {
-      load();
+      void load();
       return () => {};
     }, [load]),
   );
@@ -374,514 +429,502 @@ function MyReportsScreen() {
     });
   };
 
-  const deleteReport = async (id: string) => {
-    const { data: sess } = await supabase.auth.getSession();
-    const token = sess.session?.access_token;
-    if (!token) {
-      Alert.alert(
-        t("cases.error"),
-        t("cases.you.must.be.logged.in.to.delete.this.case"),
-      );
-      return;
-    }
-
-    const res = await fetch(
-      `${API_BASE_URL}/reports/${encodeURIComponent(id)}`,
-      {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      Alert.alert(t("cases.delete.failed"), t("cases.delete.failed.body"));
-      return;
-    }
-
+  const removeLocally = (id: string) => {
+    const without = <T,>(prev: Record<string, T>) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    };
     setReports((prev) => prev.filter((r) => r.id !== id));
-    setUnreadByReport((prev) => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
-    setActivityByReport((prev) => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
-    setMatchCountByReport((prev) => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
-    load();
-  };
-
-  const extendFoundReport = async (r: Report) => {
-    const { data: sess } = await supabase.auth.getSession();
-    const token = sess.session?.access_token;
-    if (!token) {
-      Alert.alert(t("cases.error"), t("cases.you.must.be.logged.in"));
-      return;
-    }
-
-    const res = await fetch(
-      `${API_BASE_URL}/reports/${encodeURIComponent(r.id)}/extend-found`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      const friendly = lifecycleErrorCopy(data?.error, t);
-      Alert.alert(
-        friendly?.title || t("cases.could.not.extend"),
-        friendly?.body || userErrorMessage({ ...data, status: res.status }, t, "cases.please.try.again.later", "cases.extend"),
-      );
-      return;
-    }
-    await load();
+    setUnreadByReport(without);
+    setActivityByReport(without);
+    setMatchCountByReport(without);
   };
 
   const confirmExtendFound = (r: Report) =>
     setConfirmDialog({ kind: "extend", report: r });
-  const reactivateLostReport = async (r: Report) => {
-    try {
-      setReactivatingReportId(r.id);
-      await extendLostRequest(r.id);
-      await load();
-      setSection("active");
-      setReactivationSuccessOpen(true);
-    } catch (error: any) {
-      Alert.alert(
-        t("cases.reactivation.failed"),
-        userErrorMessage(error, t, "cases.please.try.again.later", "cases.reactivate"),
-      );
-    } finally {
-      setReactivatingReportId(null);
-    }
-  };
-
-  const closeReport = async (r: Report) => {
-    const { data: sess } = await supabase.auth.getSession();
-    const token = sess.session?.access_token;
-    if (!token) {
-      Alert.alert(
-        t("cases.error"),
-        t("cases.you.must.be.logged.in.to.close.this.case"),
-      );
-      return;
-    }
-
-    const res = await fetch(
-      `${API_BASE_URL}/reports/${encodeURIComponent(r.id)}/close`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      Alert.alert(
-        t("cases.error"),
-        userErrorMessage({ ...data, status: res.status }, t, "cases.could.not.close.case", "cases.close"),
-      );
-      return;
-    }
-
-    load();
-  };
-
+  const confirmReactivateLost = (r: Report) =>
+    setConfirmDialog({ kind: "reactivateLost", report: r });
   const confirmClose = (r: Report) =>
     setConfirmDialog({ kind: "close", report: r });
-
   const confirmDelete = (r: Report) =>
     setConfirmDialog({ kind: "delete", report: r });
 
-  const dialogTitle =
-    confirmDialog?.kind === "extend"
-      ? t("cases.reactivate.found.report")
-      : confirmDialog?.kind === "reactivateLost"
-        ? isReportExpired(confirmDialog.report)
-          ? t("cases.reactivate.lost.report")
-          : t("caseDetail.confirm.extendTitle")
-        : confirmDialog?.kind === "close"
-          ? t("cases.close.case")
-          : t("cases.delete.case");
-  const dialogBody =
-    confirmDialog?.kind === "extend"
-      ? t(
-          "cases.keep.the.report.active.for.up.to.30.more.days.found.reports.can.remain",
-        )
-      : confirmDialog?.kind === "reactivateLost"
-        ? t("caseDetail.extendLostBody", { count: Number(confirmDialog.report.paid_extensions || 0) + 1 })
-        : confirmDialog?.kind === "close"
-          ? t(
-              "cases.the.case.stays.in.my.cases.but.it.will.no.longer.be.used.for.new.match",
-            )
-          : t(
-              "cases.the.case.is.removed.from.your.account.immediately.for.security.and.fra",
-            );
-  const activeReports = reports.filter(
-    (r) =>
-      String(r.status || "ACTIVE").toUpperCase() === "ACTIVE" &&
-      !r.closed_at &&
-      !r.archived_at &&
-      (!r.visible_until || Date.parse(r.visible_until) > Date.now()),
-  );
-  const activeIds = new Set(activeReports.map((r) => r.id));
-  const historyReports = reports.filter((r) => !activeIds.has(r.id));
-  const visibleReports = section === "active" ? activeReports : historyReports;
+  // Same server calls as before (DELETE /reports/:id, POST /close, POST /extend-found and the
+  // REPORT_REACTIVATION order). A failure stays in the sheet so the user can try again or cancel.
+  const reactivateLostReport = async (r: Report) => {
+    await extendLostRequest(r.id);
+    await load();
+    setSection("active");
+    setReactivationSuccessOpen(true);
+  };
 
   const runDialogAction = async () => {
     const current = confirmDialog;
     if (!current) return;
-    setConfirmDialog(null);
-    if (current.kind === "extend") await extendFoundReport(current.report);
-    else if (current.kind === "reactivateLost")
-      await reactivateLostReport(current.report);
-    else if (current.kind === "close") await closeReport(current.report);
-    else await deleteReport(current.report.id);
+    setDialogBusy(true);
+    setDialogError(null);
+    try {
+      if (current.kind === "extend") {
+        await extendFoundRequest(current.report.id);
+        setConfirmDialog(null);
+        await load();
+      } else if (current.kind === "reactivateLost") {
+        await reactivateLostReport(current.report);
+        setConfirmDialog(null);
+      } else if (current.kind === "close") {
+        await closeReportRequest(current.report.id);
+        setConfirmDialog(null);
+        await load();
+      } else {
+        await deleteReportRequest(current.report.id);
+        setConfirmDialog(null);
+        removeLocally(current.report.id);
+        await load();
+      }
+    } catch (error: any) {
+      const friendly = current.kind === "extend" ? lifecycleErrorCopy(error?.code, t) : null;
+      const fallback =
+        current.kind === "delete"
+          ? "cases.delete.failed.body"
+          : current.kind === "close"
+            ? "cases.could.not.close.case"
+            : "cases.please.try.again.later";
+      const area =
+        current.kind === "delete"
+          ? "cases.delete"
+          : current.kind === "close"
+            ? "cases.close"
+            : current.kind === "extend"
+              ? "cases.extend"
+              : "cases.reactivate";
+      const title =
+        current.kind === "delete"
+          ? t("cases.delete.failed")
+          : current.kind === "extend"
+            ? t("cases.could.not.extend")
+            : current.kind === "reactivateLost"
+              ? t("cases.reactivation.failed")
+              : t("caseDetail.actionFailed");
+      setDialogError({
+        title: friendly?.title || title,
+        body: friendly?.body || userErrorMessage(error, t, fallback, area),
+      });
+    } finally {
+      setDialogBusy(false);
+    }
   };
+
+  const activeReports = reports.filter(isActiveReport);
+  const activeIds = new Set(activeReports.map((r) => r.id));
+  const historyReports = reports.filter((r) => !activeIds.has(r.id));
+  const visibleReports = section === "active" ? activeReports : historyReports;
+  const unreadCount = reports.filter((r) => unreadByReport[r.id]).length;
+
+  const subtitle =
+    loading && !hasLoadedRef.current
+      ? undefined
+      : [
+          t("cases.subtitle.active", { count: activeReports.length }),
+          unreadCount > 0 ? t("cases.subtitle.unread", { count: unreadCount }) : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+  const priceText =
+    reactivationPrice == null
+      ? null
+      : reactivationPrice === 0 ? t("areaAlertCreate.pilotFree") : formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language);
+
+  // ---- Confirm sheet copy ----
+  const dialogReport = confirmDialog?.report ?? null;
+  const dialogExpired = dialogReport ? isReportExpired(dialogReport) : false;
+  const dialogLost = dialogReport?.type === "LOST";
+  const dialogCopy: { title: string; body: string; label: string; destructive?: boolean } | null = !confirmDialog
+    ? null
+    : confirmDialog.kind === "extend"
+      ? {
+          title: dialogExpired ? t("cases.reactivate.found.report") : t("caseDetail.confirm.extendTitle"),
+          body: t("cases.keep.the.report.active.for.up.to.30.more.days.found.reports.can.remain"),
+          label: dialogExpired ? t("cases.reactivate.2") : t("cases.extend"),
+        }
+      : confirmDialog.kind === "reactivateLost"
+        ? {
+            title: dialogExpired ? t("cases.reactivate.lost.report") : t("caseDetail.confirm.extendTitle"),
+            body: t("caseDetail.extendLostBody", { count: Number(confirmDialog.report.paid_extensions || 0) + 1 }),
+            label: dialogExpired ? t("cases.reactivate.30.days") : t("caseDetail.next.extendLost"),
+          }
+        : confirmDialog.kind === "close"
+          ? {
+              title: dialogLost ? t("caseDetail.confirm.closeLostTitle") : t("cases.close.case"),
+              body: t("cases.the.case.stays.in.my.cases.but.it.will.no.longer.be.used.for.new.match"),
+              label: t("cases.close.case.2"),
+            }
+          : {
+              title: t("cases.delete.case"),
+              body: t("cases.the.case.is.removed.from.your.account.immediately.for.security.and.fra"),
+              label: t("cases.delete"),
+              destructive: true,
+            };
+
+  // ---- Menu (same actions and conditions as before) ----
+  // Close the sheet first; iOS cannot open the next sheet while one is still closing.
+  const run = (action: () => void) => {
+    setMenuReport(null);
+    setTimeout(action, 350);
+  };
+  const menuItems: MenuItem[] = [];
+  const menuStatus = menuReport ? reportStatus(menuReport, language, t) : null;
+  if (menuReport && menuStatus) {
+    const r = menuReport;
+    const isClosed = r.status === "CLOSED" || !!r.closed_at;
+    const isExpired = menuStatus.expired;
+    menuItems.push({ key: "view", icon: "eye-outline", label: t("cases.menu.view"), onPress: () => run(() => openReport(r)) });
+    if (!isClosed)
+      menuItems.push({ key: "edit", icon: "create-outline", label: isExpired ? t("cases.edit.details") : t("cases.edit"), onPress: () => run(() => editReport(r)) });
+    if (canExtendFound(r))
+      menuItems.push({
+        key: "extend",
+        icon: "refresh-outline",
+        label: isExpired ? t("cases.reactivate") : t("cases.extend"),
+        hint: `${t("cases.extended.count", { count: Number(r.extension_count || 0) })} · ${t("cases.menu.free")}`,
+        onPress: () => run(() => confirmExtendFound(r)),
+      });
+    // T1.9I: a lost case is extended twice; after that it can become a historic case.
+    const lostFacts = { paidExtensions: r.paid_extensions, longTermUntil: r.long_term_until };
+    if (canExtendLost(r, lostFacts))
+      menuItems.push({
+        key: "reactivate",
+        icon: "refresh-outline",
+        label: isExpired ? t("cases.reactivate.30.days") : t("caseDetail.next.extendLost"),
+        hint: [t("caseDetail.extensionNumber", { count: Number(r.paid_extensions || 0) + 1 }), priceText].filter(Boolean).join(" · "),
+        onPress: () => run(() => confirmReactivateLost(r)),
+      });
+    else if (r.type === "LOST" && canBuyLongTerm(r) && (r.long_term_until || isInLostExtensionWindow(r)))
+      menuItems.push({
+        key: "longTerm",
+        icon: "hourglass-outline",
+        label: r.long_term_until ? t("caseDetail.menu.renewLongTerm") : t("caseDetail.menu.makeHistoric"),
+        hint: r.long_term_until
+          ? t("caseDetail.historicUntil", { date: formatDate(r.long_term_until, language) })
+          : t("caseDetail.menu.makeHistoricHint"),
+        onPress: () => run(() => setLongTermReportId(r.id)),
+      });
+    if (!isClosed && !(r.type === "LOST" && isExpired))
+      menuItems.push({
+        key: "close",
+        icon: "checkmark-circle-outline",
+        label: r.type === "LOST" ? t("caseDetail.menu.closeLost") : t("caseDetail.menu.closeFound"),
+        hint: t("cases.menu.closeHint"),
+        onPress: () => run(() => confirmClose(r)),
+      });
+    menuItems.push({
+      key: "delete",
+      icon: "trash-outline",
+      label: t("caseDetail.menu.delete"),
+      hint: t("cases.menu.deleteHint"),
+      danger: true,
+      onPress: () => run(() => confirmDelete(r)),
+    });
+  }
+
+  const goBack = () => {
+    // Return to where the user came from (e.g. Profile); home only when opened directly.
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)");
+  };
+
+  const infoButton = (
+    <InfoButton title={t("cases.info.title")} label={t("cases.info.label")}>
+      <View style={styles.infoBlock}>
+        <Text style={styles.infoHeading}>{t("cases.info.sectionsTitle")}</Text>
+        <Text style={styles.infoText}>{t("cases.info.sectionsBody")}</Text>
+      </View>
+      <View style={styles.infoBlock}>
+        <Text style={styles.infoHeading}>{t("cases.info.durationTitle")}</Text>
+        <Text style={styles.infoText}>
+          {t("cases.info.durationLost", { window: LOST_EXTENSION_WINDOW_DAYS, max: LOST_MAX_EXTENSIONS })}
+        </Text>
+        <Text style={styles.infoText}>
+          {t("cases.info.durationFound", { window: FOUND_EXTENSION_WINDOW_DAYS, max: FOUND_MAX_EXTENSIONS })}
+        </Text>
+      </View>
+      <View style={styles.infoBlock}>
+        <Text style={styles.infoHeading}>{t("cases.info.matchTitle")}</Text>
+        <Text style={styles.infoText}>{t("cases.info.matchBody")}</Text>
+      </View>
+    </InfoButton>
+  );
+
+  const tab = (key: "active" | "history", label: string) => {
+    const selected = section === key;
+    return (
+      <Pressable
+        key={key}
+        accessibilityRole="tab"
+        accessibilityState={{ selected }}
+        style={[styles.segment, selected && styles.segmentActive]}
+        onPress={() => setSection(key)}
+      >
+        <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>{label}</Text>
+      </Pressable>
+    );
+  };
+
+  const renderCard = (r: Report) => {
+    const act = activityByReport[r.id] ?? null;
+    const actFromMe = act?.sender_id === user?.id;
+    const unread = !!unreadByReport[r.id];
+    const status = reportStatus(r, language, t);
+    const latestChatId = act?.match_id;
+    const count = matchCountByReport[r.id] ?? 0;
+    const lost = r.type === "LOST";
+    const thumb = thumbnailOf(r);
+    const title = caseTitle(r, language);
+    const attributes = caseAttributes(r, language);
+    const meta = [shortPlace(r.location_label), formatCaseDate(r.created_at, language)].filter(Boolean).join(" · ");
+    const hasActions = count > 0 || !!latestChatId;
+    return (
+      <Pressable
+        key={r.id}
+        onPress={() => openReport(r)}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, ${status.label}, ${t("cases.view.report")}`}
+        style={({ pressed }) => [
+          styles.card,
+          params.reportId === r.id && styles.cardFocused,
+          pressed && styles.cardPressed,
+        ]}
+      >
+        <View style={styles.cardHead}>
+          {thumb ? (
+            <Image source={{ uri: thumb }} style={styles.thumb} accessibilityIgnoresInvertColors />
+          ) : (
+            <View style={styles.thumb}>
+              <Ionicons
+                name={lost ? "search-outline" : "checkmark-circle-outline"}
+                size={26}
+                color={theme.colors.textSecondary}
+              />
+            </View>
+          )}
+          <View style={styles.cardHeadText}>
+            <View style={styles.badges}>
+              <Text style={[styles.badge, lost ? styles.badgeLost : styles.badgeFound]}>
+                {lost ? t("caseDetail.lost") : t("caseDetail.found")}
+              </Text>
+              <Text
+                style={[
+                  styles.badge,
+                  status.tone === "historic" ? styles.badgeHistoric : status.tone === "muted" ? styles.badgeMuted : styles.badgeActive,
+                ]}
+              >
+                {status.label}
+              </Text>
+            </View>
+            <Text style={styles.title} numberOfLines={2}>
+              {title}
+            </Text>
+            {!!attributes && (
+              <Text style={styles.meta} numberOfLines={1}>
+                {attributes}
+              </Text>
+            )}
+            {!!meta && (
+              <Text style={styles.meta} numberOfLines={1}>
+                {meta}
+              </Text>
+            )}
+            {!hasActions && (
+              <Text style={styles.meta} numberOfLines={1}>
+                {status.tone === "muted" ? t("cases.no.matches.yet") : t("cases.noMatchesSearching")}
+              </Text>
+            )}
+          </View>
+          <View style={styles.moreWrap}>
+            <IconButton
+              icon="ellipsis-horizontal"
+              label={t("cases.more.options")}
+              onPress={() => setMenuReport(r)}
+              bordered={false}
+              color={theme.colors.text}
+            />
+          </View>
+        </View>
+
+        {act && (
+          <View style={styles.lastMessage}>
+            <Ionicons name="chatbubble-outline" size={16} color={unread ? theme.colors.unread : theme.colors.textSecondary} />
+            <Text style={[styles.lastMessageText, unread && styles.unreadText]} numberOfLines={1}>
+              {unread ? `${t("cases.new.message")} · ` : ""}
+              {actFromMe ? t("cases.you") : t("cases.other.party")}: {shortMessage(act.body)} · {formatClock(act.at, language)}
+            </Text>
+          </View>
+        )}
+
+        {hasActions && (
+          <View style={styles.actions}>
+            {count > 0 && (
+              <Pressable
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.actionBtn, styles.actionPrimary, pressed && styles.pressed]}
+                onPress={() => router.push({ pathname: "/match", params: { reportId: r.id } })}
+              >
+                <Text style={styles.actionPrimaryText}>{t("caseDetail.next.matchesTitle", { count })}</Text>
+              </Pressable>
+            )}
+            {latestChatId && (
+              <Pressable
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.actionBtn, styles.actionOutline, pressed && styles.pressed]}
+                onPress={() => router.push(`/chat/${latestChatId}`)}
+              >
+                <Text style={[styles.actionOutlineText, unread && styles.unreadText]}>
+                  {unread ? t("cases.chatNew") : t("cases.open.chat")}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+      </Pressable>
+    );
+  };
+
+  const empty =
+    section === "active" ? (
+      <EmptyState
+        icon="folder-open-outline"
+        title={t("cases.empty.activeTitle")}
+        body={t("cases.empty.activeBody")}
+        action={
+          <View style={styles.emptyActions}>
+            <Button label={t("dashboard.lostCta")} onPress={() => router.push(registerRoute(newRegistration, "LOST"))} style={styles.flex} />
+            <Button
+              label={t("dashboard.foundCta")}
+              variant="neutral"
+              onPress={() => router.push(registerRoute(newRegistration, "FOUND"))}
+              style={styles.flex}
+            />
+          </View>
+        }
+      />
+    ) : (
+      <EmptyState icon="time-outline" title={t("cases.empty.historyTitle")} body={t("cases.empty.historyBody")} />
+    );
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.safe}>
-        <PremiumHeader
-          title={t("cases.my.cases")}
-          subtitle={
-            section === "active"
-              ? t("cases.active.cases")
-              : t("cases.case.history")
-          }
-          onBack={() => {
-            // Return to where the user came from (e.g. Profile); home only when opened directly.
-            if (router.canGoBack()) router.back();
-            else router.replace("/(tabs)");
-          }}
-          right={<AuthHeaderAction />}
-        />
+        <ScreenHeader title={t("cases.my.cases")} subtitle={subtitle} onBack={goBack} right={infoButton}>
+          <View style={styles.segments} accessibilityRole="tablist">
+            {tab("active", t("cases.tab.active", { count: activeReports.length }))}
+            {tab("history", t("cases.tab.history", { count: historyReports.length }))}
+          </View>
+        </ScreenHeader>
 
-        <View style={styles.sectionTabs}>
-          <Pressable
-            style={[
-              styles.sectionTab,
-              section === "active" && styles.sectionTabActive,
-            ]}
-            onPress={() => setSection("active")}
-          >
-            <Text
-              style={[
-                styles.sectionTabText,
-                section === "active" && styles.sectionTabTextActive,
-              ]}
-            >
-              {t("cases.active.count", { count: activeReports.length })}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.sectionTab,
-              section === "history" && styles.sectionTabActive,
-            ]}
-            onPress={() => setSection("history")}
-          >
-            <Text
-              style={[
-                styles.sectionTabText,
-                section === "history" && styles.sectionTabTextActive,
-              ]}
-            >
-              {t("cases.history.count", { count: historyReports.length })}
-            </Text>
-          </Pressable>
-        </View>
-        {loading ? (
+        {loading && !hasLoadedRef.current ? (
           <View style={styles.center}>
             <ActivityIndicator />
             <Text style={styles.muted}>{t("cases.loading.cases")}</Text>
           </View>
-        ) : visibleReports.length === 0 ? (
-          <View style={styles.center}>
-            <Text style={styles.muted}>
-              {section === "active"
-                ? t("cases.no.active.cases.right.now")
-                : t("cases.no.case.history.yet")}
-            </Text>
-          </View>
         ) : (
-          <ScrollView contentContainerStyle={styles.list}>
-            {visibleReports.map((r) => {
-              const act = activityByReport[r.id] ?? null;
-              const actFromMe = act?.sender_id === user?.id;
-              const statusInfo = reportStatusInfo(r, language, t);
-              const isClosed = r.status === "CLOSED" || !!r.closed_at;
-              const isExpired =
-                r.status === "EXPIRED" ||
-                (!!r.visible_until &&
-                  Date.parse(r.visible_until) <= Date.now());
-              const latestChatId = act?.match_id;
-              const count = matchCountByReport[r.id] ?? 0;
-              return (
-                <Pressable
-                  key={r.id}
-                  onPress={() => openReport(r)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${caseTitle(r, language)}, ${t("cases.view.report")}`}
-                  style={({ pressed }) => [
-                    styles.card,
-                    params.reportId === r.id && styles.cardFocused,
-                    pressed && styles.cardPressed,
-                  ]}
-                >
-                  <View style={styles.cardHead}>
-                    <View style={[styles.typeTile, r.type === "FOUND" ? styles.typeTileFound : styles.typeTileLost]}>
-                      <Ionicons
-                        name={r.type === "FOUND" ? "checkmark-circle-outline" : "search-outline"}
-                        size={24}
-                        color={r.type === "FOUND" ? "#15803D" : "#B45309"}
-                      />
-                    </View>
-                    <View style={styles.cardHeadText}>
-                      <View style={styles.cardTopRow}>
-                        <Text style={[styles.kindBadge, r.type === "FOUND" && styles.kindBadgeFound]}>
-                          {r.type === "LOST" ? t("cases.lost.2") : t("cases.found.2")}
-                        </Text>
-                        <Text style={[styles.statusText, isExpired && styles.statusExpired, isClosed && styles.statusClosed]}>
-                          {statusInfo.label}
-                        </Text>
-                      </View>
-                      <Text style={styles.title} numberOfLines={2}>
-                        {caseTitle(r, language)}
-                      </Text>
-                      {!!caseAttributes(r, language) && (
-                        <Text style={styles.attributes}>{caseAttributes(r, language)}</Text>
-                      )}
-                    </View>
-                  </View>
-
-                  <View style={styles.details}>
-                    {!!shortPlace(r.location_label) && (
-                      <View style={styles.detailRow}>
-                        <Ionicons name="location-outline" size={16} color="#64748B" />
-                        <Text style={styles.detailText} numberOfLines={1}>{shortPlace(r.location_label)}</Text>
-                      </View>
-                    )}
-                    <View style={styles.detailRow}>
-                      <Ionicons name="calendar-outline" size={16} color="#64748B" />
-                      <Text style={styles.detailText}>
-                        {t("cases.reported.on", { date: formatCaseDate(r.created_at, language) })}
-                      </Text>
-                    </View>
-                    {act && (
-                      <View style={styles.detailRow}>
-                        <Ionicons name="chatbubble-outline" size={16} color={unreadByReport[r.id] ? "#1D4ED8" : "#64748B"} />
-                        <Text style={[styles.detailText, unreadByReport[r.id] && styles.unreadText]} numberOfLines={1}>
-                          {unreadByReport[r.id] ? `${t("cases.new.message")} · ` : ""}
-                          {actFromMe ? t("cases.you") : t("cases.other.party")}: {shortMessage(act.body)} · {formatTime(act.at, language)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.primaryActions}>
-                    {count > 0 ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        style={styles.primaryBtn}
-                        onPress={() => router.push({ pathname: "/match", params: { reportId: r.id } })}
-                      >
-                        <Text style={styles.primaryBtnText}>{t("cases.view.matches.count", { count })}</Text>
-                      </Pressable>
-                    ) : (
-                      <View style={styles.noMatches}>
-                        <Text style={styles.noMatchesText}>{t("cases.no.matches.yet")}</Text>
-                      </View>
-                    )}
-                    {latestChatId && (
-                      <Pressable
-                        accessibilityRole="button"
-                        style={styles.outlineBtn}
-                        onPress={() => router.push(`/chat/${latestChatId}`)}
-                      >
-                        <Text style={styles.outlineBtnText}>{t("cases.open.chat")}</Text>
-                      </Pressable>
-                    )}
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t("cases.more.options")}
-                      style={styles.moreBtn}
-                      hitSlop={6}
-                      onPress={() => setMenuReport(r)}
-                    >
-                      <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.text} />
-                    </Pressable>
-                  </View>
-                </Pressable>
-              );
-            })}
-            <Pressable style={styles.reloadBtn} onPress={load}>
-              <Text style={styles.reloadTxt}>{t("cases.refresh")}</Text>
-            </Pressable>
+          <ScrollView
+            contentContainerStyle={styles.list}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load("refresh")} />}
+          >
+            {reactivationSuccessOpen && (
+              <InlineNotice
+                tone="success"
+                icon="checkmark-circle-outline"
+                title={t("cases.reactivation.success.title")}
+                body={t("cases.reactivation.success.body")}
+                actionLabel={t("cases.reactivation.success.close")}
+                onAction={() => setReactivationSuccessOpen(false)}
+                style={styles.notice}
+              />
+            )}
+            {loadError && (
+              <InlineNotice
+                tone="warning"
+                title={t("cases.loadFailed.title")}
+                body={t("cases.loadFailed.body")}
+                actionLabel={t("errors.retry")}
+                onAction={() => void load("refresh")}
+                busy={refreshing}
+                style={styles.notice}
+              />
+            )}
+            {visibleReports.length > 0
+              ? visibleReports.map(renderCard)
+              : !loadError && empty}
+            {visibleReports.length > 0 && <Text style={styles.footnote}>{t("cases.pullToRefresh")}</Text>}
           </ScrollView>
         )}
       </View>
-      <Modal
-        transparent
-        visible={!!menuReport}
-        animationType="slide"
-        onRequestClose={() => setMenuReport(null)}
-      >
-        <Pressable style={sheetStyles.backdrop} onPress={() => setMenuReport(null)} accessibilityLabel={t("cases.menu.cancel")}>
-          {menuReport && (() => {
-            const r = menuReport;
-            const isClosed = r.status === "CLOSED" || !!r.closed_at;
-            const isExpired = r.status === "EXPIRED" || (!!r.visible_until && Date.parse(r.visible_until) <= Date.now());
-            // Close the sheet first; iOS cannot show the confirmation dialog while it is closing.
-            const run = (action: () => void) => {
-              setMenuReport(null);
-              setTimeout(action, 350);
-            };
-            const items: { key: string; icon: React.ComponentProps<typeof Ionicons>["name"]; label: string; onPress: () => void; danger?: boolean }[] = [
-              { key: "view", icon: "eye-outline", label: t("cases.view.report"), onPress: () => run(() => openReport(r)) },
-            ];
-            if (!isClosed) items.push({ key: "edit", icon: "create-outline", label: isExpired ? t("cases.edit.details") : t("cases.edit"), onPress: () => run(() => editReport(r)) });
-            if (canExtendFound(r)) items.push({ key: "extend", icon: "refresh-outline", label: isExpired ? t("cases.reactivate") : t("cases.extend"), onPress: () => run(() => confirmExtendFound(r)) });
-            // T1.9I: a lost case is extended twice; after that it can become a historic case.
-            const lostFacts = { paidExtensions: r.paid_extensions, longTermUntil: r.long_term_until };
-            if (canExtendLost(r, lostFacts))
-              items.push({
-                key: "reactivate",
-                icon: "refresh-outline",
-                label: isExpired ? t("cases.reactivate.30.days") : t("caseDetail.next.extendLost"),
-                onPress: () => run(() => setConfirmDialog({ kind: "reactivateLost", report: r })),
-              });
-            else if (r.type === "LOST" && canBuyLongTerm(r) && (r.long_term_until || isInLostExtensionWindow(r)))
-              items.push({
-                key: "longTerm",
-                icon: "hourglass-outline",
-                label: r.long_term_until ? t("caseDetail.menu.renewLongTerm") : t("caseDetail.menu.makeHistoric"),
-                onPress: () => run(() => setLongTermReportId(r.id)),
-              });
-            if (!isClosed && !(r.type === "LOST" && isExpired)) items.push({ key: "close", icon: "checkmark-circle-outline", label: t("cases.close"), onPress: () => run(() => confirmClose(r)) });
-            items.push({ key: "delete", icon: "trash-outline", label: t("cases.delete"), danger: true, onPress: () => run(() => confirmDelete(r)) });
-            return (
-              <Pressable style={sheetStyles.sheet} onPress={() => {}} accessibilityViewIsModal>
-                <View style={sheetStyles.handle} />
-                <Text style={sheetStyles.title} numberOfLines={2}>{caseTitle(r, language)}</Text>
-                <Text style={sheetStyles.subtitle}>
-                  {r.type === "LOST" ? t("cases.lost") : t("cases.found")}
-                  {r.type === "FOUND" ? ` · ${t("cases.extended.count", { count: Number(r.extension_count || 0) })}` : ""}
-                </Text>
-                {items.map((item) => (
-                  <React.Fragment key={item.key}>
-                    {item.danger && <View style={sheetStyles.divider} />}
-                    <Pressable
-                      accessibilityRole="button"
-                      style={({ pressed }) => [sheetStyles.item, pressed && sheetStyles.itemPressed]}
-                      onPress={item.onPress}
-                    >
-                      <Ionicons name={item.icon} size={21} color={item.danger ? "#B91C1C" : theme.colors.text} />
-                      <Text style={[sheetStyles.itemText, item.danger && sheetStyles.itemDanger]}>{item.label}</Text>
-                    </Pressable>
-                  </React.Fragment>
-                ))}
-                <Pressable accessibilityRole="button" style={sheetStyles.cancel} onPress={() => setMenuReport(null)}>
-                  <Text style={sheetStyles.cancelText}>{t("cases.menu.cancel")}</Text>
-                </Pressable>
-              </Pressable>
-            );
-          })()}
-        </Pressable>
-      </Modal>
-      <Modal
-        transparent
-        visible={!!confirmDialog}
-        animationType="fade"
-        onRequestClose={() => setConfirmDialog(null)}
-      >
-        <View style={dialogStyles.backdrop}>
-          <View style={dialogStyles.card}>
-            <View style={dialogStyles.iconCircle}>
-              <Text style={dialogStyles.iconText}>
-                {confirmDialog?.kind === "delete"
-                  ? "!"
-                  : confirmDialog?.kind === "close"
-                    ? "✓"
-                    : "+"}
-              </Text>
-            </View>
-            <Text style={dialogStyles.title}>{dialogTitle}</Text>
-            <Text style={dialogStyles.body}>{dialogBody}</Text>
-            {confirmDialog?.kind === "reactivateLost" && (
-              <View style={dialogStyles.paymentSummary}>
-                <View style={dialogStyles.paymentRow}>
-                  <Text style={dialogStyles.paymentLabel}>
-                    {t("cases.reactivation.product")}
-                  </Text>
-                  <Text style={dialogStyles.paymentValue}>
-                    {t("cases.reactivation.30.days")}
-                  </Text>
-                </View>
-                <View style={dialogStyles.paymentRow}>
-                  <Text style={dialogStyles.paymentLabel}>
-                    {t("cases.test.price")}
-                  </Text>
-                  <Text style={dialogStyles.paymentPrice}>{reactivationPrice == null ? "…" : reactivationPrice === 0 ? t("areaAlertCreate.pilotFree") : formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language)}</Text>
-                </View>
-                <Text style={dialogStyles.testModeText}>
-                  {t("cases.test.payment.notice")}
-                </Text>
-                <WithdrawalConsent checked={consent} onChange={setConsent} />
-              </View>
-            )}
-            <View
-              style={[
-                dialogStyles.actions,
-                confirmDialog?.kind === "reactivateLost" &&
-                  dialogStyles.paymentActions,
-              ]}
+
+      <BottomSheet visible={!!menuReport} onClose={() => setMenuReport(null)} accessibilityLabel={t("cases.menu.cancel")}>
+        {menuReport && menuStatus && (
+          <View style={styles.sheetHead}>
+            <Text style={styles.sheetTitle} numberOfLines={2}>
+              {caseTitle(menuReport, language)}
+            </Text>
+            <Text style={styles.sheetSubtitle}>
+              {menuReport.type === "LOST" ? t("cases.lost") : t("cases.found")} · {menuStatus.label}
+            </Text>
+          </View>
+        )}
+        <View>
+          {menuItems.map((item) => (
+            <Pressable
+              key={item.key}
+              accessibilityRole="button"
+              accessibilityHint={item.hint}
+              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+              onPress={item.onPress}
             >
-              <Pressable
-                style={[
-                  dialogStyles.cancelBtn,
-                  confirmDialog?.kind === "reactivateLost" &&
-                    dialogStyles.paymentActionButton,
-                ]}
-                onPress={() => setConfirmDialog(null)}
-              >
-                <Text style={dialogStyles.cancelText}>{t("cases.cancel")}</Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  dialogStyles.confirmBtn,
-                  confirmDialog?.kind === "reactivateLost" &&
-                    dialogStyles.paymentActionButton,
-                  confirmDialog?.kind === "delete" &&
-                    dialogStyles.deleteConfirmBtn,
-                  confirmDialog?.kind === "reactivateLost" && !consent && dialogStyles.confirmOff,
-                ]}
-                disabled={confirmDialog?.kind === "reactivateLost" && !consent}
-                accessibilityState={{ disabled: confirmDialog?.kind === "reactivateLost" && !consent }}
-                onPress={() => void runDialogAction()}
-              >
-                <Text style={dialogStyles.confirmText}>
-                  {confirmDialog?.kind === "extend" ||
-                  confirmDialog?.kind === "reactivateLost"
-                    ? confirmDialog?.kind === "reactivateLost"
-                      ? t("cases.complete.test.payment")
-                      : t("cases.reactivate.2")
-                    : confirmDialog?.kind === "close"
-                      ? t("cases.close.case.2")
-                      : t("cases.delete")}
-                </Text>
-              </Pressable>
+              <Ionicons name={item.icon} size={22} color={item.danger ? theme.colors.dangerStrong : theme.colors.text} />
+              <View style={styles.menuText}>
+                <Text style={[styles.menuLabel, item.danger && styles.menuDanger]}>{item.label}</Text>
+                {!!item.hint && <Text style={styles.menuHint}>{item.hint}</Text>}
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </BottomSheet>
+
+      <ConfirmSheet
+        visible={!!confirmDialog}
+        title={dialogCopy?.title ?? ""}
+        body={dialogCopy?.body}
+        confirmLabel={dialogCopy?.label ?? ""}
+        cancelLabel={t("cases.cancel")}
+        destructive={dialogCopy?.destructive}
+        busy={dialogBusy}
+        confirmDisabled={confirmDialog?.kind === "reactivateLost" && !consent}
+        onCancel={() => {
+          if (!dialogBusy) setConfirmDialog(null);
+        }}
+        onConfirm={() => void runDialogAction()}
+      >
+        {confirmDialog?.kind === "reactivateLost" && (
+          <View style={styles.paymentSummary}>
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>{t("cases.reactivation.product")}</Text>
+              <Text style={styles.paymentValue}>{t("cases.reactivation.30.days")}</Text>
+            </View>
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>{t("areaAlertCreate.priceLabel")}</Text>
+              <Text style={styles.paymentPrice}>{priceText ?? "…"}</Text>
             </View>
           </View>
-        </View>
-      </Modal>
+        )}
+        {!!dialogError && (
+          <InlineNotice tone="error" title={dialogError.title} body={dialogError.body} style={styles.sheetNotice} />
+        )}
+        {confirmDialog?.kind === "reactivateLost" && <WithdrawalConsent checked={consent} onChange={setConsent} />}
+      </ConfirmSheet>
+
       <LongTermSheet
         visible={!!longTermReportId}
         reportId={longTermReportId || ""}
@@ -891,450 +934,118 @@ function MyReportsScreen() {
           void load();
         }}
       />
-      <Modal
-        transparent
-        visible={reactivationSuccessOpen}
-        animationType="fade"
-        onRequestClose={() => setReactivationSuccessOpen(false)}
-      >
-        <View style={successStyles.backdrop}>
-          <View style={successStyles.card}>
-            <View style={successStyles.iconCircle}>
-              <Text style={successStyles.iconText}>✓</Text>
-            </View>
-            <Text style={successStyles.title}>
-              {t("cases.reactivation.success.title")}
-            </Text>
-            <Text style={successStyles.body}>
-              {t("cases.reactivation.success.body")}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              style={successStyles.closeButton}
-              onPress={() => setReactivationSuccessOpen(false)}
-            >
-              <Text style={successStyles.closeButtonText}>
-                {t("cases.reactivation.success.close")}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
-  sectionTabs: {
+  flex: { flex: 1 },
+  pressed: { opacity: 0.85 },
+  segments: {
     flexDirection: "row",
     gap: 4,
-    marginHorizontal: 14,
-    marginTop: 10,
-    marginBottom: 6,
     padding: 4,
     borderRadius: 14,
-    backgroundColor: theme.colors.chipBg,
+    backgroundColor: "#E9EEF5",
   },
-  sectionTab: {
+  segment: {
     flex: 1,
-    minHeight: 40,
-    borderRadius: 11,
+    minHeight: 44,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  sectionTabActive: {
-    backgroundColor: theme.colors.card,
-    ...theme.shadow.card,
-  },
-  sectionTabText: {
-    color: "#475569",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  sectionTabTextActive: { color: theme.colors.text, fontWeight: "800" },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  muted: { color: theme.colors.muted, fontWeight: "600", textAlign: "center" },
-  list: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 30 },
+  segmentActive: { backgroundColor: theme.colors.card, ...theme.shadow.card },
+  segmentText: { color: theme.colors.textSecondary, fontWeight: "800", fontSize: 14 },
+  segmentTextActive: { color: theme.colors.text, fontWeight: "900" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 10 },
+  muted: { color: theme.colors.textSecondary, fontWeight: "600", textAlign: "center" },
+  list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 12 },
+  notice: { marginTop: 0 },
   card: {
-    padding: 16,
-    borderRadius: 20,
+    padding: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.card,
-    marginBottom: 14,
+    gap: 10,
   },
   cardFocused: { borderColor: theme.colors.primary, borderWidth: 2 },
   cardPressed: { backgroundColor: "#F8FAFC" },
   cardHead: { flexDirection: "row", gap: 12 },
   cardHeadText: { flex: 1, minWidth: 0, gap: 4 },
-  typeTile: { width: 52, height: 52, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  typeTileFound: { backgroundColor: "#ECFDF3" },
-  typeTileLost: { backgroundColor: "#FEF3C7" },
-  cardTopRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 6,
-  },
-  statusText: { color: "#475569", fontSize: 12, fontWeight: "700" },
-  attributes: { color: "#475569", fontSize: 14, fontWeight: "600" },
-  details: { marginTop: 12, gap: 6 },
-  detailRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  detailText: { flex: 1, color: "#475569", fontSize: 14, fontWeight: "600" },
-  unreadText: { color: "#1D4ED8", fontWeight: "800" },
-  outlineBtn: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 10,
-    backgroundColor: theme.colors.card,
-  },
-  outlineBtnText: { color: theme.colors.primary, fontWeight: "800", fontSize: 15 },
-  moreBtn: {
-    width: 44,
-    minHeight: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.card,
-  },
-  kindBadge: {
-    overflow: "hidden",
-    borderRadius: 999,
-    backgroundColor: "#FEF3C7",
-    color: "#92400E",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-  },
-  kindBadgeFound: { backgroundColor: "#DCFCE7", color: "#166534" },
-  statusBadge: {
-    overflow: "hidden",
-    borderRadius: 999,
-    backgroundColor: "#EEF2FF",
-    color: theme.colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  statusExpired: { color: "#B45309" },
-  statusClosed: { color: "#64748B" },
-  title: {
-    color: theme.colors.text,
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: "900",
-  },
-  meta: {
-    marginTop: 5,
-    color: theme.colors.muted,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  brandLine: {
-    marginTop: 5,
-    color: theme.colors.muted,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  extensionInfo: {
-    marginTop: 7,
-    color: theme.colors.muted,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  lastLine: {
-    marginTop: 9,
-    color: theme.colors.text,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
-  },
-  unread: {
-    marginTop: 6,
-    color: theme.colors.primary,
-    fontWeight: "900",
-    fontSize: 12,
-  },
-  primaryActions: { flexDirection: "row", gap: 8, marginTop: 14 },
-  primaryBtn: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 10,
-  },
-  primaryBtnText: { color: "#FFF", fontWeight: "800", fontSize: 15 },
-  secondaryPrimary: {
-    backgroundColor: "#EEF2FF",
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
-  },
-  secondaryPrimaryText: { color: theme.colors.primary },
-  noMatches: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  noMatchesText: { color: "#64748B", fontWeight: "700", fontSize: 14 },
-  secondaryActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 18,
-    marginTop: 13,
-    paddingTop: 11,
-    borderTopWidth: 1,
-    borderTopColor: "#EEF2F6",
-  },
-  viewLink: { color: theme.colors.primary, fontWeight: "900", fontSize: 13 },
-  secondaryLink: { color: "#475569", fontWeight: "800", fontSize: 13 },
-  extendLink: { color: "#15803D", fontWeight: "900", fontSize: 13 },
-  deleteLink: { color: "#B42318", fontWeight: "900", fontSize: 13 },
-  reloadBtn: {
-    marginTop: 4,
-    minHeight: 44,
+  thumb: {
+    width: 64,
+    height: 64,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.colors.card,
   },
-  reloadTxt: { fontWeight: "800", color: theme.colors.text },
-});
-const dialogStyles = StyleSheet.create({
-  backdrop: {
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, overflow: "hidden", fontWeight: "900", fontSize: 12 },
+  badgeLost: { backgroundColor: "#FFF1F2", color: "#BE123C" },
+  badgeFound: { backgroundColor: "#EFF6FF", color: "#1E3A8A" },
+  badgeActive: { backgroundColor: "#ECFDF5", color: "#15803D" },
+  badgeMuted: { backgroundColor: "#F1F5F9", color: theme.colors.textSecondary },
+  badgeHistoric: { backgroundColor: "#EDE9FE", color: "#4C1D95" },
+  title: { color: theme.colors.text, fontSize: 17, lineHeight: 22, fontWeight: "900" },
+  meta: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  moreWrap: { alignSelf: "flex-start", borderRadius: 999, backgroundColor: theme.colors.divider },
+  lastMessage: { flexDirection: "row", alignItems: "center", gap: 8 },
+  lastMessageText: { flex: 1, color: theme.colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  unreadText: { color: theme.colors.unread, fontWeight: "800" },
+  actions: { flexDirection: "row", gap: 8 },
+  actionBtn: {
     flex: 1,
-    backgroundColor: "rgba(15,23,42,0.5)",
+    minHeight: 44,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    paddingHorizontal: 10,
   },
-  card: {
-    width: "100%",
-    maxWidth: 410,
-    borderRadius: 22,
-    backgroundColor: "#FFF",
-    padding: 22,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
-  },
-  iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignSelf: "center",
+  actionPrimary: { backgroundColor: theme.colors.primary },
+  actionPrimaryText: { color: "#FFFFFF", fontWeight: "800", fontSize: 14 },
+  actionOutline: { borderWidth: 1, borderColor: "#CBD5E1", backgroundColor: theme.colors.card },
+  actionOutlineText: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
+  emptyActions: { flexDirection: "row", gap: 10, alignSelf: "stretch", marginTop: 8 },
+  footnote: { textAlign: "center", fontSize: 13, fontWeight: "600", color: theme.colors.textSecondary, marginTop: 4 },
+  infoBlock: { gap: 4 },
+  infoHeading: { fontSize: 15, fontWeight: "900", color: theme.colors.text },
+  infoText: { fontSize: 15, lineHeight: 22, fontWeight: "500", color: "#334155" },
+  sheetHead: { gap: 2 },
+  sheetTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  sheetSubtitle: { fontSize: 13, fontWeight: "600", color: theme.colors.textSecondary },
+  menuItem: {
+    minHeight: 52,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#EEF2FF",
+    gap: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
   },
-  iconText: { color: theme.colors.primary, fontSize: 25, fontWeight: "900" },
-  title: {
-    marginTop: 14,
-    textAlign: "center",
-    color: theme.colors.text,
-    fontSize: 19,
-    fontWeight: "900",
-  },
-  body: {
-    marginTop: 9,
-    textAlign: "center",
-    color: theme.colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: "600",
-  },
+  menuItemPressed: { backgroundColor: theme.colors.divider },
+  menuText: { flex: 1, gap: 2 },
+  menuLabel: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  menuHint: { fontSize: 13, fontWeight: "600", color: theme.colors.textSecondary },
+  menuDanger: { color: theme.colors.dangerStrong },
+  sheetNotice: { marginTop: 0 },
   paymentSummary: {
-    marginTop: 16,
     borderRadius: 14,
     padding: 14,
+    gap: 8,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
-  paymentRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  paymentLabel: { color: "#64748B", fontWeight: "800" },
-  paymentValue: {
-    color: "#0F172A",
-    fontWeight: "900",
-    flexShrink: 1,
-    textAlign: "right",
-    marginLeft: 12,
-  },
-  confirmOff: { opacity: 0.45 },
-  paymentPrice: { color: "#1D4ED8", fontWeight: "900", fontSize: 20 },
-  testModeText: {
-    marginTop: 5,
-    color: "#92400E",
-    fontWeight: "700",
-    lineHeight: 19,
-  },
-  actions: { flexDirection: "row", gap: 10, marginTop: 20 },
-  paymentActions: { flexDirection: "column-reverse", gap: 10 },
-  paymentActionButton: { width: "100%", flex: 0 },
-  cancelBtn: {
-    flex: 1,
-    minHeight: 46,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  cancelText: { color: theme.colors.text, fontWeight: "900" },
-  confirmBtn: {
-    flex: 1,
-    minHeight: 46,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.primary,
-  },
-  deleteConfirmBtn: { backgroundColor: "#B42318" },
-  confirmText: {
-    color: "#FFF",
-    fontWeight: "900",
-    textAlign: "center",
-    width: "100%",
-    paddingHorizontal: 8,
-  },
-});
-
-const successStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(15,23,42,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  card: {
-    width: "100%",
-    maxWidth: 410,
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 22,
-    borderWidth: 1,
-    borderColor: "#D1FAE5",
-    shadowColor: "#000000",
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
-  },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignSelf: "center",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#DCFCE7",
-    borderWidth: 1,
-    borderColor: "#86EFAC",
-  },
-  iconText: { color: "#15803D", fontSize: 32, fontWeight: "900" },
-  title: {
-    marginTop: 18,
-    textAlign: "center",
-    color: theme.colors.text,
-    fontSize: 21,
-    lineHeight: 27,
-    fontWeight: "900",
-  },
-  body: {
-    marginTop: 10,
-    textAlign: "center",
-    color: theme.colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: "600",
-  },
-  closeButton: {
-    width: "100%",
-    minHeight: 50,
-    marginTop: 22,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 16,
-  },
-  closeButtonText: {
-    width: "100%",
-    color: "#FFFFFF",
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "900",
-    textAlign: "center",
-  },
+  paymentRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
+  paymentLabel: { color: theme.colors.textSecondary, fontWeight: "800" },
+  paymentValue: { color: theme.colors.text, fontWeight: "900", flexShrink: 1, textAlign: "right" },
+  paymentPrice: { color: theme.colors.text, fontWeight: "900", fontSize: 18 },
 });
 
 // T1.9A: registered accounts only; guests see the account-required screen.
 export default requireAccount(MyReportsScreen);
-
-const sheetStyles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(15,23,42,0.45)" },
-  sheet: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 34,
-    gap: 4,
-  },
-  handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 999, backgroundColor: "#CBD5E1", marginBottom: 10 },
-  title: { color: theme.colors.text, fontSize: 18, fontWeight: "900", paddingHorizontal: 4 },
-  subtitle: { color: "#475569", fontSize: 14, fontWeight: "600", paddingHorizontal: 4, marginBottom: 8 },
-  item: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, borderRadius: 12 },
-  itemPressed: { backgroundColor: "#F1F5F9" },
-  itemText: { color: theme.colors.text, fontSize: 16, fontWeight: "700" },
-  itemDanger: { color: "#B91C1C", fontWeight: "800" },
-  divider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 4 },
-  cancel: {
-    marginTop: 8,
-    minHeight: 52,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelText: { color: theme.colors.text, fontSize: 16, fontWeight: "800" },
-});

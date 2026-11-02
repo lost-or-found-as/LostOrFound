@@ -35,5 +35,13 @@
   "email.safetyReport.subject": "Lost or Found: ny rapport i chat",
   "email.safetyReport.body": "Det har kommet en ny rapport i chat.\n\nGrunn: {{reason}}\nBeskrivelse: {{details}}\n{{suspended}}\nBehandle rapporten i appen: Profil → Rapporter.",
   "email.safetyReport.suspended": "Kontoen til den rapporterte er stengt automatisk etter rapporter fra flere personer. Du kan åpne den igjen i appen.",
-  "email.safetyReport.noDetails": "(ingen)"
+  "email.safetyReport.noDetails": "(ingen)",
+  "push.feedback.title": "Ny tilbakemelding",
+  "feedback.kind.IDEA": "Idé",
+  "feedback.kind.BUG": "Noe er feil",
+  "feedback.kind.PRAISE": "Ros",
+  "feedback.kind.OTHER": "Annet",
+  "email.feedback.subject": "Lost or Found: ny tilbakemelding ({{kind}})",
+  "email.feedback.body": "Det har kommet en ny tilbakemelding.\n\nType: {{kind}}\n{{guest}}\n{{message}}\n\nTelefon og app: {{meta}}\n\nSe alle i appen: Profil → Tilbakemeldinger.",
+  "email.feedback.guest": "Sendt av en gjest (kan ikke få svar på e-post)."
 }

@@ -4,9 +4,9 @@ const fs = require("fs"),
 const read = (f) => fs.readFileSync(path.join(process.cwd(), f), "utf8");
 const checks = {
   "app/alert-areas.tsx": [
-    "panelHeight",
-    "setPanelHeight",
-    "panelCollapsed",
+    "mapCard",
+    "fitOverview",
+    "onMapReady",
     "map-outline",
     "statusBoxOff",
   ],

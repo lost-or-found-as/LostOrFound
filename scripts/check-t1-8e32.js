@@ -3,8 +3,9 @@ const fs = require("fs"),
   r = (f) => fs.readFileSync(p.join(process.cwd(), f), "utf8");
 const c = {
   "app/my-reports.tsx": [
-    "paymentActions",
-    "paymentActionButton",
+    // T1.9W: the payment dialog is a ConfirmSheet (kit buttons) instead of paymentActions styles.
+    "<ConfirmSheet",
+    'confirmDialog?.kind === "reactivateLost" && (',
     "cases.reactivation.success.title",
   ],
   "app/match.tsx": [

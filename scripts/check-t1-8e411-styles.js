@@ -1,8 +1,10 @@
 "use strict";
 const fs = require("fs");
 const source = fs.readFileSync("app/alert-areas.tsx", "utf8");
+// T1.9W: the collapsible map panel became a fixed map card above the lists; the intent (the map
+// stays visible next to the settings) is checked through the map card style.
 const required = [
-  "panelCollapsed: {",
+  "mapCard: {",
   "statusBoxActive: {",
   "statusBoxBusy: {",
   "statusBoxOff: {",

@@ -1,7 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const read = (file) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
-const app = read("app/alert-areas.tsx");
+// T1.9W: the shared helpers moved to src/lib/alertAreas.ts.
+const app = read("app/alert-areas.tsx") + read("src/lib/alertAreas.ts");
 const en = read("src/i18n/locales/en.ts");
 const no = read("src/i18n/locales/no.ts");
 for (const value of [
@@ -9,7 +10,7 @@ for (const value of [
   "circleBounds",
   "fitToCoordinates",
   "longitudeOffset",
-  "panelHeight + 24",
+  "fitEditor",
 ]) {
   if (!app.includes(value))
     throw new Error(`T1.8D.4.4 feature missing: ${value}`);

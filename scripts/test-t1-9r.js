@@ -42,14 +42,16 @@ ok(!/requireUser/.test(read("server/routes/legal.js")), "public pages");
 
 // 2. App links.
 ok(/openLegal\("privacy", language\)[\s\S]{0,200}openLegal\("terms", language\)/.test(read("app/(tabs)/profile.tsx")), "Profile links");
-ok(/t\("legal\.privacy"\), t\("legal\.terms"\)/.test(read("app/(tabs)/profile.tsx")), "guests see the links too");
+// T1.9W: rows carry a guestOk flag instead of a filter on translated titles.
+ok(/title: t\("legal\.privacy"\),[\s\S]{0,120}guestOk: true/.test(read("app/(tabs)/profile.tsx")) && /title: t\("legal\.terms"\),[\s\S]{0,120}guestOk: true/.test(read("app/(tabs)/profile.tsx")), "guests see the links too");
 ok(/openLegal\("terms", language\)[\s\S]{0,300}openLegal\("privacy", language\)/.test(read("app/(auth)/login.tsx")), "sign-in links");
 ok(/\/legal\/\$\{doc\}\?lang=\$\{language\}/.test(read("src/lib/legal.ts")), "link format");
 
 // 3. Consent before every purchase.
 ok(/<WithdrawalConsent checked=\{consent\}[\s\S]{0,1200}disabled=\{!quote \|\| loading \|\| !consent\}/.test(read("src/ui/LongTermSheet.tsx")), "historic case");
 ok(/confirmDisabled=\{confirm === "reactivate" && !consent\}/.test(read("app/report-details/[id].tsx")) && /\{confirm === "reactivate" && <WithdrawalConsent/.test(read("app/report-details/[id].tsx")), "extension from the case");
-ok(/disabled=\{confirmDialog\?\.kind === "reactivateLost" && !consent\}/.test(read("app/my-reports.tsx")), "extension from My cases");
+// T1.9W: My cases uses ConfirmSheet, so the gate is its confirmDisabled prop.
+ok(/[dD]isabled=\{confirmDialog\?\.kind === "reactivateLost" && !consent\}/.test(read("app/my-reports.tsx")) && /<WithdrawalConsent checked=\{consent\}/.test(read("app/my-reports.tsx")), "extension from My cases");
 ok(/disabled=\{activating \|\| !consent( \|\||\})/.test(read("app/geo-alert-create.tsx")), "area alert");
 ok(/children\?: React\.ReactNode;\s*confirmDisabled\?: boolean;/.test(read("src/ui/kit/ConfirmSheet.tsx")), "ConfirmSheet takes a consent");
 

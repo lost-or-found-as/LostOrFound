@@ -7,8 +7,11 @@ const push = r("app/push-settings.tsx"),
   server = r("server/routes/reportCommerce.js");
 if (push.includes('Alert.alert(t("pushSettings.done")'))
   throw Error("Native success alert remains");
+// T1.9W: success feedback is an in-screen InlineNotice (tone "success") instead of a custom card.
+if (/Alert\.alert/.test(push)) throw Error("Native alert remains on push settings");
 for (const v of [
-  "successCard",
+  'tone: "success"',
+  "<InlineNotice",
   "pushSettings.enabledSuccessBody",
   "pushSettings.testSuccessBody",
 ])

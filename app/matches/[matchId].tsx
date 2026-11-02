@@ -116,6 +116,15 @@ function colorsOf(rep: ReportFull) {
 // The rows of "How the cases compare". Each row says what was compared and how well it fits.
 function compareRows(m: MatchFull, language: Lang, t: (k: TranslationKey, p?: any) => string): CompareRow[] {
   const rows: CompareRow[] = [];
+  // T1.9V: both sides gave the same private identifier. The number itself is never shown.
+  if ([1, "1"].includes(reasonVal(m.reasons, "identifier_match") as any)) {
+    rows.push({
+      key: "identifier",
+      labelKey: "matchDetail.compare.identifier",
+      value: t("matchDetail.compare.identifierSame"),
+      mark: "good",
+    });
+  }
   const lostItem = itemName(m.lost.subcategory_key, language, m.lost.category);
   const foundItem = itemName(m.found.subcategory_key, language, m.found.category);
   const level = Number(reasonVal(m.reasons, "object_match_level"));

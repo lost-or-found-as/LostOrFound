@@ -8,8 +8,8 @@ const app = r("app/alert-areas.tsx"),
   no = r("src/i18n/locales/no.ts");
 for (const v of [
   "current?.active &&",
-  "disableCurrentLocation",
-  "panelCollapsed: {",
+  'accessibilityLabel={t("alertAreas.notifyWhereIAm")}',
+  "mapCard: {",
   "statusBoxOff: {",
 ])
   if (!app.includes(v)) throw Error(`Missing app feature: ${v}`);

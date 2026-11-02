@@ -1,13 +1,18 @@
 // app/premium-status.tsx
+// "Mine kjøp": the services the store account has active, and restore purchases.
+// T1.9W: kit header with an explanation, AKTIVE section, in-screen notices instead of system
+// alerts. The app sells no subscription, so the old subscription block is gone. The screen only
+// knows the store entitlements (no history), so TIDLIGERE is not shown.
 import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
-import { PremiumHeader } from "../src/ui/PremiumHeader";
 import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { useRevenueCatState } from "../src/hooks/useRevenueCatState";
 import { userErrorMessage } from "../src/lib/userError";
+import { Button, EmptyState, InfoButton, ScreenHeader } from "../src/ui/kit";
+import { InlineNotice } from "../src/ui/InlineNotice";
 
 function loadPurchasesModule(): any | null {
   try {
@@ -18,75 +23,110 @@ function loadPurchasesModule(): any | null {
   }
 }
 
+type RestoreResult = { tone: "success" | "error"; title: string; body: string };
+
 function MyPurchasesScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const purchases = useMemo(() => loadPurchasesModule(), []);
-  const { loading, summary, reload } = useRevenueCatState({ purchases, autoLoad: true });
+  const { loading, initialized, error, summary, reload } = useRevenueCatState({ purchases, autoLoad: true });
   const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
 
-  const lostPlusActive = summary?.hasLostPlus ?? false;
   const activeServices = [
-    summary?.canUseGeoBroadcast ? t("purchases.areaAlert") : null,
-    summary?.canUseLegacyCaseListing ? t("purchases.longTermWatch") : null,
-  ].filter((value): value is string => Boolean(value));
+    summary?.canUseGeoBroadcast ? { key: "geo", label: t("purchases.areaAlert") } : null,
+    summary?.canUseLegacyCaseListing ? { key: "historic", label: t("purchases.historicCase") } : null,
+  ].filter((value): value is { key: string; label: string } => Boolean(value));
 
   const restore = async () => {
+    setRestoreResult(null);
     if (!purchases) {
-      Alert.alert(t("purchases.restoreFailed"), t("purchases.storeUnavailable"));
+      setRestoreResult({ tone: "error", title: t("purchases.restoreFailed"), body: t("purchases.storeUnavailable") });
       return;
     }
     try {
       setRestoreLoading(true);
       await purchases.restorePurchases?.();
       await reload();
-      Alert.alert(t("purchases.restoreComplete"), t("purchases.restoreCompleteBody"));
-    } catch (error: any) {
-      Alert.alert(t("purchases.restoreFailed"), userErrorMessage(error, t, "common.unknownError", "purchases.restore"));
+      setRestoreResult({ tone: "success", title: t("purchases.restoreComplete"), body: t("purchases.restoreCompleteBody") });
+    } catch (err: any) {
+      setRestoreResult({
+        tone: "error",
+        title: t("purchases.restoreFailed"),
+        body: userErrorMessage(err, t, "common.unknownError", "purchases.restore"),
+      });
     } finally {
       setRestoreLoading(false);
     }
   };
 
+  const firstLoad = loading && !initialized;
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.safe}>
-        <PremiumHeader title={t("purchases.title")} onBack={() => router.back()} />
+        <ScreenHeader
+          title={t("purchases.title")}
+          onBack={() => router.back()}
+          right={<InfoButton title={t("purchases.info.title")} body={t("purchases.info.body")} />}
+        />
         <ScrollView contentContainerStyle={styles.container}>
-          <View style={styles.card}>
-            <Text style={styles.h2}>{t("purchases.subscriptions")}</Text>
-            {lostPlusActive ? (
-              <View style={styles.purchaseRow}>
-                <View style={styles.rowText}>
-                  <Text style={styles.itemTitle}>Lost Plus</Text>
-                  <Text style={styles.itemBody}>{t("purchases.subscriptionActive")}</Text>
+          {firstLoad ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={theme.colors.primary} />
+            </View>
+          ) : error ? (
+            <InlineNotice
+              tone="warning"
+              title={t("purchases.loadFailed")}
+              body={t("purchases.loadFailedBody")}
+              actionLabel={t("errors.retry")}
+              onAction={() => void reload()}
+              busy={loading}
+              style={styles.noticeFirst}
+            />
+          ) : (
+            <>
+              <Text style={styles.section} accessibilityRole="header">{t("purchases.sectionActive")}</Text>
+              {activeServices.length > 0 ? (
+                <View style={styles.card}>
+                  {activeServices.map((service, index) => (
+                    <View key={service.key} style={[styles.row, index > 0 && styles.rowDivider]}>
+                      <Text style={styles.itemTitle}>{service.label}</Text>
+                      <Text style={styles.activeText}>{t("purchases.active")}</Text>
+                    </View>
+                  ))}
                 </View>
-                <Text style={styles.activeBadge}>{t("purchases.active")}</Text>
-              </View>
-            ) : (
-              <Text style={styles.empty}>{t("purchases.noSubscriptions")}</Text>
-            )}
-          </View>
+              ) : (
+                <EmptyState
+                  icon="bag-outline"
+                  title={t("purchases.noAdditionalServices")}
+                  body={t("purchases.emptyBody")}
+                />
+              )}
+            </>
+          )}
 
-          <View style={styles.card}>
-            <Text style={styles.h2}>{t("purchases.additionalServices")}</Text>
-            {activeServices.length > 0 ? activeServices.map((service) => (
-              <View key={service} style={styles.purchaseRow}>
-                <Text style={styles.itemTitle}>{service}</Text>
-                <Text style={styles.activeBadge}>{t("purchases.active")}</Text>
-              </View>
-            )) : <Text style={styles.empty}>{t("purchases.noAdditionalServices")}</Text>}
-            <Text style={styles.note}>{t("purchases.servicesPerCase")}</Text>
-          </View>
+          <Text style={styles.note}>{t("purchases.footnote")}</Text>
 
-          <View style={styles.card}>
-            <Text style={styles.h2}>{t("purchases.restoreTitle")}</Text>
-            <Text style={styles.note}>{t("purchases.restoreBody")}</Text>
-            <Pressable style={[styles.button, (loading || restoreLoading) && styles.disabled]} disabled={loading || restoreLoading} onPress={() => void restore()}>
-              <Text style={styles.buttonText}>{restoreLoading ? t("purchases.restoring") : t("purchases.restore")}</Text>
-            </Pressable>
-          </View>
+          {!!restoreResult && (
+            <InlineNotice
+              tone={restoreResult.tone}
+              icon={restoreResult.tone === "success" ? "checkmark-circle-outline" : "alert-circle-outline"}
+              title={restoreResult.title}
+              body={restoreResult.body}
+              style={styles.noticeFirst}
+            />
+          )}
+
+          <Button
+            label={restoreLoading ? t("purchases.restoring") : t("purchases.restore")}
+            variant="secondary"
+            busy={restoreLoading}
+            disabled={loading}
+            onPress={() => void restore()}
+          />
         </ScrollView>
       </View>
     </>
@@ -95,19 +135,22 @@ function MyPurchasesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
-  container: { padding: theme.space.lg, paddingBottom: 40 },
-  card: { marginBottom: theme.space.md, padding: theme.space.lg, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.card, ...theme.shadow.card },
-  h2: { fontSize: theme.type.h2, fontWeight: "900", color: theme.colors.text },
-  purchaseRow: { marginTop: theme.space.md, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: theme.space.md, borderTopWidth: 1, borderTopColor: theme.colors.border },
-  rowText: { flex: 1 },
-  itemTitle: { fontSize: theme.type.body, fontWeight: "900", color: theme.colors.text },
-  itemBody: { marginTop: 4, color: theme.colors.muted, fontWeight: "600" },
-  activeBadge: { color: "#15803D", backgroundColor: "#ECFDF5", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, fontWeight: "900" },
-  empty: { marginTop: theme.space.md, color: theme.colors.muted, fontWeight: "700", lineHeight: 20 },
-  note: { marginTop: theme.space.md, color: theme.colors.muted, fontWeight: "600", lineHeight: 19 },
-  button: { marginTop: theme.space.lg, minHeight: 48, borderRadius: theme.radius.md, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.primary },
-  buttonText: { color: "#fff", fontWeight: "900" },
-  disabled: { opacity: 0.55 },
+  container: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 12 },
+  center: { paddingVertical: 40, alignItems: "center", justifyContent: "center" },
+  noticeFirst: { marginTop: 0 },
+  section: { paddingHorizontal: 4, paddingTop: 2, fontSize: 12, fontWeight: "900", letterSpacing: 0.96, color: theme.colors.textSecondary },
+  card: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
+    overflow: "hidden",
+  },
+  row: { padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  rowDivider: { borderTopWidth: 1, borderTopColor: theme.colors.border },
+  itemTitle: { flex: 1, fontSize: 15, fontWeight: "900", color: theme.colors.text },
+  activeText: { fontSize: 13, fontWeight: "800", color: theme.tone.success.icon },
+  note: { fontSize: 13, lineHeight: 19, fontWeight: "600", color: theme.colors.textSecondary },
 });
 
 // T1.9A: registered accounts only; guests see the account-required screen.

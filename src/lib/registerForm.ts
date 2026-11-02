@@ -79,6 +79,40 @@ export function itemHintKey(key: string | undefined, type: string | undefined): 
   return (String(type).toUpperCase() === "FOUND" ? hints.FOUND : hints.LOST) ?? null;
 }
 
+// T1.9V: items where a private identifier helps, and which kinds to offer (first is the default).
+export type IdentifierKind = "FRAME_NUMBER" | "SERIAL_NUMBER" | "IMEI" | "CHIP_NUMBER" | "OTHER";
+const BIKE_KINDS: IdentifierKind[] = ["FRAME_NUMBER", "SERIAL_NUMBER", "OTHER"];
+const PHONE_KINDS: IdentifierKind[] = ["IMEI", "SERIAL_NUMBER", "OTHER"];
+const DEVICE_KINDS: IdentifierKind[] = ["SERIAL_NUMBER", "OTHER"];
+const PET_KINDS: IdentifierKind[] = ["CHIP_NUMBER", "OTHER"];
+const IDENTIFIER_KINDS_BY_ITEM: Record<string, IdentifierKind[]> = {
+  BICYCLE: BIKE_KINDS, E_BIKE: BIKE_KINDS, SCOOTER: DEVICE_KINDS, E_SCOOTER: DEVICE_KINDS,
+  MOBILE_PHONE: PHONE_KINDS, TABLET: PHONE_KINDS, LAPTOP: DEVICE_KINDS, CAMERA: DEVICE_KINDS,
+  ACTION_CAMERA: DEVICE_KINDS, DRONE: DEVICE_KINDS, SMARTWATCH: DEVICE_KINDS, GAME_CONSOLE: DEVICE_KINDS,
+  E_READER: DEVICE_KINDS, POWER_TOOL: DEVICE_KINDS, DOG: PET_KINDS, CAT: PET_KINDS,
+};
+
+export const IDENTIFIER_KIND_LABELS: Record<IdentifierKind, TranslationKey> = {
+  FRAME_NUMBER: "register.identifier.kind.frame",
+  SERIAL_NUMBER: "register.identifier.kind.serial",
+  IMEI: "register.identifier.kind.imei",
+  CHIP_NUMBER: "register.identifier.kind.chip",
+  OTHER: "register.identifier.kind.other",
+};
+
+/** The identifier kinds offered for an item, or [] when the field is not shown. */
+export function identifierKindsFor(key: string | undefined): IdentifierKind[] {
+  return key ? IDENTIFIER_KINDS_BY_ITEM[canonicalItemKey(key)] ?? [] : [];
+}
+
+/** Letters and digits only, upper case; same rule as the server (server/lib/reportIdentifier.js). */
+export function normalizeIdentifierValue(value: string | undefined): string {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toUpperCase()
+    .replace(/[^0-9A-ZÆØÅÄÖÜ]/g, "");
+}
+
 /** A pet that is not in the list needs its own description ("Hvilket dyr?"). */
 export function needsCustomPet(category: string | undefined, key: string | undefined): boolean {
   return String(category) === "PETS" && String(key) === "CUSTOM";
@@ -167,9 +201,18 @@ export function reportBody(
       ? { reward_ore: Math.max(0, Math.round(Number(draft.rewardNOK || "0") * 100)) }
       : {}),
     ...(custody ? { custody, custody_place: custody === "HANDED_IN" ? String(draft.custodyPlace || "").trim() : undefined } : {}),
+    ...identifierBody(draft),
     client_request_id: options.clientRequestId,
     ...(options.testOverrideWeeklyLimit ? { test_override_weekly_limit: true } : {}),
   };
+}
+
+function identifierBody(draft: ReportDraft): Record<string, unknown> {
+  const kinds = identifierKindsFor(draft.subcategoryKey);
+  const value = normalizeIdentifierValue(draft.identifierValue);
+  if (!kinds.length || value.length < 4) return {};
+  const kind = draft.identifierKind && kinds.includes(draft.identifierKind) ? draft.identifierKind : kinds[0];
+  return { identifier: { kind, value } };
 }
 
 /** Reward field text: digits only, no leading zeros ("01000" becomes "1000"). */

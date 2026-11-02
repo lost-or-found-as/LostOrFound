@@ -1,17 +1,12 @@
 ﻿// app/how.tsx
 import React from "react";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
+import { Button, ScreenHeader } from "../src/ui/kit";
 
 type CardProps = {
   step: string;
@@ -38,21 +33,11 @@ export default function HowScreen() {
   const { t } = useI18n();
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+    <View style={styles.safe}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenHeader title={t("profile.how")} onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}>
-          <Pressable
-            style={({ pressed }) => [styles.backPill, pressed && styles.pressed]}
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel={t("how.backA11y")}
-          >
-            <Text style={styles.backPillTxt}>‹ {t("common.back")}</Text>
-          </Pressable>
-        </View>
-
         <View style={styles.heroCard}>
           <View style={styles.logoWrap}>
             <Image
@@ -63,7 +48,6 @@ export default function HowScreen() {
             />
           </View>
 
-          <Text style={styles.eyebrow}>{t("how.eyebrow")}</Text>
           <Text style={styles.title}>{t("how.title")}</Text>
           <Text style={styles.subtitle}>{t("how.subtitle")}</Text>
         </View>
@@ -80,7 +64,7 @@ export default function HowScreen() {
 
         <View style={styles.trustCard}>
           <View style={styles.trustIcon}>
-            <Text style={styles.trustIconTxt}>✓</Text>
+            <Ionicons name="checkmark" size={18} color="#16A34A" />
           </View>
           <View style={styles.trustTextWrap}>
             <Text style={styles.trustTitle}>{t("how.trustTitle")}</Text>
@@ -88,25 +72,15 @@ export default function HowScreen() {
           </View>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+        <Button
+          label={t("how.cta")}
           onPress={() => router.push("/start")}
-          accessibilityRole="button"
-          accessibilityLabel={t("how.ctaA11y")}
-        >
-          <Text style={styles.primaryBtnTxt}>{t("how.cta")}</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel={t("how.backA11y")}
-        >
-          <Text style={styles.secondaryBtnTxt}>{t("how.back")}</Text>
-        </Pressable>
+          accessibilityHint={t("how.ctaA11y")}
+          style={styles.cta}
+        />
+        <SafeAreaView edges={["bottom"]} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -118,28 +92,10 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: theme.space.lg,
-    paddingTop: theme.space.md,
+    paddingTop: 4,
     paddingBottom: theme.space.xl,
   },
-  topRow: {
-    alignItems: "flex-start",
-  },
-  backPill: {
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    ...theme.shadow.card,
-  },
-  backPillTxt: {
-    color: theme.colors.text,
-    fontWeight: "900",
-    fontSize: 14,
-  },
   heroCard: {
-    marginTop: theme.space.lg,
     backgroundColor: theme.colors.card,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -161,14 +117,6 @@ const styles = StyleSheet.create({
   logo: {
     width: "100%",
     height: "100%",
-  },
-  eyebrow: {
-    color: theme.colors.primary,
-    fontWeight: "900",
-    fontSize: 13,
-    letterSpacing: 0.3,
-    textAlign: "center",
-    textTransform: "uppercase",
   },
   title: {
     fontSize: 30,
@@ -259,9 +207,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
-  trustIconTxt: {
-    color: "#16A34A",
-    fontWeight: "900",
+  cta: {
+    marginTop: theme.space.xl,
   },
   trustTextWrap: {
     flex: 1,
@@ -276,39 +223,5 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     fontWeight: "700",
     lineHeight: 20,
-  },
-  primaryBtn: {
-    marginTop: theme.space.xl,
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radius.lg,
-    paddingVertical: 15,
-    paddingHorizontal: theme.space.md,
-    alignItems: "center",
-    justifyContent: "center",
-    ...theme.shadow.card,
-  },
-  primaryBtnTxt: {
-    color: "#fff",
-    fontWeight: "900",
-    fontSize: 16,
-    textAlign: "center",
-  },
-  secondaryBtn: {
-    marginTop: theme.space.md,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  secondaryBtnTxt: {
-    color: theme.colors.text,
-    fontWeight: "900",
-    fontSize: 16,
-  },
-  pressed: {
-    opacity: 0.86,
-    transform: [{ scale: 0.995 }],
   },
 });

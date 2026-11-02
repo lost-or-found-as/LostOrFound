@@ -35,5 +35,13 @@
   "email.safetyReport.subject": "Lost or Found: new chat report",
   "email.safetyReport.body": "A new chat report has arrived.\n\nReason: {{reason}}\nDescription: {{details}}\n{{suspended}}\nHandle the report in the app: Profile → Reports.",
   "email.safetyReport.suspended": "The reported account was suspended automatically after reports from several people. You can reopen it in the app.",
-  "email.safetyReport.noDetails": "(none)"
+  "email.safetyReport.noDetails": "(none)",
+  "push.feedback.title": "New feedback",
+  "feedback.kind.IDEA": "Idea",
+  "feedback.kind.BUG": "Something is wrong",
+  "feedback.kind.PRAISE": "Praise",
+  "feedback.kind.OTHER": "Other",
+  "email.feedback.subject": "Lost or Found: new feedback ({{kind}})",
+  "email.feedback.body": "New feedback has arrived.\n\nType: {{kind}}\n{{guest}}\n{{message}}\n\nPhone and app: {{meta}}\n\nSee all in the app: Profile → Feedback.",
+  "email.feedback.guest": "Sent by a guest (cannot get a reply by e-mail)."
 }

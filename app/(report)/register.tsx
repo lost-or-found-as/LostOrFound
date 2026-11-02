@@ -36,6 +36,8 @@ import { userErrorMessage } from "../../src/lib/userError";
 import {
   cleanRewardInput,
   isLongAgo,
+  IDENTIFIER_KIND_LABELS,
+  identifierKindsFor,
   itemHintKey,
   missingFields,
   needsCustomPet,
@@ -314,6 +316,9 @@ export default function RegisterScreen() {
       : itemName(draft.subcategoryKey, language, draft.category)
     : "";
   const hintKey = itemHintKey(draft.subcategoryKey, type);
+  const identifierKinds = identifierKindsFor(draft.subcategoryKey);
+  const identifierKind =
+    draft.identifierKind && identifierKinds.includes(draft.identifierKind) ? draft.identifierKind : identifierKinds[0];
   const colorsText =
     draft.color && draft.colorSecondary
       ? t("catalog.colorPair", { first: colorName(draft.color, language), second: colorName(draft.colorSecondary, language).toLocaleLowerCase() })
@@ -430,6 +435,39 @@ export default function RegisterScreen() {
               <View style={s.itemHint}>
                 <Ionicons name="information-circle-outline" size={18} color="#1D4ED8" />
                 <Text style={s.itemHintText}>{t(hintKey)}</Text>
+              </View>
+            )}
+            {/* T1.9V: private identifier; never shown to the other party, only used for matching. */}
+            {identifierKinds.length > 0 && (
+              <View style={s.field}>
+                <Text style={s.label}>{t("register.identifier.label")}</Text>
+                <View style={s.chips}>
+                  {identifierKinds.map((kind) => (
+                    <Pressable
+                      key={kind}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: kind === identifierKind }}
+                      style={[s.chip, kind === identifierKind && s.chipOn]}
+                      onPress={() => setField("identifierKind", kind)}
+                    >
+                      <Text style={[s.chipText, kind === identifierKind && s.chipTextOn]}>{t(IDENTIFIER_KIND_LABELS[kind])}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  accessibilityLabel={t("register.identifier.label")}
+                  value={draft.identifierValue || ""}
+                  onChangeText={(v) => setField("identifierValue", v)}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  placeholder={t("register.identifier.placeholder")}
+                  placeholderTextColor="#64748B"
+                  style={s.input}
+                />
+                <View style={s.itemHint}>
+                  <Ionicons name="lock-closed-outline" size={18} color="#1D4ED8" />
+                  <Text style={s.itemHintText}>{t("register.identifier.privacy")}</Text>
+                </View>
               </View>
             )}
             {needsCustomPet(draft.category, draft.subcategoryKey) && (

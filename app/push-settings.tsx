@@ -1,16 +1,12 @@
+// app/push-settings.tsx
+// Push notifications for this device: status, enable, test and disable.
+// T1.9W: kit header, one status card with an icon per state (on / off / blocked), in-screen
+// notices for success and errors, and a confirmation before turning notifications off.
 import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
-import { PremiumHeader } from "../src/ui/PremiumHeader";
+import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
 import {
@@ -22,6 +18,17 @@ import {
   unregisterPushInstallation,
   type PushPermissionState,
 } from "../src/lib/pushNotifications";
+import { Button, ConfirmSheet, ScreenHeader } from "../src/ui/kit";
+import { InlineNotice } from "../src/ui/InlineNotice";
+
+type Feedback = { tone: "success" | "error"; body: string };
+type VisualState = "on" | "off" | "blocked";
+
+const STATE_LOOK: Record<VisualState, { icon: React.ComponentProps<typeof Ionicons>["name"]; fg: string; bg: string }> = {
+  on: { icon: "notifications-outline", fg: theme.tone.success.icon, bg: "#DCFCE7" },
+  off: { icon: "notifications-off-outline", fg: theme.colors.textSecondary, bg: theme.colors.chipBg },
+  blocked: { icon: "notifications-off-outline", fg: theme.tone.warning.icon, bg: theme.tone.warning.bg },
+};
 
 function PushSettingsScreen() {
   const router = useRouter();
@@ -31,7 +38,8 @@ function PushSettingsScreen() {
   const [permission, setPermission] =
     useState<PushPermissionState>("undetermined");
   const [installationActive, setInstallationActive] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [confirmDisable, setConfirmDisable] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -72,289 +80,181 @@ function PushSettingsScreen() {
   };
 
   const enable = async () => {
-    if (permission === "denied") {
-      Alert.alert(
-        t("pushSettings.permissionDeniedTitle"),
-        t("pushSettings.permissionDeniedBody"),
-        [
-          { text: t("pushSettings.cancel"), style: "cancel" },
-          {
-            text: t("pushSettings.openSettings"),
-            onPress: () => void openPushNotificationSettings(),
-          },
-        ],
-      );
-      return;
-    }
+    setFeedback(null);
     try {
       setBusy(true);
       await registerPushInstallation(language);
       await refresh();
-      setSuccessMessage(t("pushSettings.enabledSuccessBody"));
+      setFeedback({ tone: "success", body: t("pushSettings.enabledSuccessBody") });
     } catch (error: any) {
       await refresh();
-      Alert.alert(t("pushSettings.could.not.complete"), messageForError(error));
+      setFeedback({ tone: "error", body: messageForError(error) });
     } finally {
       setBusy(false);
     }
   };
 
   const disable = async () => {
+    setFeedback(null);
     try {
       setBusy(true);
       await unregisterPushInstallation();
       await refresh();
-      setSuccessMessage(t("pushSettings.disabledSuccessBody"));
+      setFeedback({ tone: "success", body: t("pushSettings.disabledSuccessBody") });
     } catch (error: any) {
-      Alert.alert(t("pushSettings.could.not.complete"), messageForError(error));
+      setFeedback({ tone: "error", body: messageForError(error) });
     } finally {
       setBusy(false);
+      setConfirmDisable(false);
     }
   };
 
   const test = async () => {
+    setFeedback(null);
     try {
       setBusy(true);
       await sendPushTest();
-      setSuccessMessage(t("pushSettings.testSuccessBody"));
+      setFeedback({ tone: "success", body: t("pushSettings.testSuccessBody") });
     } catch (error: any) {
       await refresh();
-      Alert.alert(t("pushSettings.could.not.complete"), messageForError(error));
+      setFeedback({ tone: "error", body: messageForError(error) });
     } finally {
       setBusy(false);
     }
   };
 
-  const permissionKey =
-    permission === "granted"
-      ? "pushSettings.statusEnabled"
-      : permission === "denied"
-        ? "pushSettings.statusBlocked"
-        : "pushSettings.statusNotEnabled";
+  // One device status: on only when the system allows it and this installation is registered.
+  const visual: VisualState =
+    permission === "denied" ? "blocked" : installationActive && permission === "granted" ? "on" : "off";
+  const look = STATE_LOOK[visual];
+  const stateTitle =
+    visual === "on"
+      ? t("pushSettings.stateOn")
+      : visual === "blocked"
+        ? t("pushSettings.permissionDeniedTitle")
+        : t("pushSettings.stateOff");
+  const stateBody =
+    visual === "on"
+      ? t("pushSettings.stateOnBody")
+      : visual === "blocked"
+        ? t("pushSettings.permissionDeniedBody")
+        : t("pushSettings.permissionIntro");
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.safe}>
-        <PremiumHeader
+        <ScreenHeader
           title={t("pushSettings.push.notifications")}
           onBack={() => router.back()}
         />
         <View style={styles.container}>
           <View style={styles.card}>
-            <Text style={styles.title}>
-              {t("pushSettings.receive.important.updates")}
-            </Text>
-            <Text style={styles.body}>{t("pushSettings.permissionIntro")}</Text>
             {loading ? (
-              <ActivityIndicator style={styles.loader} />
+              <ActivityIndicator color={theme.colors.primary} style={styles.loader} />
             ) : (
               <>
-                <View style={styles.statusRow}>
-                  <Text style={styles.statusLabel}>
-                    {t("pushSettings.deviceStatus")}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statusValue,
-                      installationActive &&
-                        permission === "granted" &&
-                        styles.statusEnabled,
-                    ]}
-                  >
-                    {t(
-                      installationActive && permission === "granted"
-                        ? "pushSettings.registrationEnabled"
-                        : "pushSettings.registrationDisabled",
-                    )}
-                  </Text>
+                <View
+                  style={styles.statusRow}
+                  accessible
+                  accessibilityLabel={`${t("pushSettings.deviceStatus")}: ${stateTitle}`}
+                >
+                  <View style={[styles.statusIcon, { backgroundColor: look.bg }]}>
+                    <Ionicons name={look.icon} size={22} color={look.fg} />
+                  </View>
+                  <View style={styles.statusText}>
+                    <Text style={styles.statusTitle}>{stateTitle}</Text>
+                    <Text style={styles.statusSubtitle}>{t("pushSettings.onThisDevice")}</Text>
+                  </View>
                 </View>
+                <Text style={styles.body}>{stateBody}</Text>
                 {permission === "denied" ? (
-                  <Pressable
+                  <Button
+                    label={t("pushSettings.openSettings")}
                     disabled={busy}
-                    style={[styles.primary, busy && styles.disabled]}
                     onPress={() => void openPushNotificationSettings()}
-                  >
-                    <Text style={styles.primaryText}>
-                      {t("pushSettings.openSettings")}
-                    </Text>
-                  </Pressable>
+                  />
                 ) : !installationActive ? (
-                  <Pressable
-                    disabled={busy}
-                    style={[styles.primary, busy && styles.disabled]}
+                  <Button
+                    label={t("pushSettings.enableOnDevice")}
+                    busy={busy}
                     onPress={() => void enable()}
-                  >
-                    {busy ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.primaryText}>
-                        {t("pushSettings.enableOnDevice")}
-                      </Text>
-                    )}
-                  </Pressable>
+                  />
                 ) : (
-                  <>
-                    <Pressable
-                      disabled={busy}
-                      style={[styles.secondary, busy && styles.disabled]}
-                      onPress={() => void test()}
-                    >
-                      <Text style={styles.secondaryText}>
-                        {t("pushSettings.send.test.notification")}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      disabled={busy}
-                      style={styles.textButton}
-                      onPress={() => void disable()}
-                    >
-                      <Text style={styles.textButtonText}>
-                        {t("pushSettings.disableFromApp")}
-                      </Text>
-                    </Pressable>
-                  </>
+                  <Button
+                    label={t("pushSettings.send.test.notification")}
+                    variant="neutral"
+                    busy={busy}
+                    onPress={() => void test()}
+                  />
                 )}
               </>
             )}
-            {successMessage && (
-              <View style={styles.successCard}>
-                <View style={styles.successIcon}>
-                  <Text style={styles.successIconText}>✓</Text>
-                </View>
-                <View style={styles.successContent}>
-                  <Text style={styles.successTitle}>
-                    {t("pushSettings.successTitle")}
-                  </Text>
-                  <Text style={styles.successBody}>{successMessage}</Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("pushSettings.closeSuccess")}
-                  onPress={() => setSuccessMessage(null)}
-                  style={styles.successClose}
-                >
-                  <Text style={styles.successCloseText}>×</Text>
-                </Pressable>
-              </View>
-            )}
           </View>
-          <Text style={styles.note}>
-            {t("pushSettings.simplePermissionNote")}
-          </Text>
+
+          {!!feedback && (
+            <InlineNotice
+              tone={feedback.tone}
+              icon={feedback.tone === "success" ? "checkmark-circle-outline" : "alert-circle-outline"}
+              title={feedback.tone === "success" ? t("pushSettings.successTitle") : t("pushSettings.could.not.complete")}
+              body={feedback.body}
+              style={styles.notice}
+            />
+          )}
+
+          {!loading && permission !== "denied" && installationActive && (
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy}
+              style={[styles.textButton, busy && styles.disabled]}
+              onPress={() => setConfirmDisable(true)}
+            >
+              <Text style={styles.textButtonText}>{t("pushSettings.disableFromApp")}</Text>
+            </Pressable>
+          )}
+
+          <Text style={styles.note}>{t("pushSettings.simplePermissionNote")}</Text>
         </View>
       </View>
+
+      <ConfirmSheet
+        visible={confirmDisable}
+        title={t("pushSettings.disableConfirmTitle")}
+        body={t("pushSettings.disableConfirmBody")}
+        confirmLabel={t("pushSettings.disableConfirm")}
+        cancelLabel={t("pushSettings.cancel")}
+        destructive
+        busy={busy}
+        onConfirm={() => void disable()}
+        onCancel={() => setConfirmDisable(false)}
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
-  container: { padding: 18 },
+  container: { paddingHorizontal: 16, paddingTop: 4, gap: 12 },
   card: {
     backgroundColor: theme.colors.card,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 18,
-    padding: 18,
-    ...theme.shadow.card,
-  },
-  title: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
-  body: {
-    marginTop: 8,
-    color: theme.colors.muted,
-    fontWeight: "700",
-    lineHeight: 20,
-  },
-  loader: { marginTop: 22 },
-  statusRow: {
-    marginTop: 12,
-    padding: 13,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    padding: 16,
     gap: 12,
   },
-  statusLabel: { flex: 1, color: theme.colors.muted, fontWeight: "800" },
-  statusValue: {
-    color: theme.colors.danger,
-    fontWeight: "900",
-    textAlign: "right",
-  },
-  statusEnabled: { color: "#15803D" },
-  primary: {
-    marginTop: 18,
-    minHeight: 48,
-    borderRadius: 13,
-    backgroundColor: theme.colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryText: { color: "#fff", fontWeight: "900" },
-  secondary: {
-    marginTop: 14,
-    minHeight: 48,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.card,
-  },
-  secondaryText: { color: theme.colors.text, fontWeight: "900" },
-  textButton: { marginTop: 12, paddingVertical: 10, alignItems: "center" },
-  textButtonText: { color: theme.colors.danger, fontWeight: "900" },
-  settingsButton: { marginTop: 10, paddingVertical: 10, alignItems: "center" },
-  settingsButtonText: { color: theme.colors.primary, fontWeight: "900" },
-  successCard: {
-    marginTop: 16,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#86EFAC",
-    backgroundColor: "#F0FDF4",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  successIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#15803D",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  successIconText: { color: "#fff", fontWeight: "900", fontSize: 18 },
-  successContent: { flex: 1 },
-  successTitle: { color: "#166534", fontWeight: "900", fontSize: 15 },
-  successBody: {
-    marginTop: 3,
-    color: "#166534",
-    fontWeight: "700",
-    lineHeight: 18,
-  },
-  successClose: {
-    width: 30,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  successCloseText: {
-    color: "#166534",
-    fontSize: 24,
-    lineHeight: 26,
-    fontWeight: "700",
-  },
-  disabled: { opacity: 0.45 },
-  note: {
-    marginTop: 14,
-    color: theme.colors.muted,
-    fontWeight: "700",
-    fontSize: 12,
-    lineHeight: 17,
-  },
+  loader: { marginVertical: 22 },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  statusIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  statusText: { flex: 1 },
+  statusTitle: { fontSize: 17, fontWeight: "900", color: theme.colors.text },
+  statusSubtitle: { marginTop: 1, fontSize: 13, fontWeight: "600", color: theme.colors.textSecondary },
+  body: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: theme.colors.textSecondary },
+  notice: { marginTop: 0 },
+  textButton: { minHeight: 48, alignItems: "center", justifyContent: "center" },
+  textButtonText: { fontSize: 15, fontWeight: "800", color: theme.colors.dangerStrong },
+  disabled: { opacity: 0.5 },
+  note: { fontSize: 13, lineHeight: 19, fontWeight: "600", color: theme.colors.textSecondary },
 });
 
 // T1.9A: registered accounts only; guests see the account-required screen.

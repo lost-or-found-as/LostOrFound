@@ -1,26 +1,307 @@
+// app/observation-chat/[id].tsx
+// T1.9W: chat between the owner and the person who sent an observation. Looks like the match
+// chat (app/chat/[matchId].tsx). Messages are polled every 4 seconds through the API.
 import { requireAccount } from "../../src/ui/AccountRequired";
-import React,{useCallback,useEffect,useRef,useState}from"react";import{ActivityIndicator,Alert,FlatList,KeyboardAvoidingView,Platform,Pressable,StyleSheet,Text,TextInput,View}from"react-native";import{Stack,useLocalSearchParams,useRouter}from"expo-router";import{SafeAreaView,useSafeAreaInsets}from"react-native-safe-area-context";import{API_BASE_URL}from"../../src/lib/config";import{supabase}from"../../src/lib/supabase";import{theme}from"../../src/ui/theme";import{useI18n}from"../../src/i18n/I18nProvider";
-import { userErrorMessage } from "../../src/lib/userError";
-import { formatTime } from "../../src/i18n/formatters";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { API_BASE_URL } from "../../src/lib/config";
+import { supabase } from "../../src/lib/supabase";
+import { theme } from "../../src/ui/theme";
+import { useI18n } from "../../src/i18n/I18nProvider";
+import { codedError, userErrorMessage } from "../../src/lib/userError";
+import { formatDayLabel, formatTime } from "../../src/i18n/formatters";
 import { ChatClosedBar, ChatSafetyMenu, useChatSafety } from "../../src/ui/ChatSafety";
 import { unblockChatPartner } from "../../src/lib/chatSafety";
 import { InlineNotice } from "../../src/ui/InlineNotice";
-type Msg={id:string;conversation_id:string;sender_id:string;body:string;created_at:string};
-function Screen(){const router=useRouter(),insets=useSafeAreaInsets(),{language,t}=useI18n(),{id}=useLocalSearchParams<{id:string}>();const[uid,setUid]=useState(""),[loading,setLoading]=useState(true),[sending,setSending]=useState(false),[text,setText]=useState(""),[messages,setMessages]=useState<Msg[]>([]);const ref=useRef<FlatList<Msg>>(null);
-// T1.9M: report and block. A closed chat replaces the message field with a notice.
-const safety=useChatSafety("observation",String(id||""));const[reportSent,setReportSent]=useState(false);const[unblocking,setUnblocking]=useState(false);
-const unblock=async()=>{setUnblocking(true);try{safety.setState(await unblockChatPartner("observation",String(id)));}catch(e:any){Alert.alert(t("observation.common.error"),userErrorMessage(e,t,"errors.generic","chat.safety"));}finally{setUnblocking(false)}};
+import { ScreenHeader } from "../../src/ui/kit";
+import { useObservationResolution } from "../../src/lib/observationResolution";
+import { ObservationResolution } from "../../src/ui/ObservationResolution";
 
-const auth=async()=>{const s=await supabase.auth.getSession();setUid(s.data.session?.user?.id||"");return s.data.session?.access_token};const load=useCallback(async()=>{try{const authToken=await auth();if(!t)return;const r=await fetch(`${API_BASE_URL}/observation-chat/${id}/messages`,{headers:{Authorization:`Bearer ${authToken}`}}),j=await r.json();if(!r.ok)throw new Error(j?.error);setMessages(j.messages||[]);setTimeout(()=>ref.current?.scrollToEnd({animated:false}),50);}catch(e:any){console.warn("[observation-chat] load failed",e?.message||String(e));}finally{setLoading(false)}},[id]);useEffect(()=>{void load();const timer=setInterval(()=>void load(),4000);return()=>clearInterval(timer)},[load]);const send=async()=>{const body=text.replace(/\s+/g," ").trim();if(!body)return;try{setSending(true);const authToken=await auth();const r=await fetch(`${API_BASE_URL}/observation-chat/${id}/messages`,{method:"POST",headers:{Authorization:`Bearer ${authToken}`,"Content-Type":"application/json"},body:JSON.stringify({body})}),j=await r.json();if(!r.ok)throw new Error(j?.error);setText("");await load();}catch(e:any){const state=await safety.reload();if(!state?.closed)Alert.alert(t("observation.common.error"),userErrorMessage(e,t,"errors.generic","observation.chat"));}finally{setSending(false)}};
+type Msg = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
 
-  const [resolution,setResolution]=useState<any>(null);
-  const getToken=async()=> (await supabase.auth.getSession()).data.session?.access_token;
-  const loadResolution=useCallback(async()=>{try{const authToken=await getToken();if(!authToken||!id)return;const r=await fetch(`${API_BASE_URL}/resolutions/context/OBSERVATION/${encodeURIComponent(String(id))}`,{headers:{Authorization:`Bearer ${authToken}`}});const j=await r.json().catch(()=>({}));if(r.ok)setResolution(j);}catch{}},[id]);
-  const proposeResolution=async()=>{try{const authToken=await getToken();const r=await fetch(`${API_BASE_URL}/resolutions/propose`,{method:"POST",headers:{Authorization:`Bearer ${authToken}`,"Content-Type":"application/json"},body:JSON.stringify({contextType:"OBSERVATION",contextId:String(id)})});const j=await r.json().catch(()=>({}));if(!r.ok&&j?.error!=="RESOLUTION_ALREADY_PENDING")throw new Error(j?.error);Alert.alert(t("observation.resolution.sentTitle"),t("observation.resolution.sentBody"));await loadResolution();}catch (e: any) {Alert.alert(t("observation.common.error"),userErrorMessage(e,t,"errors.generic","resolution"));}};
-  const respondResolution=async(accept:boolean)=>{try{const authToken=await getToken();const pid=resolution?.proposal?.id;if(!pid)return;const r=await fetch(`${API_BASE_URL}/resolutions/${pid}/respond`,{method:"POST",headers:{Authorization:`Bearer ${authToken}`,"Content-Type":"application/json"},body:JSON.stringify({accept})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j?.error);Alert.alert(accept?t("observation.resolution.closedTitle"):t("observation.resolution.rejectedTitle"),accept?t("observation.resolution.closedBody"):t("observation.resolution.rejectedBody"));await loadResolution();}catch (e: any) {Alert.alert(t("observation.common.error"),userErrorMessage(e,t,"errors.generic","resolution"));}};
-useEffect(()=>{void loadResolution()},[loadResolution]);
-return<><Stack.Screen options={{headerShown:false}}/><SafeAreaView style={s.safe}><View style={s.header}><Pressable onPress={()=>router.back()} style={s.back}><Text style={s.backText}>←</Text></Pressable><View style={{flex:1}}><Text style={s.title}>{t("observation.chat.title")}</Text><Text style={s.subtitle}>{t("observation.chat.subtitle")}</Text></View>{!!id&&<ChatSafetyMenu kind="observation" id={String(id)} partner="other" state={safety.state} onState={safety.setState} onReported={()=>setReportSent(true)}/>}</View><KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==="ios"?"padding":undefined}>{reportSent&&<View style={{paddingHorizontal:14,paddingTop:10}}><InlineNotice tone="success" icon="checkmark-circle-outline" title={t("safety.reportSent")} style={{marginTop:0,marginBottom:0}}/></View>}{loading?<View style={s.center}><ActivityIndicator/></View>:<FlatList ref={ref} data={messages} keyExtractor={m=>m.id} contentContainerStyle={s.list} renderItem={({item})=>{const mine=item.sender_id===uid;return<View style={[s.row,mine?s.mine:s.other]}><View style={[s.bubble,mine?s.bubbleMine:s.bubbleOther]}><Text style={[s.body,mine&&{color:"#fff"}]}>{item.body}</Text><Text style={[s.time,mine&&{color:"rgba(255,255,255,.7)"}]}>{formatTime(item.created_at,language)}</Text></View></View>}} ListEmptyComponent={<View style={s.center}><Text style={s.empty}>{t("observation.chat.empty")}</Text></View>}/>}<View style={s.resolutionWrap}>{!resolution?.proposal&&<Pressable style={s.resolveBtn} onPress={()=>Alert.alert(t("observation.resolution.proposeTitle"),t("observation.resolution.proposeBody"),[{text:t("observation.resolution.cancel"),style:"cancel"},{text:t("observation.resolution.sendProposal"),onPress:proposeResolution}])}><Text style={s.resolveText}>{t("observation.resolution.proposeButton")}</Text></Pressable>}{resolution?.proposal?.status==="PENDING"&&resolution?.role==="PROPOSER"&&<Text style={s.pendingText}>{t("observation.resolution.pending")}</Text>}{resolution?.proposal?.status==="PENDING"&&resolution?.role==="RESPONDER"&&<View style={s.resolutionActions}><Pressable style={s.acceptBtn} onPress={()=>respondResolution(true)}><Text style={s.acceptText}>{t("observation.resolution.confirm")}</Text></Pressable><Pressable style={s.declineBtn} onPress={()=>respondResolution(false)}><Text style={s.declineText}>{t("observation.resolution.decline")}</Text></Pressable></View>}</View>{safety.state.closed?<ChatClosedBar state={safety.state} partner="other" onUnblock={()=>void unblock()} busy={unblocking} bottomInset={insets.bottom}/>:<View style={[s.composer,{paddingBottom:Math.max(10,insets.bottom)}]}><TextInput value={text} onChangeText={setText} placeholder={t("observation.chat.placeholder")} multiline maxLength={1000} style={s.input}/><Pressable disabled={sending||!text.trim()} style={[s.send,(sending||!text.trim())&&{opacity:.45}]} onPress={send}><Text style={s.sendText}>{sending?"…":t("observation.chat.send")}</Text></Pressable></View>}</KeyboardAvoidingView></SafeAreaView></>}
-const s=StyleSheet.create({safe:{flex:1,backgroundColor:theme.colors.bg},header:{flexDirection:"row",alignItems:"center",padding:14,borderBottomWidth:1,borderBottomColor:theme.colors.border},back:{width:42,height:42,borderRadius:21,alignItems:"center",justifyContent:"center",backgroundColor:theme.colors.card,borderWidth:1,borderColor:theme.colors.border,marginRight:10},backText:{fontSize:20,fontWeight:"900"},title:{fontSize:18,fontWeight:"900",color:theme.colors.text},subtitle:{fontSize:11,fontWeight:"700",color:theme.colors.muted,marginTop:2},center:{flex:1,alignItems:"center",justifyContent:"center",padding:30},empty:{textAlign:"center",fontWeight:"700",color:theme.colors.muted},list:{flexGrow:1,justifyContent:"flex-end",padding:14},row:{flexDirection:"row",marginBottom:7},mine:{justifyContent:"flex-end",paddingLeft:55},other:{justifyContent:"flex-start",paddingRight:55},bubble:{maxWidth:"88%",borderRadius:17,paddingHorizontal:12,paddingTop:8,paddingBottom:6},bubbleMine:{backgroundColor:theme.colors.primary,borderBottomRightRadius:5},bubbleOther:{backgroundColor:theme.colors.card,borderWidth:1,borderColor:theme.colors.border,borderBottomLeftRadius:5},body:{fontSize:15,fontWeight:"600",color:theme.colors.text,lineHeight:20},time:{marginTop:2,fontSize:10,fontWeight:"700",alignSelf:"flex-end",color:theme.colors.muted},resolutionWrap:{paddingHorizontal:12,paddingTop:8},resolveBtn:{minHeight:42,borderRadius:12,backgroundColor:"#15803D",alignItems:"center",justifyContent:"center"},resolveText:{color:"#fff",fontWeight:"900"},pendingText:{padding:10,textAlign:"center",fontWeight:"800",color:"#92400E",backgroundColor:"#FFFBEB",borderRadius:10},resolutionActions:{flexDirection:"row",gap:8},acceptBtn:{flex:1,minHeight:42,borderRadius:12,backgroundColor:"#15803D",alignItems:"center",justifyContent:"center"},acceptText:{color:"#fff",fontWeight:"900"},declineBtn:{flex:1,minHeight:42,borderRadius:12,borderWidth:1,borderColor:"#DC2626",alignItems:"center",justifyContent:"center"},declineText:{color:"#DC2626",fontWeight:"900"},composer:{flexDirection:"row",alignItems:"flex-end",gap:8,paddingHorizontal:12,paddingTop:9,borderTopWidth:1,borderTopColor:theme.colors.border},input:{flex:1,minHeight:44,maxHeight:120,borderRadius:17,borderWidth:1,borderColor:theme.colors.border,backgroundColor:theme.colors.card,paddingHorizontal:13,paddingTop:10,color:theme.colors.text},send:{height:44,paddingHorizontal:16,borderRadius:15,backgroundColor:theme.colors.primary,alignItems:"center",justifyContent:"center"},sendText:{color:"#fff",fontWeight:"900"}});
+const POLL_MS = 4000;
+
+function dayKey(iso: string) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function Screen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { language, t } = useI18n();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const observationId = id ? String(id) : "";
+
+  const [uid, setUid] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [text, setText] = useState("");
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const listRef = useRef<FlatList<Msg>>(null);
+  const resolution = useObservationResolution(observationId || undefined);
+  // T1.9M: report and block. A closed chat replaces the message field with a notice.
+  const safety = useChatSafety("observation", observationId);
+  const [reportSent, setReportSent] = useState(false);
+  const [unblocking, setUnblocking] = useState(false);
+
+  const scrollToEnd = (animated: boolean) =>
+    setTimeout(() => {
+      try {
+        listRef.current?.scrollToEnd({ animated });
+      } catch {}
+    }, 50);
+
+  const auth = async () => {
+    const session = await supabase.auth.getSession();
+    setUid(session.data.session?.user?.id || "");
+    return session.data.session?.access_token ?? null;
+  };
+
+  const load = useCallback(async () => {
+    try {
+      const authToken = await auth();
+      // Fixed: this used to test the translate function instead of the token.
+      if (!authToken) return;
+      const r = await fetch(`${API_BASE_URL}/observation-chat/${id}/messages`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw Object.assign(codedError(String(j?.error || "OBSERVATION_CHAT_LOAD_FAILED")), { status: r.status });
+      setMessages(j.messages || []);
+      setLoadError(null);
+    } catch (e: any) {
+      console.warn("[observation-chat] load failed", e?.message || String(e));
+      setLoadError(userErrorMessage(e, t, "chat.loadError", null));
+    } finally {
+      setLoading(false);
+    }
+  }, [id, t]);
+
+  useEffect(() => {
+    void load();
+    const timer = setInterval(() => void load(), POLL_MS);
+    return () => clearInterval(timer);
+  }, [load]);
+
+  const send = async () => {
+    const body = text.replace(/\s+/g, " ").trim();
+    if (!body) return;
+    setSending(true);
+    try {
+      const authToken = await auth();
+      const r = await fetch(`${API_BASE_URL}/observation-chat/${id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw Object.assign(codedError(String(j?.error || "OBSERVATION_CHAT_SEND_FAILED")), { status: r.status });
+      setText("");
+      setError(null);
+      await load();
+      scrollToEnd(true);
+    } catch (e) {
+      // The server refuses messages in a closed chat; then the closed bar explains it.
+      const state = await safety.reload();
+      setError(state?.closed ? null : userErrorMessage(e, t, "chat.sendError", "observation.chat"));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const unblock = async () => {
+    setUnblocking(true);
+    try {
+      safety.setState(await unblockChatPartner("observation", observationId));
+    } catch (e) {
+      setError(userErrorMessage(e, t, "errors.generic", "chat.safety"));
+    } finally {
+      setUnblocking(false);
+    }
+  };
+
+  const canSend = !sending && !!text.trim();
+
+  return (
+    <View style={s.screen}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <ScreenHeader
+        title={t("observation.chat.title")}
+        subtitle={t("observation.chat.subtitle")}
+        onBack={() => router.back()}
+        raised
+        right={
+          observationId ? (
+            <ChatSafetyMenu
+              kind="observation"
+              id={observationId}
+              partner="other"
+              state={safety.state}
+              onState={safety.setState}
+              onReported={() => setReportSent(true)}
+              aboutText={t("observation.chat.aboutBody")}
+            />
+          ) : null
+        }
+      >
+        <ObservationResolution controller={resolution} variant="bar" canPropose={!safety.state.closed} />
+      </ScreenHeader>
+      <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        {loading ? (
+          <View style={s.center}>
+            <ActivityIndicator />
+            <Text style={s.muted}>{t("chat.loading")}</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            style={s.flex1}
+            data={messages}
+            keyExtractor={(m) => m.id}
+            contentContainerStyle={s.listContent}
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => scrollToEnd(false)}
+            ListHeaderComponent={
+              <View style={s.listHeader}>
+                <InlineNotice tone="warning" icon="shield-checkmark-outline" title={t("chat.safety")} style={s.noMargin} />
+                {reportSent && <InlineNotice tone="success" icon="checkmark-circle-outline" title={t("safety.reportSent")} style={s.noMargin} />}
+                {!!loadError && (
+                  <InlineNotice
+                    tone="warning"
+                    title={t("chat.loadError")}
+                    body={loadError === t("chat.loadError") ? undefined : loadError}
+                    actionLabel={t("errors.retry")}
+                    onAction={() => void load()}
+                    style={s.noMargin}
+                  />
+                )}
+                {!!error && <InlineNotice tone="error" title={error} style={s.noMargin} />}
+              </View>
+            }
+            ListEmptyComponent={
+              safety.state.closed || loadError ? null : (
+                <View style={s.empty}>
+                  <Text style={s.emptyTitle}>{t("chat.emptyTitle")}</Text>
+                  <Text style={s.muted}>{t("chat.emptyBody")}</Text>
+                </View>
+              )
+            }
+            renderItem={({ item, index }) => {
+              const mine = item.sender_id === uid;
+              const previous = index > 0 ? messages[index - 1] : null;
+              const showDate = !previous || dayKey(previous.created_at) !== dayKey(item.created_at);
+              return (
+                <View>
+                  {showDate && (
+                    <View style={s.dayRow}>
+                      <Text style={s.dayText}>{formatDayLabel(item.created_at, language, t)}</Text>
+                    </View>
+                  )}
+                  <View style={[s.msgCol, mine ? s.msgMine : s.msgOther]}>
+                    <View style={[s.bubble, mine ? s.bubbleMine : s.bubbleOther]}>
+                      <Text style={[s.body, mine && s.bodyMine]}>{item.body}</Text>
+                    </View>
+                    <Text style={s.meta}>{formatTime(item.created_at, language)}</Text>
+                  </View>
+                </View>
+              );
+            }}
+          />
+        )}
+        {safety.state.closed ? (
+          <ChatClosedBar state={safety.state} partner="other" onUnblock={() => void unblock()} busy={unblocking} bottomInset={insets.bottom} />
+        ) : (
+          <View style={[s.composer, { paddingBottom: Math.max(12, insets.bottom + 4) }]}>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder={t("chat.placeholder")}
+              placeholderTextColor={theme.colors.textSecondary}
+              accessibilityLabel={t("chat.messageLabel")}
+              style={s.input}
+              multiline
+              maxLength={1000}
+              editable={!sending}
+            />
+            <Pressable
+              onPress={() => void send()}
+              disabled={!canSend}
+              accessibilityRole="button"
+              accessibilityLabel={t("chat.send")}
+              style={({ pressed }) => [s.sendBtn, !canSend && s.sendOff, pressed && s.pressed]}
+            >
+              {sending ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="arrow-forward" size={22} color="#FFFFFF" />}
+            </Pressable>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.colors.bg },
+  flex1: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+  muted: { color: theme.colors.textSecondary, fontWeight: "600", fontSize: 14, textAlign: "center" },
+  noMargin: { marginTop: 0 },
+  listContent: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 },
+  listHeader: { gap: 10, marginBottom: 6 },
+  empty: { flex: 1, minHeight: 200, alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 24 },
+  emptyTitle: { fontSize: 17, fontWeight: "900", color: theme.colors.text },
+  dayRow: { alignItems: "center", marginVertical: 10 },
+  dayText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: theme.colors.textSecondary,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    overflow: "hidden",
+  },
+  msgCol: { maxWidth: "80%", marginBottom: 8, gap: 3 },
+  msgMine: { alignSelf: "flex-end", alignItems: "flex-end" },
+  msgOther: { alignSelf: "flex-start", alignItems: "flex-start" },
+  bubble: { borderRadius: 18, paddingHorizontal: 13, paddingVertical: 10 },
+  bubbleMine: { backgroundColor: theme.colors.primary, borderBottomRightRadius: 6 },
+  bubbleOther: { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border, borderBottomLeftRadius: 6 },
+  body: { fontSize: 15, lineHeight: 21, fontWeight: "500", color: theme.colors.text },
+  bodyMine: { color: "#FFFFFF" },
+  meta: { fontSize: 11, fontWeight: "600", color: theme.colors.textSecondary, paddingHorizontal: 6 },
+  composer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    backgroundColor: theme.colors.card,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  input: {
+    flex: 1,
+    minHeight: 46,
+    maxHeight: 120,
+    borderRadius: 23,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    fontSize: 16,
+    color: theme.colors.text,
+  },
+  sendBtn: { width: 46, height: 46, borderRadius: 999, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
+  sendOff: { opacity: 0.4 },
+  pressed: { opacity: 0.85 },
+});
 
 // T1.9A: registered accounts only; guests see the account-required screen.
 export default requireAccount(Screen);

@@ -17,6 +17,7 @@ const requireUser = authModule?.requireUser || authModule;
 const requireUserOrGuest = authModule.requireUserOrGuest;
 const { normalizeMainColor, normalizeSecondaryColor } = require("../lib/colorKeys");
 const { canonicalItemKey } = require("../lib/itemKeys");
+const { normalizeIdentifier, saveIdentifier, loadIdentifier } = require("../lib/reportIdentifier");
 const { normalizeCustody, normalizeOccurredPrecision } = require("../lib/reportCustody");
 const { checkLimit, limitResponse } = require("../lib/rateLimits");
 const { isSuspended } = require("../lib/chatSafetyStore");
@@ -506,6 +507,14 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       }
     }
 
+    // T1.9V: optional private identifier (frame number, serial, IMEI, chip). Validated before insert.
+    let identifier = null;
+    try {
+      identifier = normalizeIdentifier(req.body?.identifier);
+    } catch {
+      return res.status(400).json({ error: "INVALID_IDENTIFIER" });
+    }
+
     const insertPayload = {
       user_id: user.id,
       client_request_id: normalizedClientRequestId,
@@ -574,6 +583,15 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       return res
         .status(500)
         .json({ error: "Could not register report creation safely" });
+    }
+
+    if (identifier) {
+      try {
+        // Saving it runs the match refresh in the database again with the identifier.
+        await saveIdentifier(supaAdmin, data.id, identifier);
+      } catch (idErr) {
+        console.warn("[reports] identifier insert failed", idErr?.message ?? idErr);
+      }
     }
 
     let candidates = [];
@@ -654,6 +672,16 @@ router.patch("/:id", requireUser, async (req, res) => {
 
     if (rErr) return res.status(400).json({ error: rErr.message });
     if (!existing) return res.status(404).json({ error: "Report not found" });
+
+    // T1.9V: identifier changes are stored on their own and do not count as an edit.
+    if (req.body && "identifier" in req.body) {
+      try {
+        await saveIdentifier(supaAdmin, reportId, normalizeIdentifier(req.body.identifier));
+      } catch (idErr) {
+        if (idErr?.code === "INVALID_IDENTIFIER") return res.status(400).json({ error: "INVALID_IDENTIFIER" });
+        console.warn("[reports] identifier update failed", idErr?.message ?? idErr);
+      }
+    }
 
     // Do not allow changing report type. LOST remains LOST, FOUND remains FOUND.
     let patch;
@@ -1254,6 +1282,8 @@ router.get("/:id", requireUser, async (req, res) => {
       confirmed_matches: confirmedMatches,
       last_messages: lastMessages,
       observations: observationsResult.data || [],
+      // T1.9V: the owner's own identifier (this route only answers the owner).
+      identifier: await loadIdentifier(supaAdmin, reportId),
     });
   } catch (e) {
     return res.status(500).json({ error: e?.message ?? "Server error" });

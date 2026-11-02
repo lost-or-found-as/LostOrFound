@@ -129,15 +129,17 @@ const flag = requireTs(path.join(root, "src/lib/newRegistration.ts"), {
   react: { useEffect: () => {}, useState: (v) => [v, () => {}] },
 });
 eq(flag.registerRoute(true, "FOUND"), { pathname: "/(report)/register", params: { type: "FOUND" } }, "switch on: new screen");
-eq(flag.registerRoute(false, "LOST").pathname, "/(report)/create-report", "switch off: current screen");
+// T1.9W: the new registration is the default; the old screen is only for editing.
+eq(flag.registerRoute(false, "LOST").pathname, "/(report)/register", "new registration for everyone");
 
 // 4. Screens.
 const register = read("app/(report)/register.tsx");
 ok(/reportBody\(draft,/.test(register) && /pathname: "\/\(report\)\/map"/.test(register), "new screen sends the shared body and uses the current map");
 ok(/returnTo: "\/\(report\)\/register"/.test(register), "login returns to the new screen");
 ok(!/Alert\.alert/.test(register), "no system dialogs");
-ok(/<RegisterChoice \/>/.test(read("app/start.tsx")) && /registerRoute\(newRegistration, "LOST"\)/.test(read("app/(tabs)/index.tsx")), "both entry points follow the switch");
-ok(/<Switch/.test(read("app/(tabs)/profile.tsx")), "switch in Profile");
+ok(/<RegisterChoice \/>/.test(read("app/start.tsx")), "start shows the new chooser");
+// T1.9W: the new registration is the default, so the developer switch is gone from Profile.
+ok(!/<Switch/.test(read("app/(tabs)/profile.tsx")) && !/profile\.newRegistration/.test(read("app/(tabs)/profile.tsx")), "no registration switch in Profile");
 ok(/custodyText\(match\.found\?\.custody, match\.found\?\.custody_place, t, \{ placeHidden: youOwnLost && !confirmed \}\)/.test(read("app/matches/[matchId].tsx")), "owner sees custody in the match");
 ok(fs.existsSync(path.join(root, "app/(report)/create-report.tsx")), "current registration is kept");
 

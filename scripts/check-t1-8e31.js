@@ -2,7 +2,8 @@ const fs = require("fs"),
   p = require("path"),
   r = (f) => fs.readFileSync(p.join(process.cwd(), f), "utf8");
 const checks = {
-  "app/my-reports.tsx": ["paymentSummary", "cases.complete.test.payment"],
+  // T1.9W: the summary stays; the confirm button no longer says "Fullfør testbetaling".
+  "app/my-reports.tsx": ["paymentSummary", "extendLostRequest"],
   "app/match.tsx": ["compactCard", "/match-comparison/"],
   "app/match-comparison/[matchId].tsx": [
     "match.view.full.details",
@@ -14,6 +15,8 @@ const checks = {
     "previousColorMatch",
   ],
 };
+for (const k of ["cases.complete.test.payment", "cases.test.price", "cases.test.payment.notice"])
+  if (r("app/my-reports.tsx").includes(k)) throw Error(`Test text ${k} still shown in app/my-reports.tsx`);
 for (const [f, items] of Object.entries(checks)) {
   const s = r(f);
   for (const item of items) {

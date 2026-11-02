@@ -130,6 +130,8 @@ const GUEST_ALLOWED = new Set([
   "storage.js POST /signed-upload",
   "geo.js GET /reverse",
   "geo.js GET /search",
+  // T1.9V: guests can send feedback (2 per day).
+  "feedback.js POST /",
 ]);
 // T1.9R: public pages (privacy policy and terms) need no sign-in at all.
 const PUBLIC = new Set(["legal.js GET /:doc", "authPages.js GET /confirmed"]);

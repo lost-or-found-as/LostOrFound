@@ -345,12 +345,13 @@ function Screen() {
         t("caseDetail.extendLostBody", { count: activity.summary.paidExtensions + 1 }),
         reactivationPrice == null
           ? null
-          : `${t("cases.test.price")}: ${reactivationPrice === 0 ? t("areaAlertCreate.pilotFree") : formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language)}`,
-        t("cases.test.payment.notice"),
+          : `${t("areaAlertCreate.priceLabel")}: ${reactivationPrice === 0 ? t("areaAlertCreate.pilotFree") : formatMoney(reactivationPrice, STORED_MONEY_CURRENCY, language)}`,
+        // T1.9W: the test-payment note only when something would be charged.
+        reactivationPrice ? t("cases.test.payment.notice") : null,
       ]
         .filter(Boolean)
         .join("\n\n"),
-      label: t("cases.complete.test.payment"),
+      label: t("caseDetail.next.extendLost"),
     },
   };
   const current = confirm ? confirmCopy[confirm] : null;

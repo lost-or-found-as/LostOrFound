@@ -39,6 +39,9 @@ export type ReportDraft = {
   custody?: "WITH_FINDER" | "LEFT_AT_PLACE" | "HANDED_IN" | "";
   custodyPlace?: string;
   locationLabel?: string;
+  // T1.9V: private identifier (frame number, serial number, IMEI, chip number).
+  identifierKind?: "FRAME_NUMBER" | "SERIAL_NUMBER" | "IMEI" | "CHIP_NUMBER" | "OTHER";
+  identifierValue?: string;
 
   location: ReportLocation | null;
   searchAreas: SearchArea[];
