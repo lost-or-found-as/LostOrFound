@@ -23,9 +23,6 @@ export const COLOR_SWATCHES: Record<string, Swatch> = {
   "light-blue": { fill: "#93C5FD", dark: false },
   turquoise: { fill: "#14B8A6", dark: false },
   burgundy: { fill: "#7F1D1D", dark: true },
-  lime: { fill: "#A3E635", dark: false },
-  cyan: { fill: "#22D3EE", dark: false },
-  magenta: { fill: "#C026D3", dark: true },
   olive: { fill: "#65712B", dark: true },
   gold: { fill: "#D4A017", dark: false },
   silver: { fill: "#C0C6CF", dark: false },
@@ -42,8 +39,8 @@ export const COMMON_COLOR_KEYS = ["red", "orange", "yellow", "green", "blue", "p
 
 /** Every colour under "Flere farger": rainbow order, similar colours next to each other, then neutrals and the special choices. */
 export const ALL_COLOR_KEYS = [
-  "burgundy", "red", "orange", "bronze", "gold", "yellow", "lime", "green", "olive", "turquoise", "cyan",
-  "light-blue", "blue", "navy", "purple", "magenta", "pink", "beige", "brown", "black", "gray", "silver", "white",
+  "burgundy", "red", "orange", "bronze", "gold", "yellow", "green", "olive", "turquoise",
+  "light-blue", "blue", "navy", "purple", "pink", "beige", "brown", "black", "gray", "silver", "white",
   "camo", "multicolor", "patterned", "unknown", "other",
 ];
 

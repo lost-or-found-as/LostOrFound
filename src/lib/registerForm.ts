@@ -4,6 +4,7 @@
 import {
   CATEGORY_CATALOG,
   ITEM_CATALOG,
+  canonicalItemKey,
   categoryName,
   colorName,
   itemName,
@@ -36,7 +37,8 @@ export function searchItems(query: string, language: Lang, limit = 6): ItemHit[]
   for (const category of CATEGORY_CATALOG) {
     for (const item of ITEM_CATALOG[category.key] || []) {
       if (item.key === "CUSTOM") continue;
-      const id = `${category.key}:${item.key}`;
+      // T1.9U: an item listed in several categories is shown once, in its home category.
+      const id = item.key;
       if (seen.has(id)) continue;
       const own = fold(item.names[language]);
       const all = fold([itemSearchText(item.key), ...Object.values(item.names), ...(item.aliases || [])].join(" "));
@@ -53,6 +55,28 @@ export function searchItems(query: string, language: Lang, limit = 6): ItemHit[]
     .sort((a, b) => a.rank - b.rank || a.hit.name.localeCompare(b.hit.name))
     .slice(0, limit)
     .map((h) => h.hit);
+}
+
+// T1.9U: advice shown under some items while registering (frame number, rental scooters,
+// ID documents, cards, cash, medication labels).
+const ITEM_HINTS: Record<string, { LOST?: TranslationKey; FOUND?: TranslationKey }> = {
+  BICYCLE: { LOST: "register.hint.bicycleLost", FOUND: "register.hint.bicycleFound" },
+  E_BIKE: { LOST: "register.hint.bicycleLost", FOUND: "register.hint.bicycleFound" },
+  E_SCOOTER: { LOST: "register.hint.eScooterLost", FOUND: "register.hint.eScooterFound" },
+  PASSPORT: { LOST: "register.hint.idLost", FOUND: "register.hint.idFound" },
+  ID_CARD: { LOST: "register.hint.idLost", FOUND: "register.hint.idFound" },
+  DRIVER_LICENSE: { LOST: "register.hint.idLost", FOUND: "register.hint.idFound" },
+  BANK_CARD: { LOST: "register.hint.bankCardLost", FOUND: "register.hint.bankCardFound" },
+  CASH: { LOST: "register.hint.cashLost", FOUND: "register.hint.cashFound" },
+  MEDICATION: { FOUND: "register.hint.medicationFound" },
+};
+
+/** Advice for the chosen item, or null. */
+export function itemHintKey(key: string | undefined, type: string | undefined): TranslationKey | null {
+  if (!key) return null;
+  const hints = ITEM_HINTS[canonicalItemKey(key)];
+  if (!hints) return null;
+  return (String(type).toUpperCase() === "FOUND" ? hints.FOUND : hints.LOST) ?? null;
 }
 
 /** A pet that is not in the list needs its own description ("Hvilket dyr?"). */
@@ -123,7 +147,7 @@ export function reportBody(
   return {
     type,
     category: String(draft.category || "").trim().toUpperCase(),
-    subcategory_key: draft.subcategoryKey ? String(draft.subcategoryKey).trim().toUpperCase() : undefined,
+    subcategory_key: draft.subcategoryKey ? canonicalItemKey(draft.subcategoryKey) : undefined,
     subcategory_custom: needsCustomPet(draft.category, draft.subcategoryKey)
       ? String(draft.subcategoryCustom || "").trim() || undefined
       : undefined,

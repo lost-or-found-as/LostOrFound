@@ -92,6 +92,12 @@ export type NextStep = {
   dateIso?: string;
 };
 
+/** T1.9U: the small label above the card ("Neste steg" read oddly on status cards). */
+export function stepEyebrowKey(step: NextStep): TranslationKey {
+  if (step.kind === "unreadChat" || step.kind === "chat" || step.kind === "matches") return "caseDetail.next.eyebrowNews";
+  return step.action ? "caseDetail.next.eyebrowSuggestion" : "caseDetail.next.eyebrowStatus";
+}
+
 /** What the owner should do next with the case, most important first. */
 export function nextStep(report: LifecycleReport, summary: ActivitySummary, now = Date.now()): NextStep {
   const lost = String(report.type || "").toUpperCase() === "LOST";

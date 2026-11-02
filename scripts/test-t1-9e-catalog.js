@@ -38,8 +38,9 @@ for (const [listName, list] of Object.entries(lists)) {
   for (const e of list) {
     for (const lang of SUPPORTED_LANGUAGES) if (!String(e.names?.[lang] ?? "").trim()) missing.push(listName + "/" + e.key + "/" + lang);
     if (listName.startsWith("items")) {
-      ok(!seen.has(e.key), "item key " + e.key + " appears in both " + seen.get(e.key) + " and " + listName);
-      seen.set(e.key, listName);
+      // T1.9U: an item may be listed in several categories, but only as the same entry.
+      ok(!seen.has(e.key) || seen.get(e.key) === e, "item key " + e.key + " has two different entries");
+      seen.set(e.key, e);
     }
   }
 }

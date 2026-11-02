@@ -36,6 +36,7 @@ import { userErrorMessage } from "../../src/lib/userError";
 import {
   cleanRewardInput,
   isLongAgo,
+  itemHintKey,
   missingFields,
   needsCustomPet,
   newClientRequestId,
@@ -312,6 +313,7 @@ export default function RegisterScreen() {
       ? t("register.what.customPet")
       : itemName(draft.subcategoryKey, language, draft.category)
     : "";
+  const hintKey = itemHintKey(draft.subcategoryKey, type);
   const colorsText =
     draft.color && draft.colorSecondary
       ? t("catalog.colorPair", { first: colorName(draft.color, language), second: colorName(draft.colorSecondary, language).toLocaleLowerCase() })
@@ -421,6 +423,13 @@ export default function RegisterScreen() {
                     <Text style={s.link}>{t("register.what.otherPet", { name: query.trim() })}</Text>
                   </Pressable>
                 )}
+              </View>
+            )}
+            {/* T1.9U: advice for some items (frame number, rental scooters, ID documents, cards, cash). */}
+            {hintKey && (
+              <View style={s.itemHint}>
+                <Ionicons name="information-circle-outline" size={18} color="#1D4ED8" />
+                <Text style={s.itemHintText}>{t(hintKey)}</Text>
               </View>
             )}
             {needsCustomPet(draft.category, draft.subcategoryKey) && (
@@ -843,6 +852,8 @@ const s = StyleSheet.create({
   hitName: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   selected: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 14, backgroundColor: theme.colors.bg },
   selectedName: { fontSize: 16, fontWeight: "900", color: theme.colors.text },
+  itemHint: { flexDirection: "row", gap: 8, alignItems: "flex-start", marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE" },
+  itemHintText: { flex: 1, fontSize: 14, lineHeight: 20, fontWeight: "600", color: "#1E3A8A" },
   muted: { fontSize: 14, fontWeight: "600", color: theme.colors.textSecondary },
   mutedSmall: { fontSize: 13, lineHeight: 18, fontWeight: "600", color: theme.colors.textSecondary },
   linkButton: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },

@@ -42,7 +42,7 @@ import {
 import { InlineNotice } from "../src/ui/InlineNotice";
 import { WithdrawalConsent } from "../src/ui/WithdrawalConsent";
 import { Ionicons } from "@expo/vector-icons";
-import { formatArea, formatDistance, formatLocalizedDateTime, formatMoney } from "../src/i18n/formatters";
+import { formatArea, formatDistance, formatMoney } from "../src/i18n/formatters";
 import { STORED_MONEY_CURRENCY } from "../src/lib/market";
 
 function tr(language: "no" | "en", key: TranslationKey): string {
@@ -244,7 +244,35 @@ function GeoAlertCreateScreen() {
     );
   }
 
-  if (!activatedUntil && (view.kind === "live" || view.kind === "completed")) {
+  // T1.9U: after a successful activation the form is replaced by a confirmation, so the radius
+  // chips and "Beregn rekkevidde og pris" cannot be used again for the same activation.
+  if (activatedUntil) {
+    const until = areaAlertDateParts(activatedUntil, language);
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.safe}>
+          {header}
+          <ScrollView contentContainerStyle={styles.blockedContent}>
+            <View style={styles.blockedCard}>
+              <View style={[styles.blockedIcon, styles.blockedIconLive]}>
+                <Ionicons name="checkmark-circle-outline" size={28} color="#166534" />
+              </View>
+              <Text style={styles.blockedTitle}>{t("areaAlertCreate.sentTitle")}</Text>
+              <Text style={styles.blockedBody}>
+                {until.date ? t("areaAlertCreate.sentBody", { date: until.date, time: until.time }) : t("areaAlertCreate.relevantUsersWillBeNotified")}
+              </Text>
+            </View>
+            <Pressable accessibilityRole="button" style={styles.primary} onPress={() => router.back()}>
+              <Text style={styles.primaryText}>{t("areaAlertCreate.backToCase")}</Text>
+            </Pressable>
+          </ScrollView>
+        </View>
+      </>
+    );
+  }
+
+  if (view.kind === "live" || view.kind === "completed") {
     const live = view.kind === "live";
     const until = areaAlertDateParts(status?.activeUntil || view.latest?.endsAt, language);
     const lastOne = view.activationCount >= view.maxActivations;
@@ -451,8 +479,8 @@ function GeoAlertCreateScreen() {
                   busy={activating}
                 />
               )}
-              {!activatedUntil && !noticeView && <WithdrawalConsent checked={consent} onChange={setConsent} />}
-              {!activatedUntil && !noticeView ? (
+              {!noticeView && <WithdrawalConsent checked={consent} onChange={setConsent} />}
+              {!noticeView ? (
                 <Pressable
                   disabled={activating || !consent || result.quote.recipients.kind === "NONE"}
                   accessibilityRole="button"
@@ -468,30 +496,6 @@ function GeoAlertCreateScreen() {
                     </Text>
                   )}
                 </Pressable>
-              ) : activatedUntil ? (
-                <View style={styles.successBox}>
-                  <Text style={styles.successTitle}>
-                    {tr(language, "areaAlertCreate.area.alert.active")}
-                  </Text>
-                  <Text style={styles.successText}>
-                    {tr(language, "areaAlertCreate.active.until")}:{" "}
-                    {formatLocalizedDateTime(activatedUntil, language)}
-                  </Text>
-                  <Text style={styles.successText}>
-                    {tr(
-                      language,
-                      "areaAlertCreate.relevantUsersWillBeNotified",
-                    )}
-                  </Text>
-                  <Pressable
-                    style={styles.secondary}
-                    onPress={() => router.back()}
-                  >
-                    <Text style={styles.secondaryText}>
-                      {tr(language, "areaAlertCreate.back.to.report")}
-                    </Text>
-                  </Pressable>
-                </View>
               ) : null}
             </View>
           )}

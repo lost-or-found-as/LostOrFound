@@ -47,6 +47,7 @@ import {
   activityTarget,
   activityText,
   EMPTY_ACTIVITY,
+  stepEyebrowKey,
   fetchReportActivity,
   nextStep,
   type ActivityEvent,
@@ -92,9 +93,14 @@ function Screen() {
 
   const load = useCallback(
     async (quiet = false) => {
+      // T1.9U: the report, its timeline and the area-alert status load together, and the screen
+      // shows when all three are in. Before, the timeline came after the screen, so a historic
+      // case showed "Mistet for lenge siden? Gjør saken historisk" for a few seconds.
+      const activityPromise = fetchReportActivity(String(id)).catch(() => EMPTY_ACTIVITY);
+      const geoPromise = fetchGeoAlertStatus(String(id)).catch(() => null);
+      if (!quiet) setLoading(true);
+      setLoadError(null);
       try {
-        if (!quiet) setLoading(true);
-        setLoadError(null);
         const token = (await supabase.auth.getSession()).data.session?.access_token;
         if (!token) throw new Error("AUTH_REQUIRED");
         const r = await fetch(`${API_BASE_URL}/reports/${encodeURIComponent(String(id))}`, {
@@ -106,21 +112,13 @@ function Screen() {
       } catch (e: any) {
         // T1.8E.5I: shown in the screen with a retry, never as a native dialog.
         if (!quiet) setLoadError(classifyAreaAlertError(e));
-      } finally {
-        if (!quiet) setLoading(false);
       }
       // The timeline is extra: the case still shows when it cannot be loaded.
-      try {
-        setActivity(await fetchReportActivity(String(id)));
-      } catch {
-        setActivity(EMPTY_ACTIVITY);
-      }
+      const [nextActivity, nextGeo] = await Promise.all([activityPromise, geoPromise]);
+      setActivity(nextActivity);
       setActivityReady(true);
-      try {
-        setGeoStatus(await fetchGeoAlertStatus(String(id)));
-      } catch {
-        setGeoStatus(null);
-      }
+      setGeoStatus(nextGeo);
+      if (!quiet) setLoading(false);
     },
     [id],
   );
@@ -387,7 +385,7 @@ function Screen() {
 
         {/* Neste steg */}
         <View style={[s.step, step.tone === "dark" ? s.stepDark : s.stepPlain]}>
-          <Text style={[s.stepEyebrow, step.tone === "dark" && s.onDarkMuted]}>{t("caseDetail.next.eyebrow")}</Text>
+          <Text style={[s.stepEyebrow, step.tone === "dark" && s.onDarkMuted]}>{t(stepEyebrowKey(step))}</Text>
           <Text style={[s.stepTitle, step.tone === "dark" && s.onDark]}>{t(step.titleKey, stepParams)}</Text>
           <Text style={[s.stepBody, step.tone === "dark" && s.onDarkSoft]}>{t(step.bodyKey, stepParams)}</Text>
           {step.kind === "matches" && (

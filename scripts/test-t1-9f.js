@@ -14,14 +14,17 @@ const ok = (cond, label) => { assert.ok(cond, label); n++; };
 // 1. One list of colour keys: server validation, database constraint and app catalog.
 const { COLOR_KEYS, normalizeSecondaryColor } = require(path.join(root, "server", "lib", "colorKeys.js"));
 const migration = read("supabase/migrations/20261030150000_t1_9f_secondary_color_and_chat_reads.sql");
-const constraintKeys = [...migration.match(/secondary_color in \(([\s\S]*?)\)/)[1].matchAll(/'([a-z-]+)'/g)].map((m) => m[1]);
+// T1.9U replaced the constraint (lime, cyan and magenta folded into other colours).
+const latestConstraint = read("supabase/migrations/20261103100000_t1_9u_item_list_and_match_groups.sql");
+const constraintKeys = [...latestConstraint.match(/secondary_color in \(([\s\S]*?)\)/)[1].matchAll(/'([a-z-]+)'/g)].map((m) => m[1]);
+const { LEGACY_COLOR_KEYS } = require(path.join(root, "server", "lib", "colorKeys.js"));
 const catalog = read("src/i18n/catalog.ts");
 const colorBlock = catalog.slice(catalog.indexOf("export const COLOR_CATALOG"), catalog.indexOf("];", catalog.indexOf("export const COLOR_CATALOG")));
 const catalogKeys = [...colorBlock.matchAll(/key: "([a-z-]+)"/g)].map((m) => m[1]);
 ok(JSON.stringify([...COLOR_KEYS].sort()) === JSON.stringify([...catalogKeys].sort()), "server colour keys equal the catalog");
 ok(JSON.stringify([...constraintKeys].sort()) === JSON.stringify([...catalogKeys].sort()), "database constraint equals the catalog");
 const backfillTargets = new Set([...migration.matchAll(/\('[^']+', '([a-z-]+)'\)/g)].map((m) => m[1]));
-ok([...backfillTargets].every((k) => catalogKeys.includes(k)), "backfill only writes known keys");
+ok([...backfillTargets].every((k) => catalogKeys.includes(k) || k in LEGACY_COLOR_KEYS), "backfill only writes known keys");
 ok(catalogKeys.every((k) => backfillTargets.has(k)), "backfill knows every colour");
 ok(normalizeSecondaryColor("Light-Blue") === "light-blue" && normalizeSecondaryColor("") === null, "server normalizes keys");
 assert.throws(() => normalizeSecondaryColor("Gul"), /INVALID_SECONDARY_COLOR/); n++;

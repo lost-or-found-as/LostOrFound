@@ -15,7 +15,8 @@ const supaAdmin =
 const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const requireUserOrGuest = authModule.requireUserOrGuest;
-const { normalizeSecondaryColor } = require("../lib/colorKeys");
+const { normalizeMainColor, normalizeSecondaryColor } = require("../lib/colorKeys");
+const { canonicalItemKey } = require("../lib/itemKeys");
 const { normalizeCustody, normalizeOccurredPrecision } = require("../lib/reportCustody");
 const { checkLimit, limitResponse } = require("../lib/rateLimits");
 const { isSuspended } = require("../lib/chatSafetyStore");
@@ -281,14 +282,13 @@ function normalizeReportPatch(body) {
   if (typeof input.category === "string")
     patch.category = input.category.trim().toUpperCase();
   if ("subcategory_key" in input)
-    patch.subcategory_key = input.subcategory_key
-      ? String(input.subcategory_key).trim().toUpperCase()
-      : null;
+    // T1.9U: older keys are stored as the item that replaced them.
+    patch.subcategory_key = canonicalItemKey(input.subcategory_key);
   if ("subcategory_custom" in input)
     patch.subcategory_custom = input.subcategory_custom || null;
   if (typeof input.title === "string") patch.title = input.title.trim();
   if ("description" in input) patch.description = input.description || null;
-  if ("color" in input) patch.color = input.color || null;
+  if ("color" in input) patch.color = normalizeMainColor(input.color);
   // T1.9F: validated colour key (throws INVALID_SECONDARY_COLOR).
   if ("secondary_color" in input) patch.secondary_color = normalizeSecondaryColor(input.secondary_color);
   if ("brand" in input) patch.brand = input.brand || null;
@@ -513,11 +513,11 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       status: "ACTIVE",
       visible_until: visibleUntilForType(normalizedType),
       category,
-      subcategory_key: subcategory_key || null,
+      subcategory_key: canonicalItemKey(subcategory_key),
       subcategory_custom: subcategory_custom || null,
       title,
       description,
-      color,
+      color: normalizeMainColor(color),
       secondary_color: normalizedSecondaryColor,
       brand,
       occurred_at,
