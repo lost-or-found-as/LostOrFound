@@ -1,0 +1,956 @@
+{
+ "categories": {
+  "BAGS_LUGGAGE": {
+   "no": "Vesker og bagasje",
+   "en": "Bags and luggage"
+  },
+  "CHILDREN_FAMILY": {
+   "no": "Barn og familie",
+   "en": "Children and family"
+  },
+  "CLOTHING_ACCESSORIES": {
+   "no": "Klær og tilbehør",
+   "en": "Clothing and accessories"
+  },
+  "CULTURE_HOBBY": {
+   "no": "Skole, kultur og hobby",
+   "en": "School, culture and hobbies"
+  },
+  "ELECTRONICS": {
+   "no": "Elektronikk",
+   "en": "Electronics"
+  },
+  "JEWELRY": {
+   "no": "Smykker og klokker",
+   "en": "Jewelry and watches"
+  },
+  "PERSONAL": {
+   "no": "Personlige eiendeler",
+   "en": "Personal belongings"
+  },
+  "PETS": {
+   "no": "Husdyr",
+   "en": "Pets"
+  },
+  "SPORT_OUTDOOR": {
+   "no": "Sport og friluft",
+   "en": "Sports and outdoors"
+  },
+  "TOOLS_HOUSE": {
+   "no": "Verktøy",
+   "en": "Tools"
+  },
+  "VEHICLE_TRANSPORT": {
+   "no": "Sykkel og kjøretøy",
+   "en": "Bikes and vehicles"
+  }
+ },
+ "items": {
+  "ACCESS_CARD": {
+   "no": "Adgangskort",
+   "en": "Access card"
+  },
+  "ACCESS_TAG": {
+   "no": "Adgangsbrikke",
+   "en": "Access tag"
+  },
+  "ACTION_CAMERA": {
+   "no": "Actionkamera",
+   "en": "Action camera"
+  },
+  "ART_SUPPLIES": {
+   "no": "Kunstutstyr",
+   "en": "Art supplies"
+  },
+  "BABY_BLANKET": {
+   "no": "Koseklut / babyteppe",
+   "en": "Comfort blanket / baby blanket"
+  },
+  "BABY_BOTTLE": {
+   "no": "Tåteflaske",
+   "en": "Baby bottle"
+  },
+  "BABY_CARRIER": {
+   "no": "Bæresele",
+   "en": "Baby carrier"
+  },
+  "BACKPACK": {
+   "no": "Ryggsekk",
+   "en": "Backpack"
+  },
+  "BADMINTON_RACKET": {
+   "no": "Badmintonracket",
+   "en": "Badminton racket"
+  },
+  "BALL": {
+   "no": "Ball",
+   "en": "Ball"
+  },
+  "BANK_CARD": {
+   "no": "Bankkort",
+   "en": "Bank card"
+  },
+  "BELT": {
+   "no": "Belte",
+   "en": "Belt"
+  },
+  "BICYCLE": {
+   "no": "Sykkel",
+   "en": "Bicycle"
+  },
+  "BIKE_COMPUTER": {
+   "no": "Sykkelcomputer",
+   "en": "Bike computer"
+  },
+  "BIKE_HELMET": {
+   "no": "Sykkelhjelm",
+   "en": "Bike helmet"
+  },
+  "BIKE_LIGHT": {
+   "no": "Sykkellykt",
+   "en": "Bike light"
+  },
+  "BIKE_LOCK": {
+   "no": "Sykkellås",
+   "en": "Bike lock"
+  },
+  "BINOCULARS": {
+   "no": "Kikkert",
+   "en": "Binoculars"
+  },
+  "BIRD": {
+   "no": "Fugl",
+   "en": "Bird"
+  },
+  "BLAZER": {
+   "no": "Blazer / dressjakke",
+   "en": "Blazer / suit jacket"
+  },
+  "BOOK": {
+   "no": "Bok",
+   "en": "Book"
+  },
+  "BOOTS": {
+   "no": "Støvler",
+   "en": "Boots"
+  },
+  "BRACELET": {
+   "no": "Armbånd",
+   "en": "Bracelet"
+  },
+  "BRIMMED_HAT": {
+   "no": "Hatt",
+   "en": "Hat"
+  },
+  "BROOCH": {
+   "no": "Brosje / bunadssølv",
+   "en": "Brooch / costume silver"
+  },
+  "CALCULATOR": {
+   "no": "Kalkulator",
+   "en": "Calculator"
+  },
+  "CAMERA": {
+   "no": "Kamera",
+   "en": "Camera"
+  },
+  "CAMERA_BAG": {
+   "no": "Kameraveske",
+   "en": "Camera bag"
+  },
+  "CAMERA_LENS": {
+   "no": "Kameralinse",
+   "en": "Camera lens"
+  },
+  "CAMPING_GEAR": {
+   "no": "Campingutstyr",
+   "en": "Camping gear"
+  },
+  "CAP": {
+   "no": "Caps",
+   "en": "Cap"
+  },
+  "CARDIGAN": {
+   "no": "Cardigan",
+   "en": "Cardigan"
+  },
+  "CARD_HOLDER": {
+   "no": "Kortholder",
+   "en": "Card holder"
+  },
+  "CAR_KEYS": {
+   "no": "Bilnøkler",
+   "en": "Car keys"
+  },
+  "CASH": {
+   "no": "Kontanter",
+   "en": "Cash"
+  },
+  "CAT": {
+   "no": "Katt",
+   "en": "Cat"
+  },
+  "CHARGER": {
+   "no": "Lader / ladekabel",
+   "en": "Charger / cable"
+  },
+  "CHARGING_CASE": {
+   "no": "Ladeetui",
+   "en": "Charging case"
+  },
+  "CHARGING_TAG": {
+   "no": "Ladebrikke",
+   "en": "Charging tag"
+  },
+  "CHILD_SEAT": {
+   "no": "Barnesete / sykkelsete",
+   "en": "Child seat / bike seat"
+  },
+  "CRAFT_ITEM": {
+   "no": "Håndarbeid",
+   "en": "Craft item"
+  },
+  "CUSTOM": {
+   "no": "Egendefinert (skriv selv)",
+   "en": "Custom (type your own)"
+  },
+  "DISC_GOLF_BAG": {
+   "no": "Discgolfbag",
+   "en": "Disc golf bag"
+  },
+  "DISC_GOLF_DISC": {
+   "no": "Discgolfdisk",
+   "en": "Disc golf disc"
+  },
+  "DOCUMENT_BRIEFCASE": {
+   "no": "Dokumentmappe",
+   "en": "Document case"
+  },
+  "DOG": {
+   "no": "Hund",
+   "en": "Dog"
+  },
+  "DOLL": {
+   "no": "Dukke",
+   "en": "Doll"
+  },
+  "DOWN_JACKET": {
+   "no": "Dunjakke",
+   "en": "Down jacket"
+  },
+  "DRESS": {
+   "no": "Kjole",
+   "en": "Dress"
+  },
+  "DRIVER_LICENSE": {
+   "no": "Førerkort",
+   "en": "Driver's license"
+  },
+  "DRONE": {
+   "no": "Drone",
+   "en": "Drone"
+  },
+  "DRONE_ACCESSORY": {
+   "no": "Droneutstyr (kontroller, batteri)",
+   "en": "Drone accessory (controller, battery)"
+  },
+  "EARBUDS": {
+   "no": "Trådløse ørepropper",
+   "en": "Wireless earbuds"
+  },
+  "EARRINGS": {
+   "no": "Ørering / øredobber",
+   "en": "Earring(s)"
+  },
+  "ENGAGEMENT_RING": {
+   "no": "Forlovelsesring",
+   "en": "Engagement ring"
+  },
+  "EXTERNAL_DRIVE": {
+   "no": "Ekstern harddisk",
+   "en": "External drive"
+  },
+  "E_BIKE": {
+   "no": "Elsykkel",
+   "en": "E-bike"
+  },
+  "E_READER": {
+   "no": "E-bokleser",
+   "en": "E-reader"
+  },
+  "E_SCOOTER": {
+   "no": "Elsparkesykkel",
+   "en": "E-scooter"
+  },
+  "FISHING_REEL": {
+   "no": "Fiskesnelle",
+   "en": "Fishing reel"
+  },
+  "FISHING_ROD": {
+   "no": "Fiskestang",
+   "en": "Fishing rod"
+  },
+  "FITNESS_TRACKER": {
+   "no": "Aktivitetsarmbånd",
+   "en": "Fitness tracker"
+  },
+  "FLASHLIGHT": {
+   "no": "Lommelykt",
+   "en": "Flashlight"
+  },
+  "FLEECE_JACKET": {
+   "no": "Fleece",
+   "en": "Fleece"
+  },
+  "GAME_CONSOLE": {
+   "no": "Håndholdt spillkonsoll",
+   "en": "Handheld game console"
+  },
+  "GAME_CONTROLLER": {
+   "no": "Spillkontroller",
+   "en": "Game controller"
+  },
+  "GARAGE_REMOTE": {
+   "no": "Garasjeåpner",
+   "en": "Garage remote"
+  },
+  "GLASSES": {
+   "no": "Briller",
+   "en": "Glasses"
+  },
+  "GLASSES_CASE": {
+   "no": "Brilleetui",
+   "en": "Glasses case"
+  },
+  "GLOVES": {
+   "no": "Hansker / votter",
+   "en": "Gloves / mittens"
+  },
+  "GOGGLES": {
+   "no": "Skibriller",
+   "en": "Ski goggles"
+  },
+  "GOLF_BAG": {
+   "no": "Golfbag",
+   "en": "Golf bag"
+  },
+  "GOLF_CLUB": {
+   "no": "Golfkølle",
+   "en": "Golf club"
+  },
+  "GOLF_RANGEFINDER": {
+   "no": "Golfavstandsmåler",
+   "en": "Golf rangefinder"
+  },
+  "GUITAR": {
+   "no": "Gitar",
+   "en": "Guitar"
+  },
+  "GYM_BAG": {
+   "no": "Treningsbag / sportsbag",
+   "en": "Gym bag / sports bag"
+  },
+  "HANDBAG": {
+   "no": "Håndveske",
+   "en": "Handbag"
+  },
+  "HAT": {
+   "no": "Lue",
+   "en": "Beanie"
+  },
+  "HEADBAND": {
+   "no": "Pannebånd",
+   "en": "Headband"
+  },
+  "HEADLAMP": {
+   "no": "Hodelykt",
+   "en": "Headlamp"
+  },
+  "HEADPHONES": {
+   "no": "Hodetelefoner (over øret)",
+   "en": "Headphones (over-ear)"
+  },
+  "HEARING_AID": {
+   "no": "Høreapparat",
+   "en": "Hearing aid"
+  },
+  "HEARING_PROTECTION": {
+   "no": "Hørselvern",
+   "en": "Hearing protection"
+  },
+  "HEART_RATE_MONITOR": {
+   "no": "Pulsmåler",
+   "en": "Heart rate monitor"
+  },
+  "HELMET": {
+   "no": "Ski-/klatrehjelm",
+   "en": "Ski / climbing helmet"
+  },
+  "HIKING_BACKPACK": {
+   "no": "Tursekk",
+   "en": "Hiking backpack"
+  },
+  "HOCKEY_STICK": {
+   "no": "Hockeykølle / innebandykølle",
+   "en": "Hockey / floorball stick"
+  },
+  "HOODIE": {
+   "no": "Hettegenser",
+   "en": "Hoodie"
+  },
+  "HORSE": {
+   "no": "Hest",
+   "en": "Horse"
+  },
+  "ICE_SKATES": {
+   "no": "Skøyter",
+   "en": "Ice skates"
+  },
+  "ID_CARD": {
+   "no": "ID-kort",
+   "en": "ID card"
+  },
+  "INSTRUMENT_CASE": {
+   "no": "Instrumentkasse",
+   "en": "Instrument case"
+  },
+  "JACKET": {
+   "no": "Jakke",
+   "en": "Jacket"
+  },
+  "KAYAK_CANOE": {
+   "no": "Kajakk / kano / SUP-brett",
+   "en": "Kayak / canoe / SUP board"
+  },
+  "KAYAK_PADDLE": {
+   "no": "Kajakkåre",
+   "en": "Kayak paddle"
+  },
+  "KEEPSAKE": {
+   "no": "Minnegjenstand / fotoalbum",
+   "en": "Keepsake / photo album"
+  },
+  "KEYS": {
+   "no": "Nøkler",
+   "en": "Keys"
+  },
+  "KIDS_RAINWEAR": {
+   "no": "Regntøy / dress (barn)",
+   "en": "Rain gear / snowsuit (kids)"
+  },
+  "LAPTOP": {
+   "no": "Bærbar PC",
+   "en": "Laptop"
+  },
+  "LAPTOP_BAG": {
+   "no": "PC-veske",
+   "en": "Laptop bag"
+  },
+  "LICENSE_PLATE": {
+   "no": "Bilskilt",
+   "en": "License plate"
+  },
+  "LIFE_JACKET": {
+   "no": "Redningsvest",
+   "en": "Life jacket"
+  },
+  "LUNCH_BOX": {
+   "no": "Matboks",
+   "en": "Lunch box"
+  },
+  "MEASURING_TOOL": {
+   "no": "Måleinstrument",
+   "en": "Measuring tool"
+  },
+  "MEDICATION": {
+   "no": "Medisiner / medisinboks",
+   "en": "Medication / pill box"
+  },
+  "MEMORY_CARD": {
+   "no": "Minnekort / USB-minne",
+   "en": "Memory card / USB drive"
+  },
+  "MOBILE_PHONE": {
+   "no": "Mobiltelefon",
+   "en": "Mobile phone"
+  },
+  "MOTORCYCLE_HELMET": {
+   "no": "Motorsykkelhjelm",
+   "en": "Motorcycle helmet"
+  },
+  "MUSICAL_INSTRUMENT": {
+   "no": "Instrument",
+   "en": "Musical instrument"
+  },
+  "NECKLACE": {
+   "no": "Halskjede",
+   "en": "Necklace"
+  },
+  "NECK_GAITER": {
+   "no": "Hals / buff",
+   "en": "Neck gaiter"
+  },
+  "NOTEBOOK": {
+   "no": "Notatbok / dagbok",
+   "en": "Notebook / diary"
+  },
+  "OTHER_BAGS": {
+   "no": "Annet (veske/bagasje)",
+   "en": "Other bag/luggage"
+  },
+  "OTHER_CHILDREN": {
+   "no": "Annet (barn/familie)",
+   "en": "Other child/family item"
+  },
+  "OTHER_CLOTHING": {
+   "no": "Annet (klær/tilbehør)",
+   "en": "Other clothing/accessory"
+  },
+  "OTHER_ELECTRONICS": {
+   "no": "Annet (elektronikk)",
+   "en": "Other electronics"
+  },
+  "OTHER_HOBBY": {
+   "no": "Annet (skole/kultur/hobby)",
+   "en": "Other school/culture/hobby item"
+  },
+  "OTHER_JEWELRY": {
+   "no": "Annet (smykker)",
+   "en": "Other jewelry"
+  },
+  "OTHER_PERSONAL": {
+   "no": "Annet (personlige)",
+   "en": "Other personal item"
+  },
+  "OTHER_PET": {
+   "no": "Annet (husdyr)",
+   "en": "Other pet"
+  },
+  "OTHER_SPORT": {
+   "no": "Annet (sport/friluft)",
+   "en": "Other sport/outdoor item"
+  },
+  "OTHER_TOOLS": {
+   "no": "Annet (verktøy)",
+   "en": "Other tools"
+  },
+  "OTHER_VEHICLE": {
+   "no": "Annet (sykkel/kjøretøy)",
+   "en": "Other bike/vehicle item"
+  },
+  "PACIFIER": {
+   "no": "Smokk",
+   "en": "Pacifier"
+  },
+  "PADEL_RACKET": {
+   "no": "Padelracket",
+   "en": "Padel racket"
+  },
+  "PASSPORT": {
+   "no": "Pass",
+   "en": "Passport"
+  },
+  "PENCIL_CASE": {
+   "no": "Pennal",
+   "en": "Pencil case"
+  },
+  "PENDANT": {
+   "no": "Anheng",
+   "en": "Pendant"
+  },
+  "PET_GEAR": {
+   "no": "Halsbånd / kobbel / sele",
+   "en": "Collar / leash / harness"
+  },
+  "POWERBANK": {
+   "no": "Powerbank",
+   "en": "Power bank"
+  },
+  "POWER_TOOL": {
+   "no": "Drill / batteriverktøy",
+   "en": "Drill / power tool"
+  },
+  "RABBIT": {
+   "no": "Kanin",
+   "en": "Rabbit"
+  },
+  "RAIN_JACKET": {
+   "no": "Regnjakke",
+   "en": "Rain jacket"
+  },
+  "RC_VEHICLE": {
+   "no": "Fjernstyrt bil / leke",
+   "en": "Remote-controlled toy"
+  },
+  "REFLECTIVE_VEST": {
+   "no": "Refleks / refleksvest",
+   "en": "Reflector / reflective vest"
+  },
+  "REPTILE": {
+   "no": "Reptil / skilpadde",
+   "en": "Reptile / turtle"
+  },
+  "RETAINER": {
+   "no": "Tannregulering / bittskinne",
+   "en": "Retainer / mouthguard"
+  },
+  "RING": {
+   "no": "Ring",
+   "en": "Ring"
+  },
+  "SANDALS": {
+   "no": "Sandaler",
+   "en": "Sandals"
+  },
+  "SCARF": {
+   "no": "Skjerf",
+   "en": "Scarf"
+  },
+  "SCHOOL_BAG": {
+   "no": "Skolesekk / barnesekk",
+   "en": "School bag / kids' backpack"
+  },
+  "SCOOTER": {
+   "no": "Sparkesykkel",
+   "en": "Scooter"
+  },
+  "SHIRT": {
+   "no": "Skjorte",
+   "en": "Shirt"
+  },
+  "SHOES": {
+   "no": "Sko",
+   "en": "Shoes"
+  },
+  "SHOPPING_BAG": {
+   "no": "Handlepose / tøyveske",
+   "en": "Shopping bag / tote bag"
+  },
+  "SHORTS": {
+   "no": "Shorts",
+   "en": "Shorts"
+  },
+  "SHOULDER_BAG": {
+   "no": "Skulderveske",
+   "en": "Shoulder bag"
+  },
+  "SINGLE_EARBUD": {
+   "no": "Enkelt ørepropp",
+   "en": "Single earbud"
+  },
+  "SKATEBOARD": {
+   "no": "Skateboard / longboard",
+   "en": "Skateboard / longboard"
+  },
+  "SKIRT": {
+   "no": "Skjørt",
+   "en": "Skirt"
+  },
+  "SKIS": {
+   "no": "Ski",
+   "en": "Skis"
+  },
+  "SKI_POLE": {
+   "no": "Skistav",
+   "en": "Ski pole"
+  },
+  "SLED": {
+   "no": "Akebrett / pulk",
+   "en": "Sled / pulk"
+  },
+  "SLEEPING_BAG": {
+   "no": "Sovepose",
+   "en": "Sleeping bag"
+  },
+  "SLEEPING_PAD": {
+   "no": "Liggeunderlag",
+   "en": "Sleeping pad"
+  },
+  "SMALL_PET": {
+   "no": "Smådyr (marsvin, hamster o.l.)",
+   "en": "Small pet (guinea pig, hamster etc.)"
+  },
+  "SMARTWATCH": {
+   "no": "Smartklokke / sportsklokke",
+   "en": "Smartwatch / sports watch"
+  },
+  "SMART_RING": {
+   "no": "Smartring",
+   "en": "Smart ring"
+  },
+  "SNEAKERS": {
+   "no": "Joggesko",
+   "en": "Sneakers"
+  },
+  "SNOWBOARD": {
+   "no": "Snowboard",
+   "en": "Snowboard"
+  },
+  "SPEAKER": {
+   "no": "Høyttaler",
+   "en": "Speaker"
+  },
+  "STROLLER": {
+   "no": "Barnevogn",
+   "en": "Stroller"
+  },
+  "STROLLER_FOOTMUFF": {
+   "no": "Kjørepose / vognpose",
+   "en": "Stroller footmuff"
+  },
+  "STUDENT_CARD": {
+   "no": "Studentkort",
+   "en": "Student card"
+  },
+  "STUFFED_TOY": {
+   "no": "Kosedyr",
+   "en": "Stuffed toy"
+  },
+  "STYLUS": {
+   "no": "Elektronisk penn",
+   "en": "Stylus"
+  },
+  "SUITCASE": {
+   "no": "Koffert",
+   "en": "Suitcase"
+  },
+  "SUNGLASSES": {
+   "no": "Solbriller",
+   "en": "Sunglasses"
+  },
+  "SWEATER": {
+   "no": "Genser",
+   "en": "Sweater"
+  },
+  "SWIMWEAR": {
+   "no": "Badetøy",
+   "en": "Swimwear"
+  },
+  "SWIM_GOGGLES": {
+   "no": "Svømmebriller",
+   "en": "Swimming goggles"
+  },
+  "TABLET": {
+   "no": "Nettbrett",
+   "en": "Tablet"
+  },
+  "TENNIS_RACKET": {
+   "no": "Tennisracket",
+   "en": "Tennis racket"
+  },
+  "TENT": {
+   "no": "Telt",
+   "en": "Tent"
+  },
+  "THERMOS": {
+   "no": "Termos",
+   "en": "Thermos"
+  },
+  "TOILETRY_BAG": {
+   "no": "Toalettmappe",
+   "en": "Toiletry bag"
+  },
+  "TOOLBOX": {
+   "no": "Verktøykasse",
+   "en": "Toolbox"
+  },
+  "TOOLS": {
+   "no": "Verktøy (generelt)",
+   "en": "Tools"
+  },
+  "TOOL_BAG": {
+   "no": "Verktøybag",
+   "en": "Tool bag"
+  },
+  "TOOL_BATTERY": {
+   "no": "Verktøybatteri",
+   "en": "Tool battery"
+  },
+  "TOY": {
+   "no": "Leketøy",
+   "en": "Toy"
+  },
+  "TRACKER_TAG": {
+   "no": "Sporingsbrikke",
+   "en": "Tracker tag"
+  },
+  "TRAVEL_BAG": {
+   "no": "Reisebag",
+   "en": "Travel bag"
+  },
+  "TRAVEL_CARD": {
+   "no": "Reisekort",
+   "en": "Travel card"
+  },
+  "TREKKING_POLE": {
+   "no": "Turstav",
+   "en": "Trekking pole"
+  },
+  "TROUSERS": {
+   "no": "Bukse",
+   "en": "Trousers"
+  },
+  "T_SHIRT": {
+   "no": "T-skjorte / topp",
+   "en": "T-shirt / top"
+  },
+  "UMBRELLA": {
+   "no": "Paraply",
+   "en": "Umbrella"
+  },
+  "VAPE": {
+   "no": "E-sigarett / vape",
+   "en": "E-cigarette / vape"
+  },
+  "VEHICLE_ACCESSORY": {
+   "no": "Bildel / tilbehør",
+   "en": "Vehicle accessory"
+  },
+  "VEST": {
+   "no": "Vest",
+   "en": "Vest"
+  },
+  "VIOLIN": {
+   "no": "Fiolin",
+   "en": "Violin"
+  },
+  "WAIST_BAG": {
+   "no": "Belteveske",
+   "en": "Waist bag"
+  },
+  "WALKIE_TALKIE": {
+   "no": "Walkie-talkie",
+   "en": "Walkie-talkie"
+  },
+  "WALKING_AID": {
+   "no": "Ganghjelpemiddel (stokk, krykke, rullator)",
+   "en": "Walking aid (cane, crutch, walker)"
+  },
+  "WALLET": {
+   "no": "Lommebok",
+   "en": "Wallet"
+  },
+  "WATCH": {
+   "no": "Armbåndsur",
+   "en": "Wristwatch"
+  },
+  "WATER_BOTTLE": {
+   "no": "Drikkeflaske",
+   "en": "Water bottle"
+  },
+  "WEDDING_RING": {
+   "no": "Giftering",
+   "en": "Wedding ring"
+  },
+  "WHEEL_RIM": {
+   "no": "Hjul / felg",
+   "en": "Wheel / rim"
+  },
+  "YOGA_MAT": {
+   "no": "Yogamatte / treningsmatte",
+   "en": "Yoga / exercise mat"
+  }
+ },
+ "colors": {
+  "beige": {
+   "no": "Beige",
+   "en": "Beige"
+  },
+  "black": {
+   "no": "Svart",
+   "en": "Black"
+  },
+  "blue": {
+   "no": "Blå",
+   "en": "Blue"
+  },
+  "bronze": {
+   "no": "Bronse",
+   "en": "Bronze"
+  },
+  "brown": {
+   "no": "Brun",
+   "en": "Brown"
+  },
+  "burgundy": {
+   "no": "Burgunder",
+   "en": "Burgundy"
+  },
+  "camo": {
+   "no": "Kamuflasje",
+   "en": "Camouflage"
+  },
+  "gold": {
+   "no": "Gull",
+   "en": "Gold"
+  },
+  "gray": {
+   "no": "Grå",
+   "en": "Gray"
+  },
+  "green": {
+   "no": "Grønn",
+   "en": "Green"
+  },
+  "light-blue": {
+   "no": "Lyseblå",
+   "en": "Light blue"
+  },
+  "multicolor": {
+   "no": "Flerfarget",
+   "en": "Multicolor"
+  },
+  "navy": {
+   "no": "Mørkeblå",
+   "en": "Navy"
+  },
+  "olive": {
+   "no": "Oliven",
+   "en": "Olive"
+  },
+  "orange": {
+   "no": "Oransje",
+   "en": "Orange"
+  },
+  "other": {
+   "no": "Annet",
+   "en": "Other"
+  },
+  "patterned": {
+   "no": "Mønstret",
+   "en": "Patterned"
+  },
+  "pink": {
+   "no": "Rosa",
+   "en": "Pink"
+  },
+  "purple": {
+   "no": "Lilla",
+   "en": "Purple"
+  },
+  "red": {
+   "no": "Rød",
+   "en": "Red"
+  },
+  "silver": {
+   "no": "Sølv",
+   "en": "Silver"
+  },
+  "turquoise": {
+   "no": "Turkis",
+   "en": "Turquoise"
+  },
+  "unknown": {
+   "no": "Usikker",
+   "en": "Not sure"
+  },
+  "white": {
+   "no": "Hvit",
+   "en": "White"
+  },
+  "yellow": {
+   "no": "Gul",
+   "en": "Yellow"
+  }
+ }
+}

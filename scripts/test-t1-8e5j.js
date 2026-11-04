@@ -113,33 +113,40 @@ function builder(resolveRows) {
   });
 
   await scenario("Area-alert push uses the catalog per recipient language, with item fallback", async () => {
-    const sent = [];
-    global.fetch = async (url, init) => {
-      const msgs = JSON.parse(init.body); sent.push(...msgs);
-      return { ok: true, json: async () => ({ data: msgs.map(() => ({ status: "ok", id: "t" })) }) };
+    // T1.9Y: the item is named from the report keys in each recipient's language.
+    const run = async (reportRow) => {
+      const sent = [];
+      global.fetch = async (url, init) => {
+        const msgs = JSON.parse(init.body); sent.push(...msgs);
+        return { ok: true, json: async () => ({ data: msgs.map(() => ({ status: "ok", id: "t" })) }) };
+      };
+      supaAdmin = {
+        rpc: async (name) => {
+          if (name === "geo_alert_campaign_is_dispatchable") return { data: true, error: null };
+          if (name === "geo_alert_create_in_app_notifications") return { data: [{ eligible_users: 2, created_notifications: 2 }], error: null };
+          if (name === "geo_alert_eligible_installations")
+            return { data: [
+              { recipient_user_id: "u1", installation_id: "i1", expo_push_token: "t1", language: "en", report_id: "rep-1", report_title: "Mistet • Lommebok" },
+              { recipient_user_id: "u2", installation_id: "i2", expo_push_token: "t2", language: "no", report_id: "rep-1", report_title: "Lost • Wallet" },
+            ], error: null };
+          return { data: null, error: { message: name } };
+        },
+        from: (table) => builder((st) => (table === "reports" ? { data: reportRow } : st.op === "upsert" ? { data: [{ id: "r" }] } : { data: null })),
+      };
+      delete require.cache[path.join(serverDir, "lib", "geoAlertDispatch.js")];
+      const { dispatchAreaAlertCampaign } = require(path.join(serverDir, "lib", "geoAlertDispatch.js"));
+      const r = await dispatchAreaAlertCampaign("campaign-1");
+      assert.strictEqual(r.ok, true);
+      return Object.fromEntries(sent.map((m) => [m.to, m]));
     };
-    supaAdmin = {
-      rpc: async (name) => {
-        if (name === "geo_alert_campaign_is_dispatchable") return { data: true, error: null };
-        if (name === "geo_alert_create_in_app_notifications") return { data: [{ eligible_users: 2, created_notifications: 2 }], error: null };
-        if (name === "geo_alert_eligible_installations")
-          return { data: [
-            { recipient_user_id: "u1", installation_id: "i1", expo_push_token: "t1", language: "en", report_title: "Wallet" },
-            { recipient_user_id: "u2", installation_id: "i2", expo_push_token: "t2", language: "no", report_title: null },
-          ], error: null };
-        return { data: null, error: { message: name } };
-      },
-      from: () => builder((st) => (st.op === "upsert" ? { data: [{ id: "r" }] } : { data: null })),
-    };
-    delete require.cache[path.join(serverDir, "lib", "geoAlertDispatch.js")];
-    const { dispatchAreaAlertCampaign } = require(path.join(serverDir, "lib", "geoAlertDispatch.js"));
-    const r = await dispatchAreaAlertCampaign("campaign-1");
-    assert.strictEqual(r.ok, true);
-    const byToken = Object.fromEntries(sent.map((m) => [m.to, m]));
+    const byToken = await run({ category: "PERSONAL", subcategory_key: "WALLET", color: "black", brand: null });
     assert.strictEqual(byToken.t1.title, en["push.areaAlert.title"]);
-    assert.strictEqual(byToken.t1.body, "Wallet was reported lost near an area you follow.");
+    assert.strictEqual(byToken.t1.body, "Wallet (black) was reported lost near an area you follow.");
     assert.strictEqual(byToken.t2.title, no["push.areaAlert.title"]);
-    assert.strictEqual(byToken.t2.body, `${no["push.areaAlert.itemFallback"]} er meldt mistet nær et område du følger.`);
+    assert.strictEqual(byToken.t2.body, "Lommebok (svart) er meldt mistet nær et område du følger.");
+    const fallback = await run(null);
+    assert.strictEqual(fallback.t2.body, `${no["push.areaAlert.itemFallback"]} er meldt mistet nær et område du følger.`);
+    assert.strictEqual(fallback.t1.body, `${en["push.areaAlert.itemFallback"]} was reported lost near an area you follow.`);
   });
 
   await scenario("Closed orders cannot be activated; open orders proceed to the guarded rpc", async () => {

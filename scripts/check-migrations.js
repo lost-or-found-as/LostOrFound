@@ -17,6 +17,13 @@ for (const f of files) {
   const sql = fs.readFileSync(path.join(dir, f), "utf8");
   if (/\b(diagnostic|cleanup)\b/i.test(f)) errors.push(`DIAGNOSTIC_AS_MIGRATION: ${f}`);
   if (/sk_(live|test)_|service_role\s*=|eyJhbGci/i.test(sql)) errors.push(`SECRET_IN_MIGRATION: ${f}`);
+  // T1.9Y: PostGIS lives in the extensions schema. A function that pins search_path to public must
+  // also name extensions, or st_*, geography and geometry stop resolving.
+  if (m[1] > "20261104100000") {
+    for (const p of sql.matchAll(/set\s+"?search_path"?\s*(?:to|=)\s*([^\n;]*)/gi)) {
+      if (/\bpublic\b/i.test(p[1]) && !/\bextensions\b/i.test(p[1])) errors.push(`SEARCH_PATH_WITHOUT_EXTENSIONS: ${f}: ${p[1].trim()}`);
+    }
+  }
 }
 for (const required of ["20261027210000_baseline_schema.sql", "20261027210100_baseline_storage_and_cron.sql"]) {
   if (!files.includes(required)) errors.push(`MISSING_BASELINE: ${required}`);

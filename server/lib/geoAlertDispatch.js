@@ -1,6 +1,7 @@
 "use strict";
 const { supaAdmin } = require("../supabaseClient");
 const { message } = require("./messages");
+const { reportItemText } = require("./reportItemText");
 const { SAME_CASE_DAYS, SENT_STATUSES, applyRecipientCaps } = require("./areaAlertCaps");
 
 async function expoSend(messages) {
@@ -168,12 +169,25 @@ async function dispatchAreaAlertCampaign(campaignId) {
 
   if (accepted.length) {
     const notificationKey = `AREA_ALERT:${id}`;
+    // T1.9Y: the item is named in each recipient's language from the stored keys. reports.title
+    // is in the reporter's language and gave mixed Norwegian/English pushes.
+    let report = null;
+    const reportId = accepted.find((c) => c.report_id)?.report_id;
+    if (reportId) {
+      const { data: reportRow, error: reportError } = await supaAdmin
+        .from("reports")
+        .select("category,subcategory_key,subcategory_custom,color,brand")
+        .eq("id", reportId)
+        .maybeSingle();
+      if (reportError) console.error("[geo-alert][report-load-failed]", { campaignId: id, error: reportError.message });
+      report = reportRow || null;
+    }
     const messages = accepted.map((candidate) => ({
       to: candidate.expo_push_token,
       sound: "default",
       title: message(candidate.language, "push.areaAlert.title"),
       body: message(candidate.language, "push.areaAlert.body", {
-        item: candidate.report_title || message(candidate.language, "push.areaAlert.itemFallback"),
+        item: reportItemText(report, candidate.language) || message(candidate.language, "push.areaAlert.itemFallback"),
       }),
       data: {
         type: "AREA_ALERT",
