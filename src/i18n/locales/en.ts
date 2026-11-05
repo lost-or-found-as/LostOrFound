@@ -1721,6 +1721,7 @@ export const en = {
   "home.lostTileBody": "Tell us what and where. We let you know when it turns up.",
   "home.foundTileBody": "Report the find and we will find the owner.",
   "home.summary.title": "Your cases now",
+  "home.summary.loading": "Loading your cases",
   "home.summary.active": "active",
   "home.summary.active_one": "active",
   "home.summary.matches": "matches",

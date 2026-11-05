@@ -33,7 +33,8 @@ export const DEFAULT_CURRENT_RADIUS = 3000;
 
 // Expiry choices for the position alert, in hours. 0 = until the user turns it off.
 export const EXPIRIES = [24, 72, 168, 0];
-export const DEFAULT_EXPIRY_HOURS = 168;
+// T1.9AA: "Varsle meg der jeg er" stays on until the user turns it off, unless they pick a period.
+export const DEFAULT_EXPIRY_HOURS = 0;
 
 export const CATEGORIES = ["PETS", "JEWELRY", "ELECTRONICS", "KEYS", "BAGS", "CLOTHING", "SPORTS", "TRANSPORT"] as const;
 export const CATEGORY_LABEL_KEYS = {

@@ -1717,6 +1717,7 @@ export const no: TranslationDictionary = {
   "home.lostTileBody": "Fortell hva og hvor. Vi sier fra når det dukker opp.",
   "home.foundTileBody": "Meld inn funnet, så finner vi eieren.",
   "home.summary.title": "Dine saker nå",
+  "home.summary.loading": "Henter sakene dine",
   "home.summary.active": "aktive",
   "home.summary.active_one": "aktiv",
   "home.summary.matches": "treff",

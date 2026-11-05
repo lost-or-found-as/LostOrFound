@@ -65,7 +65,9 @@ router.put("/current-location", requireUser, async (req, res) => {
     const latitude = Number(req.body?.latitude);
     const longitude = Number(req.body?.longitude);
     const radiusM = Number(req.body?.radiusM);
-    const expiryHours = Number(req.body?.expiryHours ?? 168);
+    const expiryHours = Number(req.body?.expiryHours ?? 0);
+    // T1.9AA: a location refresh from the app keeps the end time the user chose.
+    const keepExpiry = req.body?.keepExpiry === true;
     if (!validCoordinate(latitude, longitude))
       return res.status(400).json({ error: "INVALID_COORDINATES" });
     if (!CURRENT_LOCATION_RADII.has(radiusM))
@@ -93,12 +95,18 @@ router.put("/current-location", requireUser, async (req, res) => {
     };
     const existing = await supaAdmin
       .from("notification_watch_areas")
-      .select("id")
+      .select("id,expires_at")
       .eq("user_id", req.user.id)
       .eq("source_type", "CURRENT_LOCATION")
       .limit(1)
       .maybeSingle();
     if (existing.error) throw existing.error;
+    if (keepExpiry && existing.data?.id) {
+      const endsAt = existing.data.expires_at ? Date.parse(existing.data.expires_at) : null;
+      // An area that has run out is not brought back by opening the app.
+      if (endsAt != null && endsAt <= Date.now()) return res.json({ area: null, expired: true });
+      delete values.expires_at;
+    }
     const result = existing.data?.id
       ? await supaAdmin
           .from("notification_watch_areas")

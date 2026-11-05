@@ -64,3 +64,27 @@ export async function fetchHomeSummary(userId: string): Promise<HomeSummary> {
     focusReportId: unreadReportId ?? onlyReportWithMatches,
   };
 }
+
+// T1.9AA: the last counts are kept on the phone per user, so the card shows at once when the app
+// opens (the server can be slow to wake) and is then updated in place.
+const CACHE_PREFIX = "lof.homeSummary.v1.";
+
+export async function readCachedHomeSummary(userId: string): Promise<HomeSummary | null> {
+  try {
+    const AsyncStorage = require("@react-native-async-storage/async-storage").default;
+    const raw = await AsyncStorage.getItem(CACHE_PREFIX + userId);
+    const value = raw ? JSON.parse(raw) : null;
+    return value && typeof value.activeCases === "number" ? (value as HomeSummary) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeCachedHomeSummary(userId: string, value: HomeSummary): Promise<void> {
+  try {
+    const AsyncStorage = require("@react-native-async-storage/async-storage").default;
+    await AsyncStorage.setItem(CACHE_PREFIX + userId, JSON.stringify(value));
+  } catch {
+    // A cache that cannot be written only means the card waits for the server next time.
+  }
+}

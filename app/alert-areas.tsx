@@ -213,6 +213,9 @@ function AlertAreasScreen() {
             allCategories: settings.allCategories,
             categoryKeys: settings.categories,
             pushEnabled: true,
+            // T1.9AA: a silent refresh only moves the circle; the chosen end time stays. Before,
+            // the remaining time was re-sent as a new period, so "1 week" slid down to "1 day".
+            keepExpiry: silent,
           }),
         });
         const responseText = await r.text();

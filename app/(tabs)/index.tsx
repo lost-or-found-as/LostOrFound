@@ -13,7 +13,7 @@ import { AuthHeaderAction } from "../../src/ui/AuthHeaderAction";
 import { theme } from "../../src/ui/theme";
 import { InfoButton } from "../../src/ui/kit";
 import { registerRoute, useNewRegistration } from "../../src/lib/newRegistration";
-import { fetchHomeSummary, type HomeSummary } from "../../src/lib/homeSummary";
+import { fetchHomeSummary, readCachedHomeSummary, writeCachedHomeSummary, type HomeSummary } from "../../src/lib/homeSummary";
 
 const HOW_STEPS = [
   { title: "how.card1.title", body: "how.card1.body" },
@@ -30,16 +30,41 @@ export default function DashboardScreen() {
   const hasAccount = !!user && !isGuest;
   const [newRegistration] = useNewRegistration();
 
-  // Summary card: nothing is shown until the first load succeeds, and the old numbers stay
-  // on screen while it refreshes, so the card never flickers.
+  // Summary card. T1.9AA: the last counts are read from the phone first, so the card is there at
+  // once; until anything is known a placeholder of the same size keeps the page from jumping.
+  // The old numbers stay on screen while they refresh, so the card never flickers.
   const [summary, setSummary] = useState<HomeSummary | null>(null);
-  useEffect(() => setSummary(null), [user?.id]);
+  const [summaryKnown, setSummaryKnown] = useState(false);
+  useEffect(() => {
+    setSummary(null);
+    setSummaryKnown(false);
+    if (!user || isGuest) return;
+    let live = true;
+    void readCachedHomeSummary(user.id).then((cached) => {
+      if (live && cached) {
+        setSummary((current) => current ?? cached);
+        setSummaryKnown(true);
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, [user?.id, isGuest]);
   const loadSummary = useCallback(() => {
     if (!user || isGuest) return () => {};
     let live = true;
-    fetchHomeSummary(user.id)
-      .then((value) => live && setSummary(value))
-      .catch((e) => console.warn("[home] could not load summary", e));
+    const userId = user.id;
+    fetchHomeSummary(userId)
+      .then((value) => {
+        if (!live) return;
+        setSummary(value);
+        setSummaryKnown(true);
+        void writeCachedHomeSummary(userId, value);
+      })
+      .catch((e) => {
+        console.warn("[home] could not load summary", e);
+        if (live) setSummaryKnown(true);
+      });
     return () => {
       live = false;
     };
@@ -152,6 +177,21 @@ export default function DashboardScreen() {
             </View>
           </InfoButton>
         </View>
+
+        {hasAccount && !summaryKnown && (
+          <View style={[styles.summary, styles.summaryPlaceholder]} accessibilityLabel={t("home.summary.loading")}>
+            <View style={styles.placeholderLine} />
+            <View style={styles.summaryRow}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={styles.summaryCount}>
+                  <View style={styles.placeholderValue} />
+                  <View style={styles.placeholderLabel} />
+                </View>
+              ))}
+            </View>
+            <View style={styles.placeholderButton} />
+          </View>
+        )}
 
         {showSummary && summary && (
           <View style={styles.summary}>
@@ -269,6 +309,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 16,
   },
+  summaryPlaceholder: { opacity: 0.55 },
+  placeholderLine: { width: 120, height: 12, borderRadius: 6, backgroundColor: "#334155" },
+  placeholderValue: { width: 34, height: 28, borderRadius: 8, backgroundColor: "#334155", marginBottom: 6 },
+  placeholderLabel: { width: 64, height: 12, borderRadius: 6, backgroundColor: "#334155" },
+  placeholderButton: { height: 46, borderRadius: 14, backgroundColor: "#334155" },
   summaryButtonText: { color: theme.colors.text, fontSize: 15, fontWeight: "800" },
   sectionTitle: { marginTop: 4, color: theme.colors.text, fontWeight: "900", fontSize: 17 },
   tiles: { gap: 10 },
