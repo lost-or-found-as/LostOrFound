@@ -4,21 +4,13 @@
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
-const Stripe = require("stripe");
 
-// Lås dotenv til server/.env (ikke repo-root)
+// Load server/.env (not the repository root).
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
-// ---- Konfig ----
+// ---- Config ----
 const PORT = Number(process.env.PORT || 4242);
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-
-if (!STRIPE_SECRET_KEY) {
-  console.error("[CONFIG] STRIPE_SECRET_KEY mangler i server/.env");
-  process.exit(1);
-}
-
-const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
+// T1.9AD: the old Stripe test route is gone; payments run through the app stores (RevenueCat).
 
 // T1.9D: error reporting to Sentry (no-op without SENTRY_DSN).
 const { initSentry, sentryResponseMonitor, captureServerException } = require("./lib/sentry");
@@ -36,64 +28,16 @@ app.use(express.json({ limit: "1mb" }));
 app.use(ipRateLimit({ windowMs: 60 * 1000, max: 300 }));
 app.use(sentryResponseMonitor);
 
-// Enkel request-logg
+// Simple request log
 app.use((req, _res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-function nokToOre(nok) {
-  const n = Number(nok);
-  if (!Number.isFinite(n) || n <= 0) throw new Error("Ugyldig beløp");
-  return Math.round(n * 100);
-}
-
-// ---- Diagnostikk ----
-app.get("/__whoami", (_req, res) => {
-  res.json({
-    ok: true,
-    cwd: process.cwd(),
-    serverDir: __dirname,
-    pid: process.pid,
-    port: PORT,
-    time: new Date().toISOString(),
-  });
-});
-
 // Health/root
 app.get("/", (_req, res) => res.json({ ok: true, message: "Server OK" }));
 
-app.get("/payment-sheet", (_req, res) =>
-  res.status(405).json({ ok: false, error: "Use POST /payment-sheet" })
-);
-
-// T1.9A: was reachable without login and created Stripe objects for anyone.
-const { requireUser: requirePaymentUser } = require("./mw/auth");
-app.post("/payment-sheet", requirePaymentUser, async (req, res) => {
-  try {
-    const { amountNok = 50 } = req.body || {};
-    const customer = await stripe.customers.create();
-    const ephemeralKey = await stripe.ephemeralKeys.create(
-      { customer: customer.id },
-      { apiVersion: "2024-06-20" }
-    );
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: nokToOre(amountNok),
-      currency: "nok",
-      customer: customer.id,
-      automatic_payment_methods: { enabled: true },
-    });
-
-    res.json({
-      paymentIntent: paymentIntent.client_secret,
-      ephemeralKey: ephemeralKey.secret,
-      customer: customer.id,
-    });
-  } catch (err) {
-    console.error("[POST /payment-sheet] Error:", err);
-    res.status(400).json({ ok: false, error: err?.message ?? "Ukjent feil" });
-  }
-});
+// T1.9AD: /__whoami (showed folders and process id) and /payment-sheet (unused Stripe route) removed.
 
 // ---- Mount /storage ----
 try {
@@ -281,7 +225,7 @@ try {
 }
 
 app.listen(PORT, () => {
-  console.log(`Server kjører på http://127.0.0.1:${PORT}`);
+  console.log(`Server running on http://127.0.0.1:${PORT}`);
   console.log(`[BOOT] cwd=${process.cwd()}`);
   console.log(`[BOOT] serverDir=${__dirname}`);
 });
