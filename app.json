@@ -3,6 +3,15 @@
     "owner": "lost-or-found-as",
     "name": "Lost or Found",
     "slug": "RepairLostOrFound",
+    "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/42c24037-c853-47ae-bb4c-5208947e1270",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "icon": "./assets/images/icon.png",
     "scheme": "lostorfound",
     "extra": {
