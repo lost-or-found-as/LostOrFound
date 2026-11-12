@@ -79,7 +79,7 @@ export default function TabsLayout() {
         options={{
           title: t("tabs.home"),
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} color={color} size={size} />
+            <Ionicons name={focused ? "home" : "home-outline"} color={color as string} size={size} />
           ),
         }}
       />
@@ -89,7 +89,7 @@ export default function TabsLayout() {
         options={{
           title: t("tabs.cases"),
           tabBarIcon: ({ color, size, focused }) => (
-            withLock(<Ionicons name={focused ? "folder-open" : "folder-open-outline"} color={color} size={size} />)
+            withLock(<Ionicons name={focused ? "folder-open" : "folder-open-outline"} color={color as string} size={size} />)
           ),
         }}
       />
@@ -126,7 +126,7 @@ export default function TabsLayout() {
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
           tabBarBadgeStyle: styles.badge,
           tabBarIcon: ({ color, size }) => (
-            withLock(<Ionicons name="notifications-outline" color={color} size={size} />)
+            withLock(<Ionicons name="notifications-outline" color={color as string} size={size} />)
           ),
         }}
       />
@@ -136,7 +136,7 @@ export default function TabsLayout() {
         options={{
           title: t("tabs.profile"),
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "person" : "person-outline"} color={color} size={size} />
+            <Ionicons name={focused ? "person" : "person-outline"} color={color as string} size={size} />
           ),
         }}
       />

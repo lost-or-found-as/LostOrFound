@@ -958,7 +958,7 @@ function MatchScreen() {
               </Pressable>
             );
           }}
-          ListEmptyComponent={loadError ? null : <EmptyState title={t("match.empty.title")} body={t("match.empty.body")} />}
+          ListEmptyComponent={loadError ? undefined : <EmptyState title={t("match.empty.title")} body={t("match.empty.body")} />}
         />
       )}
     </View>

@@ -21,7 +21,7 @@
         {
           "action": "VIEW",
           "autoVerify": false,
-          "categories": [
+          "category": [
             "BROWSABLE",
             "DEFAULT"
           ],
@@ -83,7 +83,11 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-image",
+      "expo-router",
+      "expo-splash-screen",
+      "expo-status-bar"
     ]
   }
 }

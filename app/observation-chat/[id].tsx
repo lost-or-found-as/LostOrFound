@@ -184,7 +184,7 @@ function Screen() {
               </View>
             }
             ListEmptyComponent={
-              safety.state.closed || loadError ? null : (
+              safety.state.closed || loadError ? undefined : (
                 <View style={s.empty}>
                   <Text style={s.emptyTitle}>{t("chat.emptyTitle")}</Text>
                   <Text style={s.muted}>{t("chat.emptyBody")}</Text>

@@ -268,8 +268,8 @@ export default function CreateReportScreen() {
     loading: draftLoading,
   } = useReportDraft();
   // Auto-scroll: ref + anchor
-  const scrollRef = useRef<ScrollView>(null);
-  const objectInputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const objectInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   const editLoadedRef = useRef<string | null>(null);
   const [categoryAnchorY, setCategoryAnchorY] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -2666,7 +2666,7 @@ const styles = StyleSheet.create({
 });
 const modalStyles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.45)",
     alignItems: "center",
     justifyContent: "center",

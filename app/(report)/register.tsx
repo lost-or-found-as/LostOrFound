@@ -82,7 +82,7 @@ export default function RegisterScreen() {
   const { draft, setField, reset, flush, loading: draftLoading } = useReportDraft();
   const rewardEnabled = useMemo(rewardEnabledForLocale, []);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const sectionY = useRef<Record<Section, number>>({ what: 0, details: 0, when: 0, extra: 0 });
   const requestIdRef = useRef<string | null>(null);
   const submittingRef = useRef(false);

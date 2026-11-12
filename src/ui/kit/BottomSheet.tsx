@@ -31,7 +31,7 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel }: 
 
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end" },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.45)" },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(15,23,42,0.45)" },
   sheet: {
     backgroundColor: theme.colors.card,
     borderTopLeftRadius: 22,

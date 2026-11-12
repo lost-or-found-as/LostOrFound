@@ -15,7 +15,8 @@ for (const s of [
   'textAlign: "center"',
 ])
   if (!app.includes(s)) throw Error(`Missing T1.8E.1 feature: ${s}`);
-if (pkg.dependencies["@react-native-community/datetimepicker"] !== "8.4.4")
+// Expo 58 upgrade: the date picker follows the version Expo pins (9.x).
+if (!/^[~^]?9\./.test(pkg.dependencies["@react-native-community/datetimepicker"] || ""))
   throw Error("Date picker dependency mismatch");
 for (const k of [
   "report.create.choose.date",

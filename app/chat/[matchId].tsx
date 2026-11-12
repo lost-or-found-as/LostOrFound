@@ -392,7 +392,7 @@ function ChatScreen() {
               </View>
             }
             ListEmptyComponent={
-              safety.state.closed ? null : (
+              safety.state.closed ? undefined : (
               <View style={styles.empty}>
                 <Text style={styles.emptyTitle}>{t("chat.emptyTitle")}</Text>
                 <Text style={styles.muted}>{t("chat.emptyBody")}</Text>
