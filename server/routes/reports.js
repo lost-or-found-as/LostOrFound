@@ -19,6 +19,7 @@ const { normalizeMainColor, normalizeSecondaryColor } = require("../lib/colorKey
 const { canonicalItemKey } = require("../lib/itemKeys");
 const { normalizeIdentifier, saveIdentifier, loadIdentifier } = require("../lib/reportIdentifier");
 const { normalizeCustody, normalizeOccurredPrecision } = require("../lib/reportCustody");
+const { normalizePet } = require("../lib/reportPet");
 const { checkLimit, limitResponse } = require("../lib/rateLimits");
 const { isSuspended } = require("../lib/chatSafetyStore");
 
@@ -293,6 +294,14 @@ function normalizeReportPatch(body) {
   // T1.9F: validated colour key (throws INVALID_SECONDARY_COLOR).
   if ("secondary_color" in input) patch.secondary_color = normalizeSecondaryColor(input.secondary_color);
   if ("brand" in input) patch.brand = input.brand || null;
+  // T1.9AJ: pet fields (the category check happens when the report is created).
+  if ("pet_name" in input) patch.pet_name = String(input.pet_name ?? "").replace(/\s+/g, " ").trim().slice(0, 40) || null;
+  if ("pet_breed" in input) patch.pet_breed = String(input.pet_breed ?? "").replace(/\s+/g, " ").trim().slice(0, 60) || null;
+  if ("pet_temperament" in input) {
+    const temperament = input.pet_temperament ? String(input.pet_temperament).toUpperCase() : null;
+    if (temperament && temperament !== "SHY" && temperament !== "CALM") throw Object.assign(new Error("INVALID_PET_TEMPERAMENT"), { code: "INVALID_PET_TEMPERAMENT" });
+    patch.pet_temperament = temperament;
+  }
   if ("occurred_at" in input) patch.occurred_at = input.occurred_at;
   if ("lat" in input) patch.lat = toFiniteNumberOrNull(input.lat);
   if ("lng" in input) patch.lng = toFiniteNumberOrNull(input.lng);
@@ -407,6 +416,9 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       custody = null,
       custody_place = null,
       occurred_precision = null,
+      pet_name = null,
+      pet_breed = null,
+      pet_temperament = null,
     } = req.body || {};
 
     if (!type || !category || !title || !occurred_at) {
@@ -430,9 +442,12 @@ router.post("/", requireUserOrGuest, async (req, res) => {
     // T1.9K: where a found item is now, and how precisely the date is known.
     let custodyFields;
     let precisionFields;
+    let petFields;
     try {
       custodyFields = normalizeCustody(normalizedType, custody, custody_place);
       precisionFields = normalizeOccurredPrecision(occurred_precision, occurred_at);
+      // T1.9AJ: name, breed and temperament for animals only.
+      petFields = normalizePet(category, canonicalItemKey(subcategory_key), { pet_name, pet_breed, pet_temperament });
     } catch (fieldErr) {
       return res.status(400).json({ error: fieldErr?.code || "INVALID_INPUT" });
     }
@@ -542,6 +557,8 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       // T1.9K: only sent when set, so a report without them never depends on the new columns.
       ...(custodyFields.custody ? custodyFields : {}),
       ...precisionFields,
+      // T1.9AJ: only sent when set, like custody.
+      ...Object.fromEntries(Object.entries(petFields).filter(([, v]) => v != null)),
     };
 
     const { data, error } = await supaAdmin
@@ -688,8 +705,8 @@ router.patch("/:id", requireUser, async (req, res) => {
     try {
       patch = normalizeReportPatch(req.body || {});
     } catch (patchErr) {
-      if (patchErr?.code === "INVALID_SECONDARY_COLOR") {
-        return res.status(400).json({ error: "INVALID_SECONDARY_COLOR" });
+      if (patchErr?.code === "INVALID_SECONDARY_COLOR" || patchErr?.code === "INVALID_PET_TEMPERAMENT") {
+        return res.status(400).json({ error: patchErr.code });
       }
       throw patchErr;
     }

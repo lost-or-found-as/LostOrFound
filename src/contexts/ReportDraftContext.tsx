@@ -42,6 +42,10 @@ export type ReportDraft = {
   // T1.9V: private identifier (frame number, serial number, IMEI, chip number).
   identifierKind?: "FRAME_NUMBER" | "SERIAL_NUMBER" | "IMEI" | "CHIP_NUMBER" | "OTHER";
   identifierValue?: string;
+  // T1.9AJ: pets (animals only): name, breed and how to approach it.
+  petName?: string;
+  petBreed?: string;
+  petTemperament?: "SHY" | "CALM" | "";
 
   location: ReportLocation | null;
   searchAreas: SearchArea[];

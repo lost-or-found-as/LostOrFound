@@ -55,6 +55,8 @@ import {
 } from "../../src/lib/reportActivity";
 import { BottomSheet, Button, ConfirmSheet, IconButton, InfoButton, SCORE_LABEL_KEYS, ScreenHeader, scoreLevel } from "../../src/ui/kit";
 import { custodyText } from "../../src/lib/custodyDisplay";
+import { isAnimal } from "../../src/lib/registerForm";
+import type { TranslationKey } from "../../src/i18n/locales/en";
 
 type D = {
   report: any;
@@ -424,7 +426,14 @@ function Screen() {
           <Row label={t("caseDetail.object")} value={[title, category].filter(Boolean).join(" · ")} />
           <Row label={t("caseDetail.color")} value={colors} />
           <Row label={t("caseDetail.brand")} value={r.brand} />
-          <Row label={t("custody.label")} value={custodyText(r.custody, r.custody_place, t)} />
+          {/* T1.9AJ: pets */}
+          <Row label={t("caseDetail.pet.name")} value={r.pet_name} />
+          <Row label={t("caseDetail.pet.breed")} value={r.pet_breed} />
+          <Row
+            label={t("caseDetail.pet.temperament")}
+            value={r.pet_temperament === "SHY" || r.pet_temperament === "CALM" ? t(`caseDetail.pet.${r.pet_temperament}` as TranslationKey) : null}
+          />
+          <Row label={t("custody.label")} value={custodyText(r.custody, r.custody_place, t, { animal: isAnimal(r.category, r.subcategory_key) })} />
           {!!description && (
             <>
               <View style={s.divider} />

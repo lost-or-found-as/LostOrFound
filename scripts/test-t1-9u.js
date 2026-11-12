@@ -90,7 +90,7 @@ const body = form.reportBody(
 );
 eq(body.subcategory_key, "KEYS", "a draft with an old key sends the new key");
 const reg = read("app/(report)/register.tsx");
-ok(/itemHintKey\(draft\.subcategoryKey, type\)/.test(reg) && /t\(hintKey\)/.test(reg), "registration shows the advice");
+ok(/itemHintKey\(draft\.subcategoryKey, type(, draft\.category)?\)/.test(reg) && /t\(hintKey\)/.test(reg), "registration shows the advice");
 
 // 5. Texts exist in both languages.
 const no = read("src/i18n/locales/no.ts");

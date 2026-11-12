@@ -10,13 +10,14 @@ export function custodyText(
   custody: string | null | undefined,
   place: string | null | undefined,
   t: Translate,
-  options: { placeHidden?: boolean } = {},
+  options: { placeHidden?: boolean; animal?: boolean } = {},
 ): string | null {
   switch (String(custody || "").toUpperCase()) {
     case "WITH_FINDER":
-      return t("custody.withFinder");
+      return options.animal ? t("custody.pet.withFinder") : t("custody.withFinder");
     case "LEFT_AT_PLACE":
-      return t("custody.leftAtPlace");
+      // T1.9AJ: an animal that was seen but not caught.
+      return options.animal ? t("custody.pet.seen") : t("custody.leftAtPlace");
     case "HANDED_IN": {
       const where = String(place || "").trim();
       if (where) return t("custody.handedInAt", { place: where });

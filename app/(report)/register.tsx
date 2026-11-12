@@ -38,6 +38,7 @@ import { reportHandledError } from "../../src/lib/sentry";
 import { userErrorMessage } from "../../src/lib/userError";
 import {
   cleanRewardInput,
+  isAnimal,
   isLongAgo,
   IDENTIFIER_KIND_LABELS,
   identifierKindsFor,
@@ -361,7 +362,8 @@ export default function RegisterScreen() {
       ? t("register.what.customPet")
       : itemName(draft.subcategoryKey, language, draft.category)
     : "";
-  const hintKey = itemHintKey(draft.subcategoryKey, type);
+  const hintKey = itemHintKey(draft.subcategoryKey, type, draft.category);
+  const animal = isAnimal(draft.category, draft.subcategoryKey);
   const identifierKinds = identifierKindsFor(draft.subcategoryKey);
   const identifierKind =
     draft.identifierKind && identifierKinds.includes(draft.identifierKind) ? draft.identifierKind : identifierKinds[0];
@@ -613,6 +615,53 @@ export default function RegisterScreen() {
                   style={s.input}
                 />
               </View>
+            )}
+            {/* T1.9AJ: pets – name and breed; the owner also says how to approach the animal. */}
+            {animal && (
+              <>
+                <View style={s.petRow}>
+                  <View style={[s.field, s.flex]}>
+                    <Text style={s.label}>{type === "FOUND" ? t("register.pet.nameFound") : t("register.pet.name")}</Text>
+                    <TextInput
+                      accessibilityLabel={type === "FOUND" ? t("register.pet.nameFound") : t("register.pet.name")}
+                      value={draft.petName || ""}
+                      onChangeText={(v) => setField("petName", v)}
+                      maxLength={40}
+                      style={s.input}
+                    />
+                  </View>
+                  <View style={[s.field, s.flex]}>
+                    <Text style={s.label}>{t("register.pet.breed")}</Text>
+                    <TextInput
+                      accessibilityLabel={t("register.pet.breed")}
+                      value={draft.petBreed || ""}
+                      onChangeText={(v) => setField("petBreed", v)}
+                      maxLength={60}
+                      style={s.input}
+                    />
+                  </View>
+                </View>
+                {type === "LOST" && (
+                  <View style={s.field}>
+                    <Text style={s.label}>{t("register.pet.temperamentTitle")}</Text>
+                    {(["SHY", "CALM"] as const).map((value) => {
+                      const on = draft.petTemperament === value;
+                      return (
+                        <Pressable
+                          key={value}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: on }}
+                          style={[s.option, on && s.optionOn]}
+                          onPress={() => setField("petTemperament", on ? "" : value)}
+                        >
+                          <View style={[s.radio, on && s.radioOn]} />
+                          <Text style={[s.optionTitle, s.flex]}>{t(`register.pet.${value}` as TranslationKey)}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
             )}
           </View>
 
@@ -879,7 +928,7 @@ export default function RegisterScreen() {
             <View style={[s.card, isMissing("extra") && s.cardMissing]} onLayout={(e) => (sectionY.current.extra = e.nativeEvent.layout.y)}>
               <View style={s.cardHeader}>
                 {numberBadge(4)}
-                <Text style={s.h2}>{t("register.custody.title")}</Text>
+                <Text style={s.h2}>{animal ? t("register.custody.pet.title") : t("register.custody.title")}</Text>
               </View>
               {(["WITH_FINDER", "LEFT_AT_PLACE", "HANDED_IN"] as Custody[]).map((value) => {
                 const on = (draft.custody || "WITH_FINDER") === value;
@@ -893,8 +942,8 @@ export default function RegisterScreen() {
                   >
                     <View style={[s.radio, on && s.radioOn]} />
                     <View style={s.flex}>
-                      <Text style={s.optionTitle}>{t(`register.custody.${value}` as TranslationKey)}</Text>
-                      <Text style={s.mutedSmall}>{t(`register.custody.${value}.body` as TranslationKey)}</Text>
+                      <Text style={s.optionTitle}>{t(`register.custody.${animal ? "pet." : ""}${value}` as TranslationKey)}</Text>
+                      <Text style={s.mutedSmall}>{t(`register.custody.${animal ? "pet." : ""}${value}.body` as TranslationKey)}</Text>
                     </View>
                   </Pressable>
                 );
@@ -902,10 +951,10 @@ export default function RegisterScreen() {
               {draft.custody === "HANDED_IN" && (
                 <View style={s.field}>
                   <Text style={s.label}>
-                    {t("register.custody.where")}
+                    {animal ? t("register.custody.pet.where") : t("register.custody.where")}
                   </Text>
                   <TextInput
-                    accessibilityLabel={t("register.custody.where")}
+                    accessibilityLabel={animal ? t("register.custody.pet.where") : t("register.custody.where")}
                     value={draft.custodyPlace || ""}
                     onChangeText={(v) => setField("custodyPlace", v)}
                     placeholder={t("register.custody.wherePlaceholder")}
@@ -1011,6 +1060,8 @@ const s = StyleSheet.create({
   photoAiUnsureTitle: { fontSize: 16, fontWeight: "900", color: "#78350F" },
   photoAiUnsureBody: { fontSize: 14, fontWeight: "600", color: "#78350F" },
   fromPhoto: { fontSize: 13, fontWeight: "700", color: "#1D4ED8" },
+  // T1.9AJ
+  petRow: { flexDirection: "row", gap: 10 },
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   center: { alignItems: "center", justifyContent: "center" },
   flex: { flex: 1 },

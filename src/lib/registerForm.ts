@@ -71,9 +71,16 @@ const ITEM_HINTS: Record<string, { LOST?: TranslationKey; FOUND?: TranslationKey
   MEDICATION: { FOUND: "register.hint.medicationFound" },
 };
 
+// T1.9AJ: animals (not collars and leashes) get the pet fields and their own advice.
+const ANIMAL_KEYS = new Set(["DOG", "CAT", "BIRD", "RABBIT", "SMALL_PET", "REPTILE", "HORSE", "OTHER_PET", "CUSTOM"]);
+export function isAnimal(category: string | undefined, key: string | undefined): boolean {
+  return String(category || "").toUpperCase() === "PETS" && ANIMAL_KEYS.has(canonicalItemKey(String(key || "")));
+}
+
 /** Advice for the chosen item, or null. */
-export function itemHintKey(key: string | undefined, type: string | undefined): TranslationKey | null {
+export function itemHintKey(key: string | undefined, type: string | undefined, category?: string): TranslationKey | null {
   if (!key) return null;
+  if (category && isAnimal(category, key)) return String(type).toUpperCase() === "FOUND" ? "register.hint.petFound" : "register.hint.petLost";
   const hints = ITEM_HINTS[canonicalItemKey(key)];
   if (!hints) return null;
   return (String(type).toUpperCase() === "FOUND" ? hints.FOUND : hints.LOST) ?? null;
@@ -90,6 +97,7 @@ const IDENTIFIER_KINDS_BY_ITEM: Record<string, IdentifierKind[]> = {
   MOBILE_PHONE: PHONE_KINDS, TABLET: PHONE_KINDS, LAPTOP: DEVICE_KINDS, CAMERA: DEVICE_KINDS,
   ACTION_CAMERA: DEVICE_KINDS, DRONE: DEVICE_KINDS, SMARTWATCH: DEVICE_KINDS, GAME_CONSOLE: DEVICE_KINDS,
   E_READER: DEVICE_KINDS, POWER_TOOL: DEVICE_KINDS, DOG: PET_KINDS, CAT: PET_KINDS,
+  RABBIT: PET_KINDS, HORSE: PET_KINDS, OTHER_PET: PET_KINDS,
 };
 
 export const IDENTIFIER_KIND_LABELS: Record<IdentifierKind, TranslationKey> = {
@@ -160,6 +168,7 @@ export function reportTitle(draft: ReportDraft, language: Lang): string {
     categoryName(draft.category, language),
     draft.subcategoryKey && draft.subcategoryKey !== "CUSTOM" ? itemName(draft.subcategoryKey, language, draft.category) : "",
     pet,
+    isAnimal(draft.category, draft.subcategoryKey) ? String(draft.petName || "").trim() : "",
     String(draft.brand || "").trim(),
     draft.color ? colorName(draft.color, language) : "",
     draft.colorSecondary && draft.colorSecondary !== draft.color ? colorName(draft.colorSecondary, language) : "",
@@ -202,8 +211,21 @@ export function reportBody(
       : {}),
     ...(custody ? { custody, custody_place: custody === "HANDED_IN" ? String(draft.custodyPlace || "").trim() : undefined } : {}),
     ...identifierBody(draft),
+    ...petBody(draft),
     client_request_id: options.clientRequestId,
     ...(options.testOverrideWeeklyLimit ? { test_override_weekly_limit: true } : {}),
+  };
+}
+
+function petBody(draft: ReportDraft): Record<string, unknown> {
+  if (!isAnimal(draft.category, draft.subcategoryKey)) return {};
+  const name = String(draft.petName || "").trim().slice(0, 40);
+  const breed = String(draft.petBreed || "").trim().slice(0, 60);
+  const temperament = draft.type === "FOUND" ? "" : draft.petTemperament || "";
+  return {
+    ...(name ? { pet_name: name } : {}),
+    ...(breed ? { pet_breed: breed } : {}),
+    ...(temperament ? { pet_temperament: temperament } : {}),
   };
 }
 
