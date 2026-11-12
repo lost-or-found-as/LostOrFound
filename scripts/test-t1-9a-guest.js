@@ -132,6 +132,8 @@ const GUEST_ALLOWED = new Set([
   "geo.js GET /search",
   // T1.9V: guests can send feedback (2 per day).
   "feedback.js POST /",
+  // T1.9AI: photo suggestions while registering a find (3 per day for guests).
+  "imageAnalysis.js POST /",
 ]);
 // T1.9R: public pages (privacy policy and terms) need no sign-in at all.
 // T1.9AE: the RevenueCat webhook is server-to-server and checks its own Authorization secret.

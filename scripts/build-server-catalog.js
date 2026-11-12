@@ -17,9 +17,14 @@ function buildServerCatalog() {
   const items = {};
   for (const list of Object.values(c.ITEM_CATALOG)) for (const e of list) if (!items[e.key]) items[e.key] = names(e);
   const sorted = (o) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
+  // T1.9AI: which categories each item belongs to (photo analysis checks the pair).
+  const itemCategories = {};
+  for (const [category, list] of Object.entries(c.ITEM_CATALOG))
+    for (const e of list) (itemCategories[e.key] = itemCategories[e.key] || []).includes(category) || itemCategories[e.key].push(category);
   return {
     categories: sorted(Object.fromEntries(c.CATEGORY_CATALOG.map((e) => [e.key, names(e)]))),
     items: sorted(items),
+    itemCategories: sorted(itemCategories),
     colors: sorted(Object.fromEntries(c.COLOR_CATALOG.map((e) => [e.key, names(e)]))),
   };
 }

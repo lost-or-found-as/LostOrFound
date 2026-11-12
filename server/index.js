@@ -212,6 +212,15 @@ try {
   console.warn("[BOOT] /safety NOT mounted:", e?.message || e);
 }
 
+// ---- Mount /image-analysis (T1.9AI: photo suggestions in registration) ----
+try {
+  const imageAnalysisRoutes = require("./routes/imageAnalysis");
+  app.use("/image-analysis", imageAnalysisRoutes);
+  console.log("[BOOT] Mounted /image-analysis routes");
+} catch (e) {
+  console.warn("[BOOT] /image-analysis NOT mounted:", e?.message || e);
+}
+
 // ---- Mount /feedback (T1.9V: feedback from the app) ----
 try {
   const feedbackRoutes = require("./routes/feedback");

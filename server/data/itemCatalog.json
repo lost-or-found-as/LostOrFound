@@ -1063,6 +1063,619 @@
    "de": "Yoga- / Trainingsmatte"
   }
  },
+ "itemCategories": {
+  "ACCESS_CARD": [
+   "PERSONAL"
+  ],
+  "ACCESS_TAG": [
+   "PERSONAL"
+  ],
+  "ACTION_CAMERA": [
+   "ELECTRONICS"
+  ],
+  "ART_SUPPLIES": [
+   "CULTURE_HOBBY"
+  ],
+  "BABY_BLANKET": [
+   "CHILDREN_FAMILY"
+  ],
+  "BABY_BOTTLE": [
+   "CHILDREN_FAMILY"
+  ],
+  "BABY_CARRIER": [
+   "CHILDREN_FAMILY"
+  ],
+  "BACKPACK": [
+   "BAGS_LUGGAGE"
+  ],
+  "BADMINTON_RACKET": [
+   "SPORT_OUTDOOR"
+  ],
+  "BALL": [
+   "SPORT_OUTDOOR"
+  ],
+  "BANK_CARD": [
+   "PERSONAL"
+  ],
+  "BELT": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "BICYCLE": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "BIKE_COMPUTER": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "BIKE_HELMET": [
+   "VEHICLE_TRANSPORT",
+   "SPORT_OUTDOOR"
+  ],
+  "BIKE_LIGHT": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "BIKE_LOCK": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "BINOCULARS": [
+   "SPORT_OUTDOOR"
+  ],
+  "BIRD": [
+   "PETS"
+  ],
+  "BLAZER": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "BOOK": [
+   "CULTURE_HOBBY"
+  ],
+  "BOOTS": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "BRACELET": [
+   "JEWELRY"
+  ],
+  "BRIMMED_HAT": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "BROOCH": [
+   "JEWELRY"
+  ],
+  "CALCULATOR": [
+   "CULTURE_HOBBY"
+  ],
+  "CAMERA": [
+   "ELECTRONICS"
+  ],
+  "CAMERA_BAG": [
+   "BAGS_LUGGAGE"
+  ],
+  "CAMERA_LENS": [
+   "ELECTRONICS"
+  ],
+  "CAMPING_GEAR": [
+   "SPORT_OUTDOOR"
+  ],
+  "CAP": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "CARDIGAN": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "CARD_HOLDER": [
+   "PERSONAL"
+  ],
+  "CAR_KEYS": [
+   "PERSONAL",
+   "VEHICLE_TRANSPORT"
+  ],
+  "CASH": [
+   "PERSONAL"
+  ],
+  "CAT": [
+   "PETS"
+  ],
+  "CHARGER": [
+   "ELECTRONICS"
+  ],
+  "CHARGING_CASE": [
+   "ELECTRONICS"
+  ],
+  "CHARGING_TAG": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "CHILD_SEAT": [
+   "CHILDREN_FAMILY"
+  ],
+  "CRAFT_ITEM": [
+   "CULTURE_HOBBY"
+  ],
+  "CUSTOM": [
+   "PETS"
+  ],
+  "DISC_GOLF_BAG": [
+   "SPORT_OUTDOOR"
+  ],
+  "DISC_GOLF_DISC": [
+   "SPORT_OUTDOOR"
+  ],
+  "DOCUMENT_BRIEFCASE": [
+   "BAGS_LUGGAGE"
+  ],
+  "DOG": [
+   "PETS"
+  ],
+  "DOLL": [
+   "CHILDREN_FAMILY"
+  ],
+  "DOWN_JACKET": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "DRESS": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "DRIVER_LICENSE": [
+   "PERSONAL"
+  ],
+  "DRONE": [
+   "ELECTRONICS"
+  ],
+  "DRONE_ACCESSORY": [
+   "ELECTRONICS"
+  ],
+  "EARBUDS": [
+   "ELECTRONICS"
+  ],
+  "EARRINGS": [
+   "JEWELRY"
+  ],
+  "ENGAGEMENT_RING": [
+   "JEWELRY"
+  ],
+  "EXTERNAL_DRIVE": [
+   "ELECTRONICS"
+  ],
+  "E_BIKE": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "E_READER": [
+   "ELECTRONICS"
+  ],
+  "E_SCOOTER": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "FISHING_REEL": [
+   "SPORT_OUTDOOR"
+  ],
+  "FISHING_ROD": [
+   "SPORT_OUTDOOR"
+  ],
+  "FITNESS_TRACKER": [
+   "ELECTRONICS"
+  ],
+  "FLASHLIGHT": [
+   "SPORT_OUTDOOR"
+  ],
+  "FLEECE_JACKET": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "GAME_CONSOLE": [
+   "ELECTRONICS"
+  ],
+  "GAME_CONTROLLER": [
+   "ELECTRONICS"
+  ],
+  "GARAGE_REMOTE": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "GLASSES": [
+   "PERSONAL"
+  ],
+  "GLASSES_CASE": [
+   "PERSONAL"
+  ],
+  "GLOVES": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "GOGGLES": [
+   "SPORT_OUTDOOR"
+  ],
+  "GOLF_BAG": [
+   "SPORT_OUTDOOR"
+  ],
+  "GOLF_CLUB": [
+   "SPORT_OUTDOOR"
+  ],
+  "GOLF_RANGEFINDER": [
+   "SPORT_OUTDOOR"
+  ],
+  "GUITAR": [
+   "CULTURE_HOBBY"
+  ],
+  "GYM_BAG": [
+   "BAGS_LUGGAGE"
+  ],
+  "HANDBAG": [
+   "BAGS_LUGGAGE"
+  ],
+  "HAT": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "HEADBAND": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "HEADLAMP": [
+   "SPORT_OUTDOOR"
+  ],
+  "HEADPHONES": [
+   "ELECTRONICS"
+  ],
+  "HEARING_AID": [
+   "PERSONAL"
+  ],
+  "HEARING_PROTECTION": [
+   "TOOLS_HOUSE"
+  ],
+  "HEART_RATE_MONITOR": [
+   "ELECTRONICS",
+   "SPORT_OUTDOOR"
+  ],
+  "HELMET": [
+   "SPORT_OUTDOOR"
+  ],
+  "HIKING_BACKPACK": [
+   "SPORT_OUTDOOR"
+  ],
+  "HOCKEY_STICK": [
+   "SPORT_OUTDOOR"
+  ],
+  "HOODIE": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "HORSE": [
+   "PETS"
+  ],
+  "ICE_SKATES": [
+   "SPORT_OUTDOOR"
+  ],
+  "ID_CARD": [
+   "PERSONAL"
+  ],
+  "INSTRUMENT_CASE": [
+   "CULTURE_HOBBY"
+  ],
+  "JACKET": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "KAYAK_CANOE": [
+   "SPORT_OUTDOOR"
+  ],
+  "KAYAK_PADDLE": [
+   "SPORT_OUTDOOR"
+  ],
+  "KEEPSAKE": [
+   "CULTURE_HOBBY"
+  ],
+  "KEYS": [
+   "PERSONAL"
+  ],
+  "KIDS_RAINWEAR": [
+   "CHILDREN_FAMILY"
+  ],
+  "LAPTOP": [
+   "ELECTRONICS"
+  ],
+  "LAPTOP_BAG": [
+   "BAGS_LUGGAGE"
+  ],
+  "LICENSE_PLATE": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "LIFE_JACKET": [
+   "SPORT_OUTDOOR"
+  ],
+  "LUNCH_BOX": [
+   "CHILDREN_FAMILY"
+  ],
+  "MEASURING_TOOL": [
+   "TOOLS_HOUSE"
+  ],
+  "MEDICATION": [
+   "PERSONAL"
+  ],
+  "MEMORY_CARD": [
+   "ELECTRONICS"
+  ],
+  "MOBILE_PHONE": [
+   "PERSONAL"
+  ],
+  "MOTORCYCLE_HELMET": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "MUSICAL_INSTRUMENT": [
+   "CULTURE_HOBBY"
+  ],
+  "NECKLACE": [
+   "JEWELRY"
+  ],
+  "NECK_GAITER": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "NOTEBOOK": [
+   "CULTURE_HOBBY"
+  ],
+  "OTHER_BAGS": [
+   "BAGS_LUGGAGE"
+  ],
+  "OTHER_CHILDREN": [
+   "CHILDREN_FAMILY"
+  ],
+  "OTHER_CLOTHING": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "OTHER_ELECTRONICS": [
+   "ELECTRONICS"
+  ],
+  "OTHER_HOBBY": [
+   "CULTURE_HOBBY"
+  ],
+  "OTHER_JEWELRY": [
+   "JEWELRY"
+  ],
+  "OTHER_PERSONAL": [
+   "PERSONAL"
+  ],
+  "OTHER_PET": [
+   "PETS"
+  ],
+  "OTHER_SPORT": [
+   "SPORT_OUTDOOR"
+  ],
+  "OTHER_TOOLS": [
+   "TOOLS_HOUSE"
+  ],
+  "OTHER_VEHICLE": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "PACIFIER": [
+   "CHILDREN_FAMILY"
+  ],
+  "PADEL_RACKET": [
+   "SPORT_OUTDOOR"
+  ],
+  "PASSPORT": [
+   "PERSONAL"
+  ],
+  "PENCIL_CASE": [
+   "CULTURE_HOBBY"
+  ],
+  "PENDANT": [
+   "JEWELRY"
+  ],
+  "PET_GEAR": [
+   "PETS"
+  ],
+  "POWERBANK": [
+   "ELECTRONICS"
+  ],
+  "POWER_TOOL": [
+   "TOOLS_HOUSE"
+  ],
+  "RABBIT": [
+   "PETS"
+  ],
+  "RAIN_JACKET": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "RC_VEHICLE": [
+   "CULTURE_HOBBY",
+   "CHILDREN_FAMILY"
+  ],
+  "REFLECTIVE_VEST": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "REPTILE": [
+   "PETS"
+  ],
+  "RETAINER": [
+   "PERSONAL"
+  ],
+  "RING": [
+   "JEWELRY"
+  ],
+  "SANDALS": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "SCARF": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "SCHOOL_BAG": [
+   "BAGS_LUGGAGE",
+   "CHILDREN_FAMILY"
+  ],
+  "SCOOTER": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "SHIRT": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "SHOES": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "SHOPPING_BAG": [
+   "BAGS_LUGGAGE"
+  ],
+  "SHORTS": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "SHOULDER_BAG": [
+   "BAGS_LUGGAGE"
+  ],
+  "SINGLE_EARBUD": [
+   "ELECTRONICS"
+  ],
+  "SKATEBOARD": [
+   "SPORT_OUTDOOR"
+  ],
+  "SKIRT": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "SKIS": [
+   "SPORT_OUTDOOR"
+  ],
+  "SKI_POLE": [
+   "SPORT_OUTDOOR"
+  ],
+  "SLED": [
+   "SPORT_OUTDOOR"
+  ],
+  "SLEEPING_BAG": [
+   "SPORT_OUTDOOR"
+  ],
+  "SLEEPING_PAD": [
+   "SPORT_OUTDOOR"
+  ],
+  "SMALL_PET": [
+   "PETS"
+  ],
+  "SMARTWATCH": [
+   "ELECTRONICS"
+  ],
+  "SMART_RING": [
+   "ELECTRONICS"
+  ],
+  "SNEAKERS": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "SNOWBOARD": [
+   "SPORT_OUTDOOR"
+  ],
+  "SPEAKER": [
+   "ELECTRONICS"
+  ],
+  "STROLLER": [
+   "CHILDREN_FAMILY"
+  ],
+  "STROLLER_FOOTMUFF": [
+   "CHILDREN_FAMILY"
+  ],
+  "STUDENT_CARD": [
+   "PERSONAL"
+  ],
+  "STUFFED_TOY": [
+   "CHILDREN_FAMILY"
+  ],
+  "STYLUS": [
+   "ELECTRONICS"
+  ],
+  "SUITCASE": [
+   "BAGS_LUGGAGE"
+  ],
+  "SUNGLASSES": [
+   "PERSONAL"
+  ],
+  "SWEATER": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "SWIMWEAR": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "SWIM_GOGGLES": [
+   "SPORT_OUTDOOR"
+  ],
+  "TABLET": [
+   "ELECTRONICS"
+  ],
+  "TENNIS_RACKET": [
+   "SPORT_OUTDOOR"
+  ],
+  "TENT": [
+   "SPORT_OUTDOOR"
+  ],
+  "THERMOS": [
+   "SPORT_OUTDOOR"
+  ],
+  "TOILETRY_BAG": [
+   "PERSONAL",
+   "BAGS_LUGGAGE"
+  ],
+  "TOOLBOX": [
+   "TOOLS_HOUSE"
+  ],
+  "TOOLS": [
+   "TOOLS_HOUSE"
+  ],
+  "TOOL_BAG": [
+   "BAGS_LUGGAGE"
+  ],
+  "TOOL_BATTERY": [
+   "TOOLS_HOUSE"
+  ],
+  "TOY": [
+   "CHILDREN_FAMILY"
+  ],
+  "TRACKER_TAG": [
+   "ELECTRONICS"
+  ],
+  "TRAVEL_BAG": [
+   "BAGS_LUGGAGE"
+  ],
+  "TRAVEL_CARD": [
+   "PERSONAL"
+  ],
+  "TREKKING_POLE": [
+   "SPORT_OUTDOOR"
+  ],
+  "TROUSERS": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "T_SHIRT": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "UMBRELLA": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "VAPE": [
+   "PERSONAL"
+  ],
+  "VEHICLE_ACCESSORY": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "VEST": [
+   "CLOTHING_ACCESSORIES"
+  ],
+  "VIOLIN": [
+   "CULTURE_HOBBY"
+  ],
+  "WAIST_BAG": [
+   "BAGS_LUGGAGE"
+  ],
+  "WALKIE_TALKIE": [
+   "ELECTRONICS",
+   "TOOLS_HOUSE"
+  ],
+  "WALKING_AID": [
+   "PERSONAL"
+  ],
+  "WALLET": [
+   "PERSONAL"
+  ],
+  "WATCH": [
+   "JEWELRY"
+  ],
+  "WATER_BOTTLE": [
+   "SPORT_OUTDOOR",
+   "CHILDREN_FAMILY"
+  ],
+  "WEDDING_RING": [
+   "JEWELRY"
+  ],
+  "WHEEL_RIM": [
+   "VEHICLE_TRANSPORT"
+  ],
+  "YOGA_MAT": [
+   "SPORT_OUTDOOR"
+  ]
+ },
  "colors": {
   "beige": {
    "no": "Beige",

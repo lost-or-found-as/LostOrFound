@@ -3,6 +3,8 @@
 // registrering"). Four numbered cards on one scrolling page: 1 Hva, 2 Detaljer, 3 Når og hvor
 // (with the current map screen), 4 Finnerlønn (lost) or Hvor er gjenstanden nå (found).
 // Uses the same draft as the current screen, so the map screen works unchanged.
+// T1.9AI: the first photo is analysed; the suggested item, colours and brand are offered on a
+// card and only used when the user taps «Bruk forslaget» (or picks one of the alternatives).
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -28,6 +30,7 @@ import { formatDate, formatDateTimeCustom, formatMoney, formatTime } from "../..
 import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
 import { captureOneImage, pickOneImage, uploadReportImage } from "../../src/lib/images";
+import { analyzeReportPhoto, type PhotoSuggestion } from "../../src/lib/imageAnalysis";
 import { ensureFoundIdentity, ensureLostAuthenticated, isAnonymousUser } from "../../src/lib/authGate";
 import { ensureProfileRow } from "../../src/lib/profile";
 import { reverseGeocodeToLabel } from "../../src/lib/reverseGeocode";
@@ -97,6 +100,13 @@ export default function RegisterScreen() {
   const [error, setError] = useState<string | null>(null);
   const [limitSheet, setLimitSheet] = useState(false);
   const [imageRetry, setImageRetry] = useState<{ reportId: string; uris: string[] } | null>(null);
+  // T1.9AI: photo analysis of the first photo; fromPhoto marks the fields that came from it.
+  const [photoAi, setPhotoAi] = useState<{ state: "idle" | "loading" | "done"; suggestion: PhotoSuggestion | null }>({
+    state: "idle",
+    suggestion: null,
+  });
+  const [fromPhoto, setFromPhoto] = useState<{ colors?: boolean; brand?: boolean }>({});
+  const photoAiRun = useRef(0);
 
   const type: "LOST" | "FOUND" = draft.type === "FOUND" ? "FOUND" : "LOST";
   const precision: OccurredPrecision = draft.occurredPrecision || "EXACT";
@@ -152,9 +162,45 @@ export default function RegisterScreen() {
   const longAgo = type === "LOST" && isLongAgo(draft.occurredAtISO);
   const areaCount = (draft.searchAreas || []).length;
 
+  const runPhotoAnalysis = async (uri: string) => {
+    const run = ++photoAiRun.current;
+    setPhotoAi({ state: "loading", suggestion: null });
+    const suggestion = await analyzeReportPhoto(uri);
+    if (run !== photoAiRun.current) return;
+    setPhotoAi({ state: "done", suggestion: suggestion && suggestion.status !== "NO_ITEM" ? suggestion : null });
+  };
+
   const chooseImage = async (camera: boolean) => {
     const uri = camera ? await captureOneImage() : await pickOneImage();
-    if (uri) setImages((prev) => [...prev, uri].slice(0, MAX_IMAGES));
+    if (!uri) return;
+    const first = images.length === 0;
+    setImages((prev) => [...prev, uri].slice(0, MAX_IMAGES));
+    // Only the first photo is analysed, and only while no item is chosen yet.
+    if (first && !draft.subcategoryKey) void runPhotoAnalysis(uri);
+  };
+
+  const dismissPhotoSuggestion = () => {
+    photoAiRun.current++;
+    setPhotoAi({ state: "done", suggestion: null });
+  };
+
+  /** Uses the photo suggestion (or one of its alternatives); colours and brand only fill empty fields. */
+  const applyPhotoSuggestion = (item: string, category: string | null) => {
+    const suggestion = photoAi.suggestion;
+    if (category) setField("category", category);
+    setField("subcategoryKey", item);
+    const marks: { colors?: boolean; brand?: boolean } = {};
+    if (suggestion?.colors.length && !draft.color) {
+      setField("color", suggestion.colors[0]);
+      setField("colorSecondary", suggestion.colors[1] ?? "");
+      marks.colors = true;
+    }
+    if (suggestion?.brand && !String(draft.brand || "").trim()) {
+      setField("brand", suggestion.brand);
+      marks.brand = true;
+    }
+    setFromPhoto(marks);
+    dismissPhotoSuggestion();
   };
 
   const setDate = (d: Date, nextPrecision: OccurredPrecision = precision) => {
@@ -352,7 +398,11 @@ export default function RegisterScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={t("register.what.removePhoto")}
                     style={s.photoRemove}
-                    onPress={() => setImages((prev) => prev.filter((x) => x !== uri))}
+                    onPress={() => {
+                      setImages((prev) => prev.filter((x) => x !== uri));
+                      // T1.9AI: the suggestion belongs to the first photo.
+                      if (uri === images[0]) dismissPhotoSuggestion();
+                    }}
                   >
                     <Ionicons name="close" size={16} color="#FFFFFF" />
                   </Pressable>
@@ -371,6 +421,87 @@ export default function RegisterScreen() {
                 </>
               )}
             </View>
+
+            {/* T1.9AI: photo first; suggestion from the photo, or a few alternatives when unsure. */}
+            {!draft.subcategoryKey && images.length === 0 && (
+              <View style={s.itemHint}>
+                <Ionicons name="sparkles-outline" size={18} color="#1D4ED8" />
+                <Text style={s.itemHintText}>{t("register.photo.hint")}</Text>
+              </View>
+            )}
+            {!draft.subcategoryKey && photoAi.state === "loading" && (
+              <View style={s.photoAiBox} accessibilityRole="progressbar" accessibilityLabel={t("register.photo.analyzing")}>
+                <View style={s.rowCenter}>
+                  <ActivityIndicator color="#1D4ED8" />
+                  <Text style={s.photoAiTitle}>{t("register.photo.analyzing")}</Text>
+                </View>
+                <Text style={s.mutedSmall}>{t("register.photo.analyzingBody")}</Text>
+              </View>
+            )}
+            {!draft.subcategoryKey && photoAi.state === "done" && photoAi.suggestion?.status === "OK" && photoAi.suggestion.item && (
+              <View style={s.photoAiSuggestion}>
+                <View style={s.rowCenter}>
+                  {images[0] ? <Image source={{ uri: images[0] }} style={s.photoAiThumb} /> : null}
+                  <View style={s.flex}>
+                    <Text style={s.photoAiLabel}>{t("register.photo.suggestionLabel")}</Text>
+                    <Text style={s.photoAiItem}>{itemName(photoAi.suggestion.item, language, photoAi.suggestion.category ?? undefined)}</Text>
+                    {(photoAi.suggestion.colors.length > 0 || !!photoAi.suggestion.brand) && (
+                      <Text style={s.photoAiMeta}>
+                        {[
+                          photoAi.suggestion.colors.length === 2
+                            ? t("catalog.colorPair", {
+                                first: colorName(photoAi.suggestion.colors[0], language),
+                                second: colorName(photoAi.suggestion.colors[1], language).toLocaleLowerCase(),
+                              })
+                            : photoAi.suggestion.colors[0]
+                              ? colorName(photoAi.suggestion.colors[0], language)
+                              : "",
+                          photoAi.suggestion.brand ?? "",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={s.photoAiButtons}>
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[s.photoAiButton, s.photoAiButtonPrimary]}
+                    onPress={() => applyPhotoSuggestion(photoAi.suggestion!.item!, photoAi.suggestion!.category)}
+                  >
+                    <Text style={s.photoAiButtonPrimaryText}>{t("register.photo.use")}</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" style={s.photoAiButton} onPress={dismissPhotoSuggestion}>
+                    <Text style={s.photoAiButtonText}>{t("register.photo.chooseSelf")}</Text>
+                  </Pressable>
+                </View>
+                <Text style={s.mutedSmall}>{t("register.photo.check")}</Text>
+                <Text style={s.mutedSmall}>{t("register.photo.privacy")}</Text>
+              </View>
+            )}
+            {!draft.subcategoryKey && photoAi.state === "done" && photoAi.suggestion?.status === "UNSURE" && photoAi.suggestion.alternatives.length > 0 && (
+              <View style={s.photoAiUnsure}>
+                <Text style={s.photoAiUnsureTitle}>{t("register.photo.unsureTitle")}</Text>
+                <Text style={s.photoAiUnsureBody}>{t("register.photo.unsureBody")}</Text>
+                <View style={s.chips}>
+                  {photoAi.suggestion.alternatives.map((alt) => (
+                    <Pressable
+                      key={alt.key}
+                      accessibilityRole="button"
+                      style={s.chip}
+                      onPress={() => applyPhotoSuggestion(alt.key, alt.category)}
+                    >
+                      <Text style={s.chipText}>{itemName(alt.key, language, alt.category ?? undefined)}</Text>
+                    </Pressable>
+                  ))}
+                  <Pressable accessibilityRole="button" style={s.chip} onPress={dismissPhotoSuggestion}>
+                    <Text style={s.chipText}>{t("register.photo.other")}</Text>
+                  </Pressable>
+                </View>
+                <Text style={s.mutedSmall}>{t("register.photo.privacy")}</Text>
+              </View>
+            )}
 
             {draft.subcategoryKey ? (
               <View style={s.selected}>
@@ -492,7 +623,10 @@ export default function RegisterScreen() {
               <Text style={s.h2}>{t("register.details.title")}</Text>
             </View>
             <View style={s.rowBetween}>
-              <Text style={s.label}>{t("register.details.color")}</Text>
+              <Text style={s.label}>
+                {t("register.details.color")}
+                {fromPhoto.colors && draft.color ? <Text style={s.fromPhoto}>{` · ${t("register.photo.fromPhoto")}`}</Text> : null}
+              </Text>
               <Text style={s.muted}>{colorsText}</Text>
             </View>
             <View style={s.swatches}>
@@ -536,6 +670,7 @@ export default function RegisterScreen() {
             <View style={s.field}>
               <Text style={s.label}>
                 {t("register.details.brand")}
+                {fromPhoto.brand && !!draft.brand ? <Text style={s.fromPhoto}>{` · ${t("register.photo.fromPhoto")}`}</Text> : null}
               </Text>
               <TextInput
                 accessibilityLabel={t("register.details.brand")}
@@ -858,6 +993,24 @@ export default function RegisterScreen() {
 }
 
 const s = StyleSheet.create({
+  // T1.9AI: photo suggestion
+  rowCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  photoAiBox: { marginTop: 10, padding: 14, borderRadius: 14, backgroundColor: "#F1F5F9", gap: 8 },
+  photoAiTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  photoAiSuggestion: { marginTop: 10, padding: 14, borderRadius: 14, backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE", gap: 10 },
+  photoAiThumb: { width: 56, height: 56, borderRadius: 12, backgroundColor: "#E5E7EB" },
+  photoAiLabel: { fontSize: 12, fontWeight: "800", color: "#1D4ED8", letterSpacing: 0.5, textTransform: "uppercase" },
+  photoAiItem: { fontSize: 18, fontWeight: "900", color: theme.colors.text },
+  photoAiMeta: { fontSize: 14, fontWeight: "600", color: "#1E3A8A" },
+  photoAiButtons: { flexDirection: "row", gap: 8 },
+  photoAiButton: { flex: 1, minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: "#BFDBFE", backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  photoAiButtonPrimary: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  photoAiButtonText: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  photoAiButtonPrimaryText: { fontSize: 15, fontWeight: "800", color: "#FFFFFF" },
+  photoAiUnsure: { marginTop: 10, padding: 14, borderRadius: 14, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FCD34D", gap: 8 },
+  photoAiUnsureTitle: { fontSize: 16, fontWeight: "900", color: "#78350F" },
+  photoAiUnsureBody: { fontSize: 14, fontWeight: "600", color: "#78350F" },
+  fromPhoto: { fontSize: 13, fontWeight: "700", color: "#1D4ED8" },
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   center: { alignItems: "center", justifyContent: "center" },
   flex: { flex: 1 },
