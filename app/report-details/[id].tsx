@@ -4,7 +4,9 @@
 // Aktivitet timeline. Case actions (edit, extend, close, delete) live in the ⋯ menu.
 import { requireAccount } from "../../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import { shareUrls, startSharing, stopSharing } from "../../src/lib/reportShare";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, Circle } from "react-native-maps";
@@ -86,6 +88,9 @@ function Screen() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [longTermOpen, setLongTermOpen] = useState(false);
+  // T1.9AK: share link and poster.
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   // T1.9R: consent before a paid extension (reset each time the sheet opens).
   const [consent, setConsent] = useState(false);
   useEffect(() => setConsent(false), [confirm]);
@@ -234,6 +239,35 @@ function Screen() {
   const openMatches = () => router.push({ pathname: "/match", params: { reportId: r.id } });
   const openChat = (matchId: string) => router.push(`/chat/${matchId}`);
   const editReport = () => router.push({ pathname: "/(report)/create-report", params: { editReportId: r.id } });
+  // T1.9AK: a lost, open case can be shared as a page and a poster.
+  const canShare = lost && !closed && !expired;
+  const shareCase = async (kind: "link" | "poster") => {
+    setShareError(null);
+    setShareBusy(true);
+    try {
+      const token = r.share_token || (await startSharing(String(r.id)));
+      if (!r.share_token) setData((prev) => (prev ? { ...prev, report: { ...prev.report, share_token: token } } : prev));
+      const urls = shareUrls(token, language);
+      if (kind === "poster") await WebBrowser.openBrowserAsync(urls.poster);
+      else await Share.share({ message: `${t("caseDetail.share.message", { title })}\n${urls.page}` });
+    } catch (e) {
+      setShareError(userErrorMessage(e, t, "caseDetail.share.failed", "report.share"));
+    } finally {
+      setShareBusy(false);
+    }
+  };
+  const endSharing = async () => {
+    setShareError(null);
+    setShareBusy(true);
+    try {
+      await stopSharing(String(r.id));
+      setData((prev) => (prev ? { ...prev, report: { ...prev.report, share_token: null } } : prev));
+    } catch (e) {
+      setShareError(userErrorMessage(e, t, "caseDetail.share.failed", "report.share.stop"));
+    } finally {
+      setShareBusy(false);
+    }
+  };
 
   const runStepAction = () => {
     if (step.action === "openChat" && activity.summary.chatMatchId) openChat(activity.summary.chatMatchId);
@@ -441,6 +475,30 @@ function Screen() {
             </>
           )}
         </View>
+
+        {/* T1.9AK: share link and poster */}
+        {canShare && (
+          <View style={s.card}>
+            <Text style={s.h2}>{t("caseDetail.share.title")}</Text>
+            <Text style={s.shareBody}>{t("caseDetail.share.body")}</Text>
+            <View style={s.shareButtons}>
+              <Pressable accessibilityRole="button" disabled={shareBusy} style={[s.shareButton, shareBusy && s.shareBusy]} onPress={() => void shareCase("link")}>
+                <Ionicons name="share-outline" size={18} color={theme.colors.text} />
+                <Text style={s.shareButtonText}>{t("caseDetail.share.link")}</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={shareBusy} style={[s.shareButton, shareBusy && s.shareBusy]} onPress={() => void shareCase("poster")}>
+                <Ionicons name="print-outline" size={18} color={theme.colors.text} />
+                <Text style={s.shareButtonText}>{t("caseDetail.share.poster")}</Text>
+              </Pressable>
+            </View>
+            {!!r.share_token && (
+              <Pressable accessibilityRole="button" disabled={shareBusy} style={s.linkButton} onPress={() => void endSharing()}>
+                <Text style={s.link}>{t("caseDetail.share.stop")}</Text>
+              </Pressable>
+            )}
+            {!!shareError && <InlineNotice tone="warning" title={shareError} style={s.notice} />}
+          </View>
+        )}
 
         {/* Område */}
         {r.lat != null && r.lng != null && (
@@ -718,6 +776,12 @@ const s = StyleSheet.create({
   cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 32 },
   h2: { fontSize: 17, fontWeight: "900", color: theme.colors.text },
   linkButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 4 },
+  // T1.9AK
+  shareBody: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: theme.colors.textSecondary },
+  shareButtons: { flexDirection: "row", gap: 10 },
+  shareButton: { flex: 1, minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.card, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  shareButtonText: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  shareBusy: { opacity: 0.6 },
   link: { fontSize: 15, fontWeight: "800", color: theme.colors.primary },
   row: { flexDirection: "row", gap: 12 },
   label: { width: 96, color: theme.colors.textSecondary, fontWeight: "700", fontSize: 14 },

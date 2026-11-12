@@ -1175,6 +1175,50 @@ router.delete("/:id", requireUser, async (req, res) => {
   return res.status(result.status).json(result.body);
 });
 
+// T1.9AK: share a lost report as a public page and poster (owner only), or stop sharing.
+//   POST   /reports/:id/share   -> { token } (the same token while it stays shared)
+//   DELETE /reports/:id/share   -> { ok: true }
+router.post("/:id/share", requireUser, async (req, res) => {
+  try {
+    const { data: report, error } = await supaAdmin
+      .from("reports")
+      .select("id, type, status, share_token, deleted_at")
+      .eq("id", req.params.id)
+      .eq("user_id", req.user.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!report || report.deleted_at) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
+    if (report.type !== "LOST" || report.status !== "ACTIVE") return res.status(409).json({ error: "SHARE_NOT_ALLOWED" });
+    if (report.share_token) return res.json({ token: report.share_token });
+    const token = require("crypto").randomBytes(15).toString("base64url");
+    const { error: updateError } = await supaAdmin
+      .from("reports")
+      .update({ share_token: token, shared_at: new Date().toISOString() })
+      .eq("id", report.id)
+      .eq("user_id", req.user.id);
+    if (updateError) throw updateError;
+    return res.json({ token });
+  } catch (e) {
+    console.error("[reports/share] failed", e?.message || e);
+    return res.status(500).json({ error: "SHARE_FAILED" });
+  }
+});
+
+router.delete("/:id/share", requireUser, async (req, res) => {
+  try {
+    const { error } = await supaAdmin
+      .from("reports")
+      .update({ share_token: null, shared_at: null })
+      .eq("id", req.params.id)
+      .eq("user_id", req.user.id);
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("[reports/share] stop failed", e?.message || e);
+    return res.status(500).json({ error: "SHARE_FAILED" });
+  }
+});
+
 /**
  * GET /reports/:id
  * Owner-only report details with images, paid additions and confirmed chat history.

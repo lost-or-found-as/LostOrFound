@@ -212,6 +212,15 @@ try {
   console.warn("[BOOT] /safety NOT mounted:", e?.message || e);
 }
 
+// ---- Mount /s (T1.9AK: public page and poster for a shared lost report) ----
+try {
+  const shareRoutes = require("./routes/share");
+  app.use("/s", shareRoutes);
+  console.log("[BOOT] Mounted /s routes");
+} catch (e) {
+  console.warn("[BOOT] /s NOT mounted:", e?.message || e);
+}
+
 // ---- Mount /image-analysis (T1.9AI: photo suggestions in registration) ----
 try {
   const imageAnalysisRoutes = require("./routes/imageAnalysis");

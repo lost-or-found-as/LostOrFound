@@ -43,5 +43,20 @@
   "feedback.kind.OTHER": "Annet",
   "email.feedback.subject": "Lost or Found: ny tilbakemelding ({{kind}})",
   "email.feedback.body": "Det har kommet en ny tilbakemelding.\n\nType: {{kind}}\n{{guest}}\n{{message}}\n\nTelefon og app: {{meta}}\n\nSe alle i appen: Profil → Tilbakemeldinger.",
-  "email.feedback.guest": "Sendt av en gjest (kan ikke få svar på e-post)."
+  "email.feedback.guest": "Sendt av en gjest (kan ikke få svar på e-post).",
+  "share.lost": "Savnet",
+  "share.lostPet": "Savnet dyr",
+  "share.lostSince": "Savnet siden {{date}}",
+  "share.area": "Område: {{area}}",
+  "share.temperament.SHY": "Dyret er redd. Ikke løp etter det – meld hvor du så det.",
+  "share.temperament.CALM": "Dyret er rolig og kan lokkes med navnet.",
+  "share.seenIt": "Har du sett det?",
+  "share.seenItBody": "Meld fra i Lost or Found-appen. Eieren får beskjed med en gang, og ingen av dere må dele telefonnummer.",
+  "share.openApp": "Åpne appen",
+  "share.getApp": "Last ned appen",
+  "share.closedTitle": "Saken er avsluttet",
+  "share.closedBody": "Eieren har avsluttet saken eller sluttet å dele den. Takk for at du ville hjelpe!",
+  "share.posterScan": "Skann koden for å melde fra",
+  "share.posterPrint": "Skriv ut plakaten",
+  "share.posterFooter": "Meld fra anonymt i Lost or Found-appen"
 }

@@ -43,5 +43,20 @@
   "feedback.kind.OTHER": "Other",
   "email.feedback.subject": "Lost or Found: new feedback ({{kind}})",
   "email.feedback.body": "New feedback has arrived.\n\nType: {{kind}}\n{{guest}}\n{{message}}\n\nPhone and app: {{meta}}\n\nSee all in the app: Profile → Feedback.",
-  "email.feedback.guest": "Sent by a guest (cannot get a reply by e-mail)."
+  "email.feedback.guest": "Sent by a guest (cannot get a reply by e-mail).",
+  "share.lost": "Lost",
+  "share.lostPet": "Missing pet",
+  "share.lostSince": "Missing since {{date}}",
+  "share.area": "Area: {{area}}",
+  "share.temperament.SHY": "The animal is shy. Do not chase it – report where you saw it.",
+  "share.temperament.CALM": "The animal is calm and can be called by name.",
+  "share.seenIt": "Have you seen it?",
+  "share.seenItBody": "Report it in the Lost or Found app. The owner is told at once, and neither of you has to share a phone number.",
+  "share.openApp": "Open the app",
+  "share.getApp": "Get the app",
+  "share.closedTitle": "This case is closed",
+  "share.closedBody": "The owner has closed the case or stopped sharing it. Thank you for wanting to help!",
+  "share.posterScan": "Scan the code to report",
+  "share.posterPrint": "Print the poster",
+  "share.posterFooter": "Report anonymously in the Lost or Found app"
 }

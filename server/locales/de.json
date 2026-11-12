@@ -36,5 +36,20 @@
   "feedback.kind.IDEA": "Idee",
   "feedback.kind.BUG": "Etwas stimmt nicht",
   "feedback.kind.PRAISE": "Lob",
-  "feedback.kind.OTHER": "Sonstiges"
+  "feedback.kind.OTHER": "Sonstiges",
+  "share.lost": "Vermisst",
+  "share.lostPet": "Haustier vermisst",
+  "share.lostSince": "Vermisst seit {{date}}",
+  "share.area": "Gebiet: {{area}}",
+  "share.temperament.SHY": "Das Tier ist scheu. Bitte nicht hinterherlaufen – melde, wo du es gesehen hast.",
+  "share.temperament.CALM": "Das Tier ist ruhig und kommt, wenn man es beim Namen ruft.",
+  "share.seenIt": "Hast du es gesehen?",
+  "share.seenItBody": "Melde es in der Lost-or-Found-App. Der Eigentümer wird sofort benachrichtigt, und niemand muss eine Telefonnummer teilen.",
+  "share.openApp": "App öffnen",
+  "share.getApp": "App herunterladen",
+  "share.closedTitle": "Dieser Fall ist abgeschlossen",
+  "share.closedBody": "Der Eigentümer hat den Fall abgeschlossen oder teilt ihn nicht mehr. Danke, dass du helfen wolltest!",
+  "share.posterScan": "Code scannen und melden",
+  "share.posterPrint": "Plakat drucken",
+  "share.posterFooter": "Anonym in der Lost-or-Found-App melden"
 }
