@@ -28,11 +28,9 @@ const root = path.resolve(__dirname, "..");
 const EXCLUDE = [
   /^src\/i18n\/locales\//,
   /^src\/i18n\/catalog\.ts$/,
-  // Product setup notes for developers; never shown in the app.
-  /^src\/lib\/revenueCatConfig\.ts$/,
 ];
 // Names and symbols that are the same in every language.
-const ALLOWED = new Set(["Lost or Found", "Lost Plus", "Google", "Apple", "VS", "OK", "GPS", "ID"]);
+const ALLOWED = new Set(["Lost or Found", "Google", "Apple", "VS", "OK", "GPS", "ID"]);
 const TEXT_PROPS = new Set([
   "title", "headerTitle", "tabBarLabel", "placeholder", "label", "accessibilityLabel",
   "accessibilityHint", "subtitle", "message", "description", "text", "body", "emptyText", "buttonText",
