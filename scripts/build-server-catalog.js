@@ -6,13 +6,14 @@
 const fs = require("fs");
 const path = require("path");
 const { requireTs } = require("./lib/ts-modules");
+const { SUPPORTED_LANGUAGES } = require("../server/lib/languages");
 
 const root = path.resolve(__dirname, "..");
 const OUT = path.join(root, "server", "data", "itemCatalog.json");
 
 function buildServerCatalog() {
   const c = requireTs(path.join(root, "src/i18n/catalog.ts"));
-  const names = (e) => ({ no: e.names.no, en: e.names.en });
+  const names = (e) => Object.fromEntries(SUPPORTED_LANGUAGES.filter((l) => e.names[l]).map((l) => [l, e.names[l]]));
   const items = {};
   for (const list of Object.values(c.ITEM_CATALOG)) for (const e of list) if (!items[e.key]) items[e.key] = names(e);
   const sorted = (o) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));

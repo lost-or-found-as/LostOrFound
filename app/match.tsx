@@ -52,8 +52,9 @@ import { codedError, userErrorMessage } from "../src/lib/userError";
 import { translate } from "../src/i18n/I18nProvider";
 import { categoryName, colorName, itemName } from "../src/i18n/catalog";
 import { formatDistance as formatDistanceText, formatNumber, formatTimeAgo } from "../src/i18n/formatters";
+import type { Lang } from "../src/i18n/languages";
 function tr(
-  language: "no" | "en",
+  language: Lang,
   key: TranslationKey,
   params?: Record<string, string | number | null | undefined>,
 ): string {
@@ -97,7 +98,7 @@ type LastMsg = {
   created_at: string;
 };
 
-type AppLang = "no" | "en";
+type AppLang = Lang;
 
 
 

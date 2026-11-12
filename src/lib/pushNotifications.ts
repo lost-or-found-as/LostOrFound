@@ -7,6 +7,7 @@ import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { supabase } from "./supabase";
 import { API_BASE_URL } from "./config";
+import type { Lang } from "../i18n/languages";
 
 const INSTALLATION_KEY = "@lostfound:pushInstallationId:v1";
 
@@ -72,7 +73,7 @@ export async function getCurrentPushInstallationState(): Promise<PushInstallatio
   };
 }
 
-export async function registerPushInstallation(language: "no" | "en") {
+export async function registerPushInstallation(language: Lang) {
   const existing = await Notifications.getPermissionsAsync();
   let status = existing.status;
   if (status !== "granted") status = (await Notifications.requestPermissionsAsync()).status;
@@ -101,7 +102,7 @@ export async function registerPushInstallation(language: "no" | "en") {
 
 // T1.9F: tell the server which language this phone uses, so push texts follow the app language.
 // Quiet and best effort: only for registered users on a phone that has turned on push.
-export async function syncPushLanguage(language: "no" | "en") {
+export async function syncPushLanguage(language: Lang) {
   try {
     const installationId = await AsyncStorage.getItem(INSTALLATION_KEY);
     if (!installationId) return;
@@ -116,7 +117,7 @@ export async function syncPushLanguage(language: "no" | "en") {
   }
 }
 
-export function usePushLanguageSync(language: "no" | "en", userId: string | null | undefined, isGuest: boolean) {
+export function usePushLanguageSync(language: Lang, userId: string | null | undefined, isGuest: boolean) {
   useEffect(() => {
     if (!userId || isGuest) return;
     void syncPushLanguage(language);

@@ -1,5 +1,6 @@
 import { translate } from "../i18n/translate";
 import { formatDateTimeCustom, formatDistance, formatTime } from "../i18n/formatters";
+import type { Lang } from "../i18n/languages";
 // T1.8E.5I: area-alert status and error handling for the app.
 // Pure helpers only (no React Native imports), so they can be tested in Node.
 
@@ -139,7 +140,7 @@ export function classifyAreaAlertError(error: unknown): AreaAlertErrorInfo {
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** Local date and time parts in the app language, e.g. "27. okt." / "27 Oct" and "13:40". */
-export function areaAlertDateParts(iso: string | null | undefined, language: "no" | "en") {
+export function areaAlertDateParts(iso: string | null | undefined, language: Lang) {
   if (!iso) return { date: "", time: "" };
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return { date: "", time: "" };
@@ -150,7 +151,7 @@ export function areaAlertDateParts(iso: string | null | undefined, language: "no
 }
 
 /** Radius label in the device distance unit: 500 m, 1,5 km / 1.5 km, 0.9 mi. */
-export function areaAlertRadiusLabel(radiusM: number | null | undefined, language: "no" | "en") {
+export function areaAlertRadiusLabel(radiusM: number | null | undefined, language: Lang) {
   const r = Number(radiusM || 0);
   if (!r) return "";
   return formatDistance(r, language, (k, p) => translate(language, k, p));

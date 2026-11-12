@@ -1,5 +1,7 @@
 ﻿// app/language.tsx
 // T1.9W: language picker. Picking a language saves it and goes back.
+// T1.9AH: the list comes from src/i18n/languages.ts: each language in its own name, with its name
+// in the current app language under it (Deutsch / Tysk). Draft languages show in test builds only.
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
@@ -7,6 +9,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../src/ui/theme";
 import { useI18n, Lang } from "../src/i18n/I18nProvider";
 import { ScreenHeader } from "../src/ui/kit";
+import { selectableLanguages } from "../src/i18n/languages";
+import type { TranslationKey } from "../src/i18n/locales/en";
 import { InlineNotice } from "../src/ui/InlineNotice";
 
 export default function LanguageScreen() {
@@ -18,10 +22,11 @@ export default function LanguageScreen() {
     router.back();
   };
 
-  const options: { lang: Lang; title: string; meta: string }[] = [
-    { lang: "no", title: t("lang.norwegian"), meta: t("lang.norwegianMeta") },
-    { lang: "en", title: t("lang.english"), meta: t("lang.englishMeta") },
-  ];
+  const options: { lang: Lang; title: string; meta: string }[] = selectableLanguages().map((info) => ({
+    lang: info.code,
+    title: info.nativeName,
+    meta: t(`lang.name.${info.code}` as TranslationKey),
+  }));
 
   return (
     <View style={styles.screen}>
@@ -37,13 +42,13 @@ export default function LanguageScreen() {
                 <Pressable
                   accessibilityRole="radio"
                   accessibilityState={{ selected, checked: selected }}
-                  accessibilityLabel={`${option.title}, ${option.meta}`}
+                  accessibilityLabel={option.meta !== option.title ? `${option.title}, ${option.meta}` : option.title}
                   style={({ pressed }) => [styles.row, selected && styles.rowActive, pressed && styles.pressed]}
                   onPress={() => void pick(option.lang)}
                 >
                   <View style={styles.rowText}>
                     <Text style={styles.rowTitle}>{option.title}</Text>
-                    <Text style={styles.rowMeta}>{option.meta}</Text>
+                    {option.meta !== option.title && <Text style={styles.rowMeta}>{option.meta}</Text>}
                   </View>
                   {selected && <Ionicons name="checkmark" size={22} color={theme.colors.primary} />}
                 </Pressable>

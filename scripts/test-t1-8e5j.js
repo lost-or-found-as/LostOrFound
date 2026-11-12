@@ -98,8 +98,11 @@ function builder(resolveRows) {
 
   await scenario("message(): interpolation, unknown language falls back to Norwegian, missing key throws", async () => {
     assert.strictEqual(messages.message("en", "push.areaAlert.body", { item: "Wallet" }), "Wallet was reported lost near an area you follow.");
-    assert.strictEqual(messages.message("de", "push.test.title"), no["push.test.title"]);
-    assert.deepStrictEqual(messages.localizedPair("push.newMessage.title"), { no: no["push.newMessage.title"], en: en["push.newMessage.title"] });
+    assert.strictEqual(messages.message("fr", "push.test.title"), no["push.test.title"]);
+    // T1.9AH: every supported language, not only no/en.
+    const pair = messages.localizedPair("push.newMessage.title");
+    assert.strictEqual(pair.no, no["push.newMessage.title"]);
+    assert.strictEqual(pair.en, en["push.newMessage.title"]);
     assert.throws(() => messages.message("no", "push.does.not.exist"), /MESSAGE_KEY_MISSING/);
   });
 

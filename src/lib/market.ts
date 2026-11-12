@@ -1,11 +1,12 @@
 // src/lib/market.ts
 import { translate } from "../i18n/translate";
 import { formatDistance } from "../i18n/formatters";
+import type { Lang } from "../i18n/languages";
 
 // Rewards and prices are stored in Norwegian kroner (reward_ore, amountOre) until the database
 // stores a currency per amount.
 export const STORED_MONEY_CURRENCY = "NOK";
-export type SupportedLanguage = "no" | "en";
+export type SupportedLanguage = Lang;
 export type RegionCode = "NO" | "US" | "GB" | "EU" | "OTHER";
 export type CurrencyCode = "NOK" | "USD" | "GBP" | "EUR";
 export type DistanceUnit = "metric" | "imperial";

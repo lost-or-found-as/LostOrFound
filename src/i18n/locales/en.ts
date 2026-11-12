@@ -56,10 +56,9 @@ export const en = {
 
   "lang.title": "Choose language",
   "lang.back": "Back",
-  "lang.norwegian": "Norwegian",
-  "lang.norwegianMeta": "Bokmål",
-  "lang.english": "English",
-  "lang.englishMeta": "International",
+  "lang.name.no": "Norwegian (Bokmål)",
+  "lang.name.en": "English",
+  "lang.name.de": "German",
   "lang.tipTitle": "Tip",
   "lang.tipBody":
     "Your choice is saved on the device and will be used next time you open the app.",

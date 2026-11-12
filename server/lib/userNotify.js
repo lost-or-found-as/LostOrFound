@@ -1,10 +1,11 @@
 "use strict";
 const { supaAdmin } = require("../supabaseClient");
+const { normalizeLanguage } = require("./languages");
 
 function localized(value, language) {
   if (typeof value === "string") return value;
   if (!value || typeof value !== "object") return "";
-  return value[language === "en" ? "en" : "no"] || value.no || value.en || "";
+  return value[normalizeLanguage(language)] || value.en || value.no || "";
 }
 async function notifyUser({ userId, type, entityType, entityId, title, body, titles, bodies, data = {} }) {
   // T1.9F: in-app text uses the language of the phone the user used most recently.

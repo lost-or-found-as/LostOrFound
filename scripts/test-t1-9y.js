@@ -27,7 +27,8 @@ const { reportItemText: t } = require(path.join(root, "server/lib/reportItemText
 const ball = { category: "SPORT_OUTDOOR", subcategory_key: "BALL", color: "yellow", brand: "Wilson", title: "Lost • Sports and outdoors • Ball" };
 eq(t(ball, "no"), "Ball (gul, Wilson)", "Norwegian");
 eq(t(ball, "en"), "Ball (yellow, Wilson)", "English");
-eq(t(ball, "de"), "Ball (gul, Wilson)", "unknown language falls back to Norwegian");
+eq(t(ball, "fr"), "Ball (gul, Wilson)", "unknown language falls back to Norwegian");
+eq(t(ball, "de"), "Ball (gelb, Wilson)", "German item names (T1.9AH)");
 eq(t({ subcategory_key: "KEYCHAIN", color: "cyan" }, "no"), "Nøkler (turkis)", "old item and colour keys");
 eq(t({ subcategory_key: "CUSTOM", subcategory_custom: "  rød   termos " }, "en"), "Rød termos", "own text is kept as written");
 eq(t({ category: "ELECTRONICS", color: "unknown" }, "en"), t({ category: "ELECTRONICS" }, "en"), "unknown colour is left out");

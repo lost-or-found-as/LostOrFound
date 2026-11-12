@@ -18,6 +18,7 @@ import { notificationCaseLabel } from "../src/lib/localizedReport";
 import { userErrorMessage } from "../src/lib/userError";
 import { formatTimeAgo } from "../src/i18n/formatters";
 import type { TranslationKey } from "../src/i18n/locales/en";
+import type { Lang } from "../src/i18n/languages";
 
 type Translate = ReturnType<typeof useI18n>["t"];
 type Notif = {
@@ -37,7 +38,7 @@ type Notif = {
   merged_message?: boolean;
 };
 
-function reportHeading(n: Notif, language: "no" | "en", t: Translate) {
+function reportHeading(n: Notif, language: Lang, t: Translate) {
   return notificationCaseLabel(n.report_context, language, t) || null;
 }
 
@@ -103,7 +104,7 @@ function compactNotifications(items: Notif[]) {
     );
 }
 
-function notificationTitle(n: Notif, language: "no" | "en", t: Translate) {
+function notificationTitle(n: Notif, language: Lang, t: Translate) {
   const type = String(n.type || "").toUpperCase();
   if (type === "NEW_MATCH") return t("notifications.new.match");
   if (type === "MATCH_CONFIRMED") return t("notifications.match.confirmed");
@@ -131,7 +132,7 @@ function notificationTitle(n: Notif, language: "no" | "en", t: Translate) {
   return String(n.title || t("notifications.notification"));
 }
 
-function notificationBody(n: Notif, language: "no" | "en", t: Translate) {
+function notificationBody(n: Notif, language: Lang, t: Translate) {
   const type = String(n.type || "").toUpperCase();
   const count = Number(n.agg_count || 0);
   if (type === "NEW_MATCH") {
@@ -167,7 +168,7 @@ function notificationBody(n: Notif, language: "no" | "en", t: Translate) {
   return n.body ? String(n.body) : null;
 }
 
-function invalidReasonLabel(n: Notif, language: "no" | "en", t: Translate) {
+function invalidReasonLabel(n: Notif, language: Lang, t: Translate) {
   if (n.target_kind === "report") return t("notifications.case.unavailable");
   if (n.target_kind === "match") return t("notifications.match.unavailable");
   if (n.target_kind === "chat") return t("notifications.chat.unavailable");

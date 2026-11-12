@@ -63,6 +63,7 @@ import {
   InfoButton,
   ScreenHeader,
 } from "../src/ui/kit";
+import type { Lang } from "../src/i18n/languages";
 
 type Report = {
   id: string;
@@ -172,7 +173,7 @@ function thumbnailOf(r: Report): string | null {
 }
 
 /** Status badge, same rules as Saksdetaljer (closed, historic period, expired, days left). */
-function reportStatus(r: Report, language: "no" | "en", t: Translate) {
+function reportStatus(r: Report, language: Lang, t: Translate) {
   const lost = String(r.type).toUpperCase() === "LOST";
   const closed = isReportClosed(r);
   const expired = isReportExpired(r);

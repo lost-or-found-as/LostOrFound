@@ -48,6 +48,7 @@ import {
   scoreLevel,
 } from "../../src/ui/kit";
 import { custodyText } from "../../src/lib/custodyDisplay";
+import type { Lang } from "../../src/i18n/languages";
 
 type Reason = { k: string; v: any };
 type ReportFull = {
@@ -85,7 +86,6 @@ type MatchFull = {
   found: ReportFull;
 };
 type LastMsg = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
-type Lang = "no" | "en";
 type Mark = "good" | "partial" | "bad" | "unknown";
 type CompareRow = { key: string; labelKey: TranslationKey; value: string; mark: Mark };
 

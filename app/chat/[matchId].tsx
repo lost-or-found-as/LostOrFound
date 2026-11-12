@@ -32,6 +32,7 @@ import { InlineNotice } from "../../src/ui/InlineNotice";
 import { Button, ConfirmSheet, ScreenHeader } from "../../src/ui/kit";
 import { ChatClosedBar, ChatSafetyMenu, useChatSafety } from "../../src/ui/ChatSafety";
 import { unblockChatPartner } from "../../src/lib/chatSafety";
+import type { Lang } from "../../src/i18n/languages";
 
 type Msg = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
 type Resolution = { proposal?: { id: string; status: string } | null; role?: "PROPOSER" | "RESPONDER" | "PARTY" } | null;
@@ -42,7 +43,7 @@ function dayKey(iso: string) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-function dateDividerLabel(iso: string, language: "no" | "en", t: Translate) {
+function dateDividerLabel(iso: string, language: Lang, t: Translate) {
   const date = new Date(iso);
   const today = new Date();
   const yesterday = new Date();

@@ -2,19 +2,17 @@
 // T1.9E: every date, time, distance, area and money value shown to the user is formatted here.
 // Language decides the words and number style. The device's measurement system decides km or
 // miles, so a phone set to the US or UK shows miles whatever the app language is.
-// To add a language: add it to Lang, the locale files and LOCALE_BY_LANGUAGE below.
+// T1.9AH: each language's locale tag comes from src/i18n/languages.ts.
 import * as Localization from "expo-localization";
-import type { Lang } from "./translate";
+import { languageInfo, type Lang } from "./languages";
 import type { TranslationKey } from "./locales/en";
 
 type Params = Record<string, string | number | null | undefined>;
 export type Translate = (key: TranslationKey, params?: Params) => string;
 export type DistanceSystem = "metric" | "imperial";
 
-const LOCALE_BY_LANGUAGE: Record<Lang, string> = { no: "nb-NO", en: "en-GB" };
-
 export function localeForLanguage(language: Lang): string {
-  return LOCALE_BY_LANGUAGE[language] ?? LOCALE_BY_LANGUAGE.en;
+  return languageInfo(language).locale;
 }
 
 function asDate(value: string | number | Date | null | undefined): Date | null {

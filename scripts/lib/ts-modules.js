@@ -81,6 +81,8 @@ const I18N_MODULES = [
   "src/i18n/formatters.ts",
   "src/i18n/locales/en.ts",
   "src/i18n/locales/no.ts",
+  "src/i18n/locales/de.ts",
+  "src/i18n/languages.ts",
 ];
 
 // expo-localization for tests: a metric device. Set globalThis.__measurementSystem to change it.

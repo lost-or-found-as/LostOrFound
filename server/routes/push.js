@@ -4,6 +4,7 @@ const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
 const { message } = require("../lib/messages");
 const { requireUser } = require("../mw/auth");
+const { isSupportedLanguage, normalizeLanguage } = require("../lib/languages");
 
 const isExpoToken = (value) => /^ExponentPushToken\[[^\]]+\]$|^ExpoPushToken\[[^\]]+\]$/.test(String(value || ""));
 const testUserIds = () => new Set(String(process.env.PUSH_TEST_USER_IDS || "").split(",").map(x => x.trim()).filter(Boolean));
@@ -13,7 +14,7 @@ const testUserIds = () => new Set(String(process.env.PUSH_TEST_USER_IDS || "").s
 router.post("/language", requireUser, async (req, res) => {
   try {
     const installationId = String(req.body?.installationId || "").trim();
-    const language = req.body?.language === "en" ? "en" : req.body?.language === "no" ? "no" : null;
+    const language = isSupportedLanguage(req.body?.language) ? req.body.language : null;
     if (!installationId || installationId.length > 200) return res.status(400).json({ error: "INVALID_INSTALLATION_ID" });
     if (!language) return res.status(400).json({ error: "INVALID_LANGUAGE" });
     const { data, error } = await supaAdmin
@@ -37,7 +38,7 @@ router.post("/register", requireUser, async (req, res) => {
     const installationId = String(body.installationId || "").trim();
     const expoPushToken = String(body.expoPushToken || "").trim();
     const platform = String(body.platform || "").toLowerCase();
-    const language = body.language === "en" ? "en" : "no";
+    const language = normalizeLanguage(body.language);
     const permissionStatus = String(body.permissionStatus || "granted");
     const appVersion = body.appVersion ? String(body.appVersion).slice(0, 50) : null;
     if (!installationId || installationId.length > 200) return res.status(400).json({ error: "INVALID_INSTALLATION_ID" });

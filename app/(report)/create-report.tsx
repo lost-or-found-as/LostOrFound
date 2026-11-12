@@ -53,6 +53,7 @@ import { codedError, userErrorMessage } from "../../src/lib/userError";
 import { formatDistance } from "../../src/i18n/formatters";
 import { reportDescriptionText, reportSecondaryColor } from "../../src/lib/reportDescription";
 import { CATEGORY_CATALOG, COLOR_CATALOG, colorEntry, findByName, itemEntry, itemSearchText } from "../../src/i18n/catalog";
+import type { Lang } from "../../src/i18n/languages";
 type ReportType = "LOST" | "FOUND";
 type ColorOption = { label: string; value: string };
 type RegionCode = "NO" | "US" | "GB" | "EU" | "OTHER";
@@ -93,7 +94,7 @@ function inferRegionCodeFromLocale(locale?: string): RegionCode {
 function formatDistanceDisplay(
   meters: number | undefined,
   region: RegionCode,
-  language: "no" | "en",
+  language: Lang,
   translate: Translate,
 ) {
   if (meters == null) return "—";
@@ -111,7 +112,7 @@ const COLORS: ColorOption[] = COLOR_CATALOG.map((e) => ({ label: e.names.no, val
 const pad = (n: number) => String(n).padStart(2, "0");
 function localizeCategoryLabel(
   label: string | undefined,
-  language: "no" | "en",
+  language: Lang,
 ) {
   if (!label) return label ?? "";
   return findByName(CATEGORY_CATALOG, label)?.names[language] ?? label;
@@ -120,7 +121,7 @@ function localizeCategoryLabel(
 function localizeObjectLabel(
   value: string | undefined,
   fallbackLabel: string | undefined,
-  language: "no" | "en",
+  language: Lang,
 ) {
   if (!value && !fallbackLabel) return "";
   return (
@@ -140,7 +141,7 @@ function objectSearchAliases(
   return [itemSearchText(value), noLabel ?? "", enLabel ?? ""].join(" ");
 }
 
-function localizeColorLabel(label: string | undefined, language: "no" | "en") {
+function localizeColorLabel(label: string | undefined, language: Lang) {
   if (!label) return label ?? "";
   return (colorEntry(label) ?? findByName(COLOR_CATALOG, label))?.names[language] ?? label;
 }

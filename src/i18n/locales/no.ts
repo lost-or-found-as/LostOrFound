@@ -58,10 +58,9 @@ export const no: TranslationDictionary = {
 
   "lang.title": "Velg språk",
   "lang.back": "Tilbake",
-  "lang.norwegian": "Norsk",
-  "lang.norwegianMeta": "Bokmål",
-  "lang.english": "English",
-  "lang.englishMeta": "International",
+  "lang.name.no": "Norsk (bokmål)",
+  "lang.name.en": "Engelsk",
+  "lang.name.de": "Tysk",
   "lang.tipTitle": "Tips",
   "lang.tipBody":
     "Språket lagres på enheten og brukes neste gang du åpner appen.",

@@ -20,8 +20,7 @@ import { PremiumHeader } from "../src/ui/PremiumHeader";
 import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
 
-import { en } from "../src/i18n/locales/en";
-import { no } from "../src/i18n/locales/no";
+import { translate } from "../src/i18n/translate";
 import type { TranslationKey } from "../src/i18n/locales/en";
 import {
   previewGeoAlert,
@@ -45,9 +44,10 @@ import { WithdrawalConsent } from "../src/ui/WithdrawalConsent";
 import { Ionicons } from "@expo/vector-icons";
 import { formatArea, formatDistance, formatMoney } from "../src/i18n/formatters";
 import { STORED_MONEY_CURRENCY } from "../src/lib/market";
+import type { Lang } from "../src/i18n/languages";
 
-function tr(language: "no" | "en", key: TranslationKey): string {
-  return language === "en" ? en[key] : no[key];
+function tr(language: Lang, key: TranslationKey): string {
+  return translate(language, key);
 }
 
 const RADII = [250, 500, 1000, 1500, 3000, 5000, 10000];

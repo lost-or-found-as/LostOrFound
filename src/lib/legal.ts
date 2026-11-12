@@ -2,14 +2,15 @@
 // EXPO_PUBLIC_LEGAL_BASE_URL can point them elsewhere later (for example https://lostorfound.app).
 import * as WebBrowser from "expo-web-browser";
 import { API_BASE_URL } from "./config";
+import type { Lang } from "../i18n/languages";
 
 export type LegalDoc = "privacy" | "terms";
 
-export function legalUrl(doc: LegalDoc, language: "no" | "en"): string {
+export function legalUrl(doc: LegalDoc, language: Lang): string {
   const base = (process.env.EXPO_PUBLIC_LEGAL_BASE_URL || "").trim() || API_BASE_URL;
   return `${base.replace(/\/+$/, "")}/legal/${doc}?lang=${language}`;
 }
 
-export function openLegal(doc: LegalDoc, language: "no" | "en") {
+export function openLegal(doc: LegalDoc, language: Lang) {
   return WebBrowser.openBrowserAsync(legalUrl(doc, language)).catch(() => null);
 }
