@@ -75,13 +75,13 @@ export async function fetchReportActivity(reportId: string): Promise<ReportActiv
   return { summary: { ...EMPTY_ACTIVITY.summary, ...(body?.summary || {}) }, events: Array.isArray(body?.events) ? body.events : [] };
 }
 
-export type NextStepAction = "openChat" | "openMatches" | "extendLost" | "extendFound" | "longTerm" | null;
+export type NextStepAction = "openChat" | "openMatches" | "extendLost" | "extendFound" | "longTerm" | "areaAlert" | null;
 // A historic case can be renewed from this many days before it ends.
 export const LONG_TERM_RENEW_WINDOW_DAYS = 30;
 export type NextStepTone = "dark" | "plain";
 
 export type NextStep = {
-  kind: "closed" | "unreadChat" | "chat" | "matches" | "historic" | "expired" | "historicOffer" | "expiring" | "searching";
+  kind: "closed" | "unreadChat" | "chat" | "matches" | "petAreaAlert" | "historic" | "expired" | "historicOffer" | "expiring" | "searching";
   tone: NextStepTone;
   titleKey: TranslationKey;
   bodyKey: TranslationKey;
@@ -98,8 +98,13 @@ export function stepEyebrowKey(step: NextStep): TranslationKey {
   return step.action ? "caseDetail.next.eyebrowSuggestion" : "caseDetail.next.eyebrowStatus";
 }
 
+export type NextStepOptions = {
+  // T1.9AL: a lost animal with no area alert yet – the first hours matter most.
+  petAreaAlert?: boolean;
+};
+
 /** What the owner should do next with the case, most important first. */
-export function nextStep(report: LifecycleReport, summary: ActivitySummary, now = Date.now()): NextStep {
+export function nextStep(report: LifecycleReport, summary: ActivitySummary, now = Date.now(), options: NextStepOptions = {}): NextStep {
   const lost = String(report.type || "").toUpperCase() === "LOST";
   const step = (
     kind: NextStep["kind"],
@@ -142,6 +147,10 @@ export function nextStep(report: LifecycleReport, summary: ActivitySummary, now 
       "caseDetail.next.openMatches",
       { count: summary.possibleMatches },
     );
+
+  // T1.9AL: for a lost animal the area alert comes first, while the case is open.
+  if (lost && options.petAreaAlert && !isReportExpired(report, now))
+    return step("petAreaAlert", "dark", "caseDetail.next.petAlertTitle", "caseDetail.next.petAlertBody", "areaAlert", "caseDetail.next.petAlertAction");
 
   // T1.9H: a running historic period.
   const longTermEnd = Date.parse(summary.longTermUntil || "");

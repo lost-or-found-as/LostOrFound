@@ -724,6 +724,18 @@ router.patch("/:id", requireUser, async (req, res) => {
       return res.status(400).json({ error: "No editable fields provided" });
     }
 
+    // T1.9AL: pet fields can be edited, and they follow the category the case ends up with
+    // (a case changed away from an animal loses them).
+    if (["category", "subcategory_key", "pet_name", "pet_breed", "pet_temperament"].some((k) => k in patch)) {
+      const merged = { ...existing, ...patch };
+      try {
+        Object.assign(patch, normalizePet(merged.category, merged.subcategory_key, merged));
+      } catch (petErr) {
+        return res.status(400).json({ error: petErr?.code || "INVALID_INPUT" });
+      }
+      if (String(existing.type).toUpperCase() !== "LOST") patch.pet_temperament = null;
+    }
+
     // Require required core fields to stay valid after patch.
     const next = { ...existing, ...patch };
     if (!next.category || !next.title || !next.occurred_at) {

@@ -1833,6 +1833,18 @@ export const en = {
   "observation.chat.aboutBody": "Here you talk with the person who sent the observation, or with the owner. Names, phone numbers and e-mail are not shared unless you write them yourself. When the owner has got it back, one of you taps “Mark as resolved”. The other confirms before the case is closed.",
   "register.when.dateLabel": "Date",
   "register.when.timeLabel": "Time",
+  // T1.9AL: Last seen and the area alert as the first suggestion for a lost animal.
+  "caseDetail.next.petAlertTitle": "Alert everyone nearby",
+  "caseDetail.next.petAlertBody": "The first hours matter most. People who follow the area get a message with a photo and can tell you if they see the animal.",
+  "caseDetail.next.petAlertAction": "Alert the area",
+  "caseDetail.sightings.title": "Last seen",
+  "caseDetail.sightings.start": "Went missing here",
+  "caseDetail.sightings.seen": "Someone has seen the animal",
+  "caseDetail.sightings.found": "Someone says they have found the animal",
+  "caseDetail.sightings.direction": "Direction: {{direction}}",
+  "caseDetail.sightings.new": "New",
+  "caseDetail.sightings.empty": "Nobody has reported seeing the animal yet. When someone does, you see where and when here.",
+  "caseDetail.sightings.emptyNamed": "Nobody has reported seeing {{name}} yet. When someone does, you see where and when here.",
 } as const;
 
 export type TranslationKey = keyof typeof en;

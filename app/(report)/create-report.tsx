@@ -54,6 +54,7 @@ import { formatDistance } from "../../src/i18n/formatters";
 import { reportDescriptionText, reportSecondaryColor } from "../../src/lib/reportDescription";
 import { CATEGORY_CATALOG, COLOR_CATALOG, colorEntry, findByName, itemEntry, itemSearchText } from "../../src/i18n/catalog";
 import type { Lang } from "../../src/i18n/languages";
+import { isAnimal } from "../../src/lib/registerForm";
 type ReportType = "LOST" | "FOUND";
 type ColorOption = { label: string; value: string };
 type RegionCode = "NO" | "US" | "GB" | "EU" | "OTHER";
@@ -354,6 +355,11 @@ export default function CreateReportScreen() {
   const color = (draft as any).color ?? "";
   const colorSecondary = (draft as any).colorSecondary ?? "";
   const brand = (draft as any).brand ?? "";
+  // T1.9AL: pet fields can be edited.
+  const petName = String((draft as any).petName ?? "");
+  const petBreed = String((draft as any).petBreed ?? "");
+  const petTemperament = String((draft as any).petTemperament ?? "");
+  const animal = isAnimal(category, subcategoryKey);
   const rewardNOK = (draft as any).rewardNOK ?? "0";
   const occurredAtISO = (draft as any).occurredAtISO as string | undefined;
   const latitude = (draft as any).location?.latitude ?? 59.9139;
@@ -603,6 +609,9 @@ export default function CreateReportScreen() {
         setField("color" as any, report.color ?? "");
         setField("colorSecondary" as any, reportSecondaryColor(report) ?? "");
         setField("brand" as any, report.brand ?? "");
+        setField("petName" as any, report.pet_name ?? "");
+        setField("petBreed" as any, report.pet_breed ?? "");
+        setField("petTemperament" as any, report.pet_temperament ?? "");
         setField(
           "rewardNOK" as any,
           String(Math.round(Number(report.reward_ore || 0) / 100)),
@@ -1045,6 +1054,14 @@ export default function CreateReportScreen() {
           color: color.trim() || undefined,
           secondary_color: secondary || (isEditMode ? null : undefined),
           brand: brand.trim() || undefined,
+          // T1.9AL: null clears a field when editing; the server drops them for other items.
+          ...(animal
+            ? {
+                pet_name: petName.trim().slice(0, 40) || null,
+                pet_breed: petBreed.trim().slice(0, 60) || null,
+                pet_temperament: type === "LOST" && petTemperament ? petTemperament : null,
+              }
+            : {}),
           occurred_at: when,
           // The backend expects latitude and longitude at the top level.
           lat: latitude,
@@ -1243,6 +1260,10 @@ export default function CreateReportScreen() {
       color,
       colorSecondary,
       brand,
+      animal,
+      petName,
+      petBreed,
+      petTemperament,
       rewardNOK,
       latitude,
       longitude,
@@ -1451,6 +1472,52 @@ export default function CreateReportScreen() {
                     placeholder={t("report.create.e.g.guinea.pig.turtle.goat")}
                     placeholderTextColor={theme.colors.muted}
                   />
+                </>
+              )}
+              {/* T1.9AL: pet name, breed and how to approach it. */}
+              {animal && (
+                <>
+                  <Text style={[styles.caption, { marginTop: theme.space.md }]}>
+                    {type === "FOUND" ? t("register.pet.nameFound") : t("register.pet.name")}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    value={petName}
+                    maxLength={40}
+                    accessibilityLabel={type === "FOUND" ? t("register.pet.nameFound") : t("register.pet.name")}
+                    onChangeText={(v) => setField("petName" as any, v)}
+                  />
+                  <Text style={[styles.caption, { marginTop: theme.space.md }]}>{t("register.pet.breed")}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={petBreed}
+                    maxLength={60}
+                    accessibilityLabel={t("register.pet.breed")}
+                    onChangeText={(v) => setField("petBreed" as any, v)}
+                  />
+                  {type === "LOST" && (
+                    <>
+                      <Text style={[styles.caption, { marginTop: theme.space.md }]}>{t("register.pet.temperamentTitle")}</Text>
+                      <View style={[styles.row, { flexWrap: "wrap", gap: 8, marginTop: theme.space.sm }]}>
+                        {(["SHY", "CALM"] as const).map((value) => {
+                          const on = petTemperament === value;
+                          return (
+                            <Pressable
+                              key={value}
+                              accessibilityRole="radio"
+                              accessibilityState={{ selected: on }}
+                              style={[styles.chip, on && styles.chipOn]}
+                              onPress={() => setField("petTemperament" as any, on ? "" : value)}
+                            >
+                              <Text style={[styles.chipTxt, on && styles.chipTxtOn]}>
+                                {t(value === "SHY" ? "caseDetail.pet.SHY" : "caseDetail.pet.CALM")}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </>
+                  )}
                 </>
               )}
             </View>

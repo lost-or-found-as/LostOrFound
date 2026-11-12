@@ -4,6 +4,8 @@
 // GET /reports/:id/activity (T1.9G)
 // Summary and timeline for one case: open and confirmed matches, unread chat messages,
 // observations, area alerts and lifecycle events. The app turns event types into text.
+// GET /reports/:id/sightings (T1.9AL)
+// "Sist sett" for a lost case: the starting point and the sightings with their points (owner only).
 
 "use strict";
 
@@ -25,6 +27,7 @@ const requireUser = authModule?.requireUser || authModule;
 const { loadReportMatches } = require("./matches");
 const { buildReportActivity, OPEN_MATCH_STATUSES } = require("../lib/reportActivity");
 const { isLiveWatch, paidExtensionCount } = require("../lib/longTermWatch");
+const { buildSightings, visibleObservations, SIGHTING_LIMIT } = require("../lib/petSightings");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -268,6 +271,49 @@ router.get("/:id/activity", requireUser, async (req, res) => {
       errorMessage: e?.message || String(e),
     });
     return res.status(500).json({ error: "REPORT_ACTIVITY_FAILED" });
+  }
+});
+
+// T1.9AL: "Sist sett". The owner already sees each point on the observation screen; this puts
+// them together. Dismissed observations are left out.
+router.get("/:id/sightings", requireUser, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const reportId = String(req.params.id || "").trim();
+    const { data: report, error: rErr } = await supaAdmin
+      .from("reports")
+      .select("id, user_id, type, occurred_at, lat, lng, location_label")
+      .eq("id", reportId)
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (rErr) throw rErr;
+    if (!report || String(report.type).toUpperCase() !== "LOST") return res.status(404).json({ error: "REPORT_NOT_FOUND" });
+
+    const { data: rows, error: oErr } = await supaAdmin
+      .from("area_alert_observations")
+      .select("id, observation_type, status, observed_at, created_at, comment, movement_direction")
+      .eq("report_id", reportId)
+      .order("observed_at", { ascending: false })
+      .limit(SIGHTING_LIMIT * 2);
+    if (oErr) throw oErr;
+    const observations = visibleObservations(rows).slice(0, SIGHTING_LIMIT);
+    const points = await Promise.all(
+      observations.map(async (o) => {
+        const { data, error } = await supaAdmin.rpc("observation_point", { p_observation_id: o.id });
+        if (error) return null;
+        const pt = Array.isArray(data) ? data[0] : data;
+        return pt ? { id: o.id, latitude: pt.latitude, longitude: pt.longitude } : null;
+      }),
+    );
+    return res.json({ ok: true, reportId, ...buildSightings({ report, observations, points: points.filter(Boolean) }) });
+  } catch (e) {
+    console.error("[reports][sightings-failed]", {
+      reportId: req.params?.id || null,
+      errorCode: e?.code || null,
+      errorMessage: e?.message || String(e),
+    });
+    return res.status(500).json({ error: "REPORT_SIGHTINGS_FAILED" });
   }
 });
 

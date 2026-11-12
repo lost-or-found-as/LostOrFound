@@ -1829,4 +1829,16 @@ export const no: TranslationDictionary = {
   "observation.chat.aboutBody": "Her snakker du med den som sendte observasjonen, eller med eieren. Navn, telefonnummer og e-post deles ikke med mindre du skriver det selv. Når eieren har fått den tilbake, trykker en av dere «Merk som løst». Den andre bekrefter før saken avsluttes.",
   "register.when.dateLabel": "Dato",
   "register.when.timeLabel": "Klokkeslett",
+  // T1.9AL: Sist sett and the area alert as the first suggestion for a lost animal.
+  "caseDetail.next.petAlertTitle": "Varsle alle i nærheten",
+  "caseDetail.next.petAlertBody": "De første timene er viktigst. Folk som følger området, får beskjed med bilde og kan melde fra hvis de ser dyret.",
+  "caseDetail.next.petAlertAction": "Varsle området",
+  "caseDetail.sightings.title": "Sist sett",
+  "caseDetail.sightings.start": "Forsvant herfra",
+  "caseDetail.sightings.seen": "Noen har sett dyret",
+  "caseDetail.sightings.found": "Noen sier de har funnet dyret",
+  "caseDetail.sightings.direction": "Retning: {{direction}}",
+  "caseDetail.sightings.new": "Ny",
+  "caseDetail.sightings.empty": "Ingen har meldt at de har sett dyret ennå. Når noen gjør det, ser du hvor og når her.",
+  "caseDetail.sightings.emptyNamed": "Ingen har meldt at de har sett {{name}} ennå. Når noen gjør det, ser du hvor og når her.",
 };

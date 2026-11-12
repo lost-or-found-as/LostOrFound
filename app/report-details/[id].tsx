@@ -58,6 +58,7 @@ import {
 import { BottomSheet, Button, ConfirmSheet, IconButton, InfoButton, SCORE_LABEL_KEYS, ScreenHeader, scoreLevel } from "../../src/ui/kit";
 import { custodyText } from "../../src/lib/custodyDisplay";
 import { isAnimal } from "../../src/lib/registerForm";
+import { PetSightingsCard } from "../../src/ui/PetSightingsCard";
 import type { TranslationKey } from "../../src/i18n/locales/en";
 
 type D = {
@@ -226,10 +227,12 @@ function Screen() {
   const colors = caseColors(r, language);
   const category = categoryName(r.category, language);
   const description = reportDescriptionText(r.description);
-  const step = nextStep(r, activity.summary);
+  const showAreaAlert = lost && r.lat != null && r.lng != null && !closed;
+  // T1.9AL: a lost animal gets "Sist sett" and the area alert as the first suggestion.
+  const animal = isAnimal(r.category, r.subcategory_key);
+  const step = nextStep(r, activity.summary, Date.now(), { petAreaAlert: animal && showAreaAlert && geoView.kind === "none" });
   const stepParams = step.dateIso ? { ...step.params, date: formatDate(step.dateIso, language) } : step.params;
   const timeline = activity.events.filter((e) => e.type !== "CREATED").length > 0 ? activity.events : [];
-  const showAreaAlert = lost && r.lat != null && r.lng != null && !closed;
 
   const openAreaAlert = () =>
     router.push({
@@ -275,6 +278,7 @@ function Screen() {
     else if (step.action === "extendLost") setConfirm("reactivate");
     else if (step.action === "extendFound") setConfirm("extend");
     else if (step.action === "longTerm") setLongTermOpen(true);
+    else if (step.action === "areaAlert") openAreaAlert();
   };
 
   const openEvent = (event: ActivityEvent) => {
@@ -467,7 +471,7 @@ function Screen() {
             label={t("caseDetail.pet.temperament")}
             value={r.pet_temperament === "SHY" || r.pet_temperament === "CALM" ? t(`caseDetail.pet.${r.pet_temperament}` as TranslationKey) : null}
           />
-          <Row label={t("custody.label")} value={custodyText(r.custody, r.custody_place, t, { animal: isAnimal(r.category, r.subcategory_key) })} />
+          <Row label={t("custody.label")} value={custodyText(r.custody, r.custody_place, t, { animal })} />
           {!!description && (
             <>
               <View style={s.divider} />
@@ -475,6 +479,16 @@ function Screen() {
             </>
           )}
         </View>
+
+        {/* T1.9AL: Sist sett */}
+        {lost && animal && (
+          <PetSightingsCard
+            reportId={String(r.id)}
+            petName={r.pet_name ?? null}
+            refreshKey={activity.events[0]?.at ?? null}
+            onOpenObservation={(observationId) => router.push(`/observation/${observationId}`)}
+          />
+        )}
 
         {/* T1.9AK: share link and poster */}
         {canShare && (
@@ -526,7 +540,7 @@ function Screen() {
 
         {/* Varsle folk i nærheten */}
         {showAreaAlert && geoView.kind !== "none" && <AreaAlertServiceCard view={geoView} onSendNew={openAreaAlert} />}
-        {showAreaAlert && geoView.kind === "none" && !expired && (
+        {showAreaAlert && geoView.kind === "none" && !expired && step.kind !== "petAreaAlert" && (
           <View style={s.card}>
             <View style={s.cardHeader}>
               <Text style={s.h2}>{t("caseDetail.notifyNearbyTitle")}</Text>

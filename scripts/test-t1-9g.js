@@ -134,7 +134,7 @@ eq([grouped.today.map((x) => x.id), grouped.earlier.map((x) => x.id)], [["a"], [
 
 // 6. Screens.
 const details = read("app/report-details/[id].tsx");
-ok(/fetchReportActivity\(String\(id\)\)/.test(details) && /nextStep\(r, activity\.summary\)/.test(details), "Saksdetaljer shows Neste steg");
+ok(/fetchReportActivity\(String\(id\)\)/.test(details) && /nextStep\(r, activity\.summary[,)]/.test(details), "Saksdetaljer shows Neste steg");
 ok(/icon="ellipsis-horizontal"/.test(details) && /caseDetail\.menu\.delete/.test(details), "case actions in the ⋯ menu");
 ok(!/caseDetail\.additional\.services|caseDetail\.edit\.report/.test(details), "empty cards and the big edit button are gone");
 const notifications = read("app/notifications.tsx");
