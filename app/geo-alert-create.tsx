@@ -28,7 +28,7 @@ import {
   type GeoAlertPreviewResult,
 } from "../src/lib/geoAlertPreview";
 import {
-  activateTestReportOrder,
+  completeReportOrder,
   createReportOrder,
   fetchGeoAlertStatus,
 } from "../src/lib/reportCommerce";
@@ -40,6 +40,7 @@ import {
   type GeoAlertStatus,
 } from "../src/lib/areaAlertStatus";
 import { InlineNotice } from "../src/ui/InlineNotice";
+import { knownErrorKey } from "../src/lib/userError";
 import { WithdrawalConsent } from "../src/ui/WithdrawalConsent";
 import { Ionicons } from "@expo/vector-icons";
 import { formatArea, formatDistance, formatMoney } from "../src/i18n/formatters";
@@ -182,11 +183,13 @@ function GeoAlertCreateScreen() {
         },
       });
       orderCreated = true;
-      const activated = await activateTestReportOrder(created.order.id);
+      const activated = await completeReportOrder(created.order);
       setActivatedUntil(
         String(activated.entitlement?.current_period_end || ""),
       );
     } catch (e: any) {
+      // T1.9AE: the user closed the store sheet; nothing was bought.
+      if (String(e?.code || "") === "PURCHASE_CANCELLED") return;
       const info = classifyAreaAlertError(e);
       if (info.kind === "alreadyActive" || info.kind === "limitReached") {
         // Not an error for the user: show the current status instead of the form.
@@ -521,6 +524,8 @@ function noticeContent(notice: AreaAlertNotice, t: Translate) {
       return { tone: "info" as const, icon: "lock-closed-outline" as const, title: t("errors.authTitle"), body: t("errors.authBody") };
     case "notAvailable":
       return { tone: "info" as const, icon: "information-circle-outline" as const, title: t("areaAlertCreate.errorNotAvailableTitle"), body: t("areaAlertCreate.errorNotAvailableBody") };
+    case "purchase":
+      return { tone: "info" as const, icon: "card-outline" as const, title: t("purchase.errorTitle"), body: t(knownErrorKey(notice.info.code) ?? "purchase.failedBody") };
     case "locationRequired":
       return { tone: "info" as const, icon: "location-outline" as const, title: t("areaAlertCreate.errorLocationTitle"), body: t("areaAlertCreate.locationRequired") };
     default:

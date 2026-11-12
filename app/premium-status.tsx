@@ -5,7 +5,7 @@
 // free in the pilot are shown too, with AKTIVE and TIDLIGERE. Restore errors from the store are
 // shown as plain text ("the store is not connected yet") instead of "Unknown error (16)".
 import { requireAccount } from "../src/ui/AccountRequired";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,25 +14,16 @@ import { useI18n } from "../src/i18n/I18nProvider";
 import { formatDate, formatMoney } from "../src/i18n/formatters";
 import { Button, EmptyState, InfoButton, ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
-import { fetchMyPurchases, type MyPurchase } from "../src/lib/reportCommerce";
+import { fetchMyPurchases, syncStorePurchases, type MyPurchase } from "../src/lib/reportCommerce";
+import { userErrorMessage } from "../src/lib/userError";
 import { historyStatusKey, isFreePurchase, productNameKey, restoreErrorKey, visibleHistory } from "../src/lib/myPurchases";
 import { caseTitle } from "../src/lib/caseDisplay";
-
-function loadPurchasesModule(): any | null {
-  try {
-    const mod = require("react-native-purchases");
-    return mod?.default ?? mod?.Purchases ?? mod ?? null;
-  } catch {
-    return null;
-  }
-}
 
 type RestoreResult = { tone: "success" | "error"; title: string; body: string };
 
 function MyPurchasesScreen() {
   const router = useRouter();
   const { t, language } = useI18n();
-  const purchases = useMemo(() => loadPurchasesModule(), []);
   const [active, setActive] = useState<MyPurchase[]>([]);
   const [history, setHistory] = useState<MyPurchase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,19 +51,22 @@ function MyPurchasesScreen() {
     void load();
   }, [load]);
 
+  // T1.9AE: one-time purchases are not restored by the stores; this finds paid purchases whose
+  // confirmation was lost and activates them on their orders.
   const restore = async () => {
     setRestoreResult(null);
-    if (!purchases?.restorePurchases) {
-      setRestoreResult({ tone: "error", title: t("purchases.restoreFailed"), body: t("purchases.storeNotReady") });
-      return;
-    }
     try {
       setRestoreLoading(true);
-      await purchases.restorePurchases();
+      const result = await syncStorePurchases();
       await load("refresh");
-      setRestoreResult({ tone: "success", title: t("purchases.restoreComplete"), body: t("purchases.restoreCompleteBody") });
+      const count = result.activated?.length || 0;
+      setRestoreResult({
+        tone: "success",
+        title: t("purchases.restoreComplete"),
+        body: count > 0 ? t("purchases.syncActivated", { count }) : t("purchases.syncNothing"),
+      });
     } catch (err) {
-      setRestoreResult({ tone: "error", title: t("purchases.restoreFailed"), body: t(restoreErrorKey(err)) });
+      setRestoreResult({ tone: "error", title: t("purchases.restoreFailed"), body: userErrorMessage(err, t, restoreErrorKey(err), "purchases.restore") });
     } finally {
       setRestoreLoading(false);
     }

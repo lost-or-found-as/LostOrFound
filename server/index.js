@@ -39,6 +39,15 @@ app.get("/", (_req, res) => res.json({ ok: true, message: "Server OK" }));
 
 // T1.9AD: /__whoami (showed folders and process id) and /payment-sheet (unused Stripe route) removed.
 
+// T1.9AE: RevenueCat webhook (no user session; checked with the shared Authorization header).
+try {
+  const revenueCatWebhookRoutes = require("./routes/revenueCatWebhook");
+  app.use("/revenuecat", revenueCatWebhookRoutes);
+  console.log("[BOOT] Mounted /revenuecat routes");
+} catch (e) {
+  console.warn("[BOOT] /revenuecat NOT mounted:", e?.message || e);
+}
+
 // ---- Mount /storage ----
 try {
   const storageRoutes = require("./routes/storage");

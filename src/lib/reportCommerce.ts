@@ -30,6 +30,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   return data as T;
 }
+/** Order platform: the store the server picks a product for (WEB and tests get none). */
+export function storePlatform(): "IOS" | "ANDROID" | "WEB" {
+  // Loaded on use so this module stays free of react-native for tests.
+  const { Platform } = require("react-native");
+  return Platform.OS === "ios" ? "IOS" : Platform.OS === "android" ? "ANDROID" : "WEB";
+}
 export function fetchReportProductCatalog() {
   return request<{ products: unknown[] }>("/catalog");
 }
@@ -166,4 +172,49 @@ export type MyPurchase = {
 };
 export function fetchMyPurchases() {
   return request<{ activePurchases: MyPurchase[]; purchaseHistory: MyPurchase[] }>("/my-purchases");
+}
+
+// T1.9AE: store purchases. The server checks every transaction with RevenueCat before activating.
+export function confirmStorePurchase(orderId: string, transactionId: string) {
+  return request<TestOrderActivationResult>(`/orders/${encodeURIComponent(orderId)}/confirm-purchase`, {
+    method: "POST",
+    body: JSON.stringify({ transactionId }),
+  });
+}
+export function syncStorePurchases() {
+  return request<{ ok: boolean; activated: string[]; checked: number }>("/purchases/sync", { method: "POST" });
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Pays and activates an order. Free orders (pilot) and test orders are activated by the server
+ * directly; paid orders are bought in the store first. RevenueCat can need a moment before the
+ * server sees a new transaction, so the confirmation is tried a few times.
+ */
+export async function completeReportOrder(order: any) {
+  const amount = Number(order?.amount_ore || 0);
+  const storeProductId = String(order?.provider_product_id || "");
+  if (amount === 0 || !storeProductId) return activateTestReportOrder(order.id);
+
+  const { data } = await supabase.auth.getSession();
+  const userId = data.session?.user?.id;
+  if (!userId) throw Object.assign(new Error("AUTH_REQUIRED"), { code: "AUTH_REQUIRED" });
+  const { buyStoreProduct } = require("./storePurchases") as typeof import("./storePurchases");
+  const transactionId = await buyStoreProduct(userId, storeProductId);
+
+  let lastError: unknown = null;
+  for (const delay of [0, 1500, 3000, 5000]) {
+    if (delay) await wait(delay);
+    try {
+      return await confirmStorePurchase(order.id, transactionId);
+    } catch (e: any) {
+      lastError = e;
+      const code = String(e?.code || "");
+      // Only "not seen yet" is worth waiting for; anything else is final.
+      if (code !== "TRANSACTION_NOT_FOUND" && code !== "REVENUECAT_LOOKUP_FAILED") break;
+    }
+  }
+  // Paid but not confirmed: the webhook or «Gjenopprett kjøp» finishes it.
+  throw Object.assign(new Error("PURCHASE_NOT_CONFIRMED"), { code: "PURCHASE_NOT_CONFIRMED", cause: lastError });
 }

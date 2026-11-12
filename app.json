@@ -64,13 +64,6 @@
           "locationWhenInUsePermission": "Lost or Found uses your location to help you report where an item was lost or found."
         }
       ],
-      [
-        "@stripe/stripe-react-native",
-        {
-          "merchantIdentifier": "merchant.com.kjfok.lostorfound",
-          "enableGooglePay": true
-        }
-      ],
       "expo-localization",
       "expo-font",
       "react-native-localize",

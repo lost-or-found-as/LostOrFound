@@ -88,6 +88,7 @@ export type AreaAlertErrorKind =
   | "auth"
   | "notAvailable"
   | "locationRequired"
+  | "purchase"
   | "unknown";
 
 export type AreaAlertErrorInfo = {
@@ -106,6 +107,9 @@ export function classifyAreaAlertError(error: unknown): AreaAlertErrorInfo {
   if (upper.includes("GEO_ALERT_LIMIT_REACHED")) return { kind: "limitReached", code, retryable: false };
   if (upper === "AUTH_REQUIRED" || status === 401 || upper.includes("INVALID TOKEN") || upper.includes("MISSING BEARER"))
     return { kind: "auth", code, retryable: false };
+  // T1.9AE: store purchase problems get their own text.
+  if (["STORE_NOT_READY", "STORE_PRODUCT_NOT_FOUND", "PURCHASE_PENDING", "PURCHASE_FAILED", "PURCHASE_NOT_CONFIRMED", "PRODUCT_NOT_IN_STORE", "TRANSACTION_ALREADY_USED"].includes(upper))
+    return { kind: "purchase", code: upper, retryable: false };
   if (upper.includes("GEO_ALERT_REPORT_LOCATION_REQUIRED") || upper.includes("LOST_REPORT_WITH_LOCATION_NOT_FOUND"))
     return { kind: "locationRequired", code, retryable: false };
   if (

@@ -134,7 +134,8 @@ const GUEST_ALLOWED = new Set([
   "feedback.js POST /",
 ]);
 // T1.9R: public pages (privacy policy and terms) need no sign-in at all.
-const PUBLIC = new Set(["legal.js GET /:doc", "authPages.js GET /confirmed"]);
+// T1.9AE: the RevenueCat webhook is server-to-server and checks its own Authorization secret.
+const PUBLIC = new Set(["legal.js GET /:doc", "authPages.js GET /confirmed", "revenueCatWebhook.js POST /webhook"]);
 
 async function call(file, method, p, token, { body = {}, query = {}, params = {} } = {}) {
   const route = routes.find((r) => r.file === file && r.method === method && r.path === p);

@@ -35,6 +35,8 @@ const {
   lostExtensionEligibility,
   lostExtensionEnd,
 } = require("../lib/longTermWatch");
+const revenueCat = require("../lib/revenueCat");
+const { payOrderWithTransaction, transactionInUse, OPEN_ORDER_STATUSES } = require("../lib/storePurchase");
 const GEO_ALERT_DURATION_HOURS = 168;
 const GEO_ALERT_REMINDER_COUNT = 0;
 const VALID_GEO_ALERT_RADII = new Set([
@@ -417,6 +419,15 @@ router.post("/orders", requireUser, async (req, res) => {
 
     // T1.9T: area alerts are free during the pilot (GEO_ALERT_PILOT_FREE on the server).
     const pilotFree = !!geoQuote?.pilotFree || (productCode === "REPORT_REACTIVATION" && extensionPilotFree());
+    // T1.9AE: the store product the app must buy for this order (none when it is free).
+    const platform = String(req.body?.platform || "TEST").toUpperCase();
+    const storeProductId = pilotFree
+      ? null
+      : platform === "IOS"
+        ? product.apple_product_id || null
+        : platform === "ANDROID"
+          ? product.google_product_id || null
+          : null;
     const payload = {
       user_id: userId,
       report_id: reportId,
@@ -424,10 +435,10 @@ router.post("/orders", requireUser, async (req, res) => {
       status: "PENDING",
       amount_ore: pilotFree ? 0 : product.base_price_ore,
       currency: product.currency,
-      platform: String(req.body?.platform || "TEST").toUpperCase(),
-      provider: String(req.body?.provider || "TEST").toUpperCase(),
+      platform,
+      provider: storeProductId ? "REVENUECAT" : String(req.body?.provider || "TEST").toUpperCase(),
       client_request_id: clientRequestId,
-      provider_product_id: req.body?.providerProductId || null,
+      provider_product_id: storeProductId,
       price_snapshot: {
         ...priceSnapshot,
         catalog_price_ore: product.base_price_ore,
@@ -492,6 +503,100 @@ router.get("/orders/:id", requireUser, async (req, res) => {
   }
 });
 
+// T1.9AE: the app has bought the order's store product through RevenueCat. The server looks the
+// transaction up with RevenueCat (never trusting the app) and activates the order.
+//   body: { transactionId }
+router.post("/orders/:id/confirm-purchase", requireUser, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { data: order, error: oErr } = await supaAdmin
+      .from("report_orders")
+      .select("*")
+      .eq("id", req.params.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (oErr) return res.status(400).json({ error: oErr.message });
+    if (!order) return res.status(404).json({ error: "ORDER_NOT_FOUND" });
+    const { data: product, error: pErr } = await supaAdmin
+      .from("product_catalog")
+      .select("code,apple_product_id,google_product_id")
+      .eq("code", order.product_code)
+      .maybeSingle();
+    if (pErr) return res.status(400).json({ error: pErr.message });
+    const productIds = revenueCat.storeProductIds(product);
+    if (!productIds.length) return res.status(409).json({ error: "PRODUCT_NOT_IN_STORE" });
+
+    const subscriber = await revenueCat.fetchSubscriber(userId);
+    const found = revenueCat.findPaymentTransaction(subscriber, {
+      productIds,
+      transactionId: req.body?.transactionId,
+      allowSandbox: revenueCat.sandboxAllowed(),
+    });
+    if (found.error) {
+      console.info("[commerce][confirm-refused]", { orderId: order.id, userId, error: found.error });
+      return res.status(409).json({ error: found.error });
+    }
+    const result = await payOrderWithTransaction(
+      { supaAdmin, activateOrder },
+      {
+        order,
+        userId,
+        transaction: found.transaction,
+        platform: revenueCat.orderPlatformForStore(found.transaction.store),
+      },
+    );
+    return res.status(result.status).json(result.body);
+  } catch (e) {
+    const code = String(e?.code || "");
+    if (code === "REVENUECAT_NOT_CONFIGURED") return res.status(503).json({ error: code });
+    if (code === "REVENUECAT_LOOKUP_FAILED") return res.status(502).json({ error: code });
+    console.error("[commerce][confirm-failed]", { errorCode: e?.code || null, errorMessage: e?.message || String(e) });
+    return res.status(500).json({ error: "PURCHASE_CONFIRM_FAILED" });
+  }
+});
+
+// T1.9AE: «Gjenopprett kjøp». One-time purchases cannot be restored by the stores, but a purchase
+// whose confirmation was lost (app closed, no network) is found here and paid onto its open order.
+router.post("/purchases/sync", requireUser, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const subscriber = await revenueCat.fetchSubscriber(userId);
+    const transactions = revenueCat.oneTimeTransactions(subscriber);
+    const allowSandbox = revenueCat.sandboxAllowed();
+    const { data: openOrders, error: oErr } = await supaAdmin
+      .from("report_orders")
+      .select("*")
+      .eq("user_id", userId)
+      .in("status", OPEN_ORDER_STATUSES)
+      .is("provider_transaction_id", null)
+      .not("provider_product_id", "is", null)
+      .order("created_at", { ascending: true });
+    if (oErr) return res.status(400).json({ error: oErr.message });
+    const activated = [];
+    const pending = [...(openOrders || [])];
+    for (const t of transactions) {
+      if (t.sandbox && !allowSandbox) continue;
+      if (await transactionInUse(supaAdmin, t.transactionId)) continue;
+      const index = pending.findIndex((o) => o.provider_product_id === t.productId);
+      if (index < 0) continue;
+      const [order] = pending.splice(index, 1);
+      const result = await payOrderWithTransaction(
+        { supaAdmin, activateOrder },
+        { order, userId, transaction: t, platform: revenueCat.orderPlatformForStore(t.store) },
+      );
+      if (result.status === 200) activated.push(order.id);
+      else console.warn("[commerce][sync-activation-failed]", { orderId: order.id, userId, result: result.body });
+    }
+    return res.json({ ok: true, activated, checked: transactions.length });
+  } catch (e) {
+    const code = String(e?.code || "");
+    if (code === "REVENUECAT_NOT_CONFIGURED") return res.status(503).json({ error: code });
+    if (code === "REVENUECAT_LOOKUP_FAILED") return res.status(502).json({ error: code });
+    console.error("[commerce][sync-failed]", { errorCode: e?.code || null, errorMessage: e?.message || String(e) });
+    return res.status(500).json({ error: "PURCHASE_SYNC_FAILED" });
+  }
+});
+
 router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -517,6 +622,26 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       pilotFreeOrder;
     if (!activationAllowed)
       return res.status(403).json({ error: "TEST_ACTIVATION_NOT_ALLOWED" });
+    const providerTransactionId =
+      order.provider_transaction_id || `test_${crypto.randomUUID()}`;
+    const result = await activateOrder({
+      order,
+      userId,
+      provider: "TEST",
+      providerTransactionId,
+      metadata: { test_activation: true },
+    });
+    return res.status(result.status).json(result.body);
+  } catch (e) {
+    return res.status(500).json({ error: e?.message || "Server error" });
+  }
+});
+
+// T1.9AE: one activation path for every way an order gets paid: free pilot and test
+// activations, a store purchase confirmed by the app, and the RevenueCat webhook.
+// Returns { status, body } so routes and the webhook can share it.
+async function activateOrder({ order, userId, provider, providerTransactionId, metadata = {} }) {
+  const reply = (status, body) => ({ status, body });
     if (["ACTIVE", "REFUNDED", "CANCELLED"].includes(order.status)) {
       const { data: existingEntitlement, error: existingEntitlementError } =
         await supaAdmin
@@ -553,13 +678,13 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         orderStatus: order.status,
         campaignId: existingCampaign?.id || null,
       });
-      return res.json({
+      return reply(200, {
         order,
         entitlement: existingEntitlement || null,
         campaignId: existingCampaign?.id || null,
         campaign: existingCampaign || null,
         areaAlertDispatch: null,
-        testActivation: true,
+        testActivation: provider === "TEST",
         idempotentReplay: true,
       });
     }
@@ -573,11 +698,11 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         userId,
         orderStatus: order.status,
       });
-      return res.status(409).json({ error: "ORDER_NOT_ACTIVATABLE", orderStatus: order.status });
+      return reply(409, { error: "ORDER_NOT_ACTIVATABLE", orderStatus: order.status });
     }
 
     const report = await ownedReport(order.report_id, userId);
-    if (!report) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
+    if (!report) return reply(404, { error: "REPORT_NOT_FOUND" });
     const now = new Date();
     let periodEnd = null;
     let autoRenews = false;
@@ -591,7 +716,7 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       // the 30 days are added to the days that are left instead of replacing them.
       const context = await loadLongTermContext(order.report_id, userId);
       const eligibility = lostExtensionEligibility(report, context, now.getTime());
-      if (!eligibility.ok) return res.status(409).json({ error: eligibility.error });
+      if (!eligibility.ok) return reply(409, { error: eligibility.error });
       periodEnd = new Date(lostExtensionEnd(report, now.getTime()));
     } else if (order.product_code.startsWith("GEO_ALERT_TIER_")) {
       periodEnd = new Date(now.getTime() + GEO_ALERT_DURATION_HOURS * 3600000);
@@ -602,10 +727,8 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       const period = longTermPeriod(years, context.watch, now.getTime());
       longTermStart = new Date(period.startsAt);
       periodEnd = new Date(period.endsAt);
-    } else return res.status(400).json({ error: "UNSUPPORTED_PRODUCT" });
+    } else return reply(400, { error: "UNSUPPORTED_PRODUCT" });
 
-    const providerTransactionId =
-      order.provider_transaction_id || `test_${crypto.randomUUID()}`;
     let entitlement = null;
     if (isGeoAlertProduct(order.product_code)) {
       // T1.8E.5H: rules 1 and 2 are enforced atomically in the database.
@@ -614,9 +737,9 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         userId,
         startsAt: now.toISOString(),
         periodEnd: periodEnd.toISOString(),
-        provider: "TEST",
+        provider,
         providerTransactionId,
-        metadata: { test_activation: true },
+        metadata,
       });
       if (guarded.rejection) {
         console.info("[geo-alert][activation-blocked]", {
@@ -625,10 +748,10 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
           userId,
           ...guarded.rejection,
         });
-        return res.status(409).json(guarded.rejection);
+        return reply(409, guarded.rejection);
       }
       if (guarded.error)
-        return res.status(400).json({ error: guarded.error.message || "GEO_ALERT_ENTITLEMENT_FAILED" });
+        return reply(400, { error: guarded.error.message || "GEO_ALERT_ENTITLEMENT_FAILED" });
       entitlement = guarded.entitlement;
     } else {
       const { data: inserted, error: eErr } = await supaAdmin
@@ -642,13 +765,13 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
           starts_at: (longTermStart || now).toISOString(),
           current_period_end: periodEnd.toISOString(),
           auto_renews: autoRenews,
-          provider: "TEST",
+          provider,
           provider_original_transaction_id: providerTransactionId,
-          metadata: { test_activation: true },
+          metadata,
         })
         .select("*")
         .single();
-      if (eErr) return res.status(400).json({ error: eErr.message });
+      if (eErr) return reply(400, { error: eErr.message });
       entitlement = inserted;
     }
 
@@ -713,7 +836,7 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
           errorCode: watchResult.error.code || null,
           errorMessage: watchResult.error.message || String(watchResult.error),
         });
-        return res.status(400).json({ error: "LONG_TERM_ACTIVATION_FAILED" });
+        return reply(400, { error: "LONG_TERM_ACTIVATION_FAILED" });
       }
       const reportUpdate = await supaAdmin
         .from("reports")
@@ -732,7 +855,7 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
           errorCode: reportUpdate.error.code || null,
           errorMessage: reportUpdate.error.message || String(reportUpdate.error),
         });
-        return res.status(400).json({ error: "LONG_TERM_ACTIVATION_FAILED" });
+        return reply(400, { error: "LONG_TERM_ACTIVATION_FAILED" });
       }
       try {
         // Compare with every active find, not only the last 30 days.
@@ -778,9 +901,7 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       const g = order.request_payload?.geoAlert || {};
       if (report.lat == null || report.lng == null) {
         await cancelGeoAlertEntitlement(entitlement.id, order, userId, "REPORT_LOCATION_REQUIRED");
-        return res
-          .status(400)
-          .json({ error: "GEO_ALERT_REPORT_LOCATION_REQUIRED" });
+        return reply(400, { error: "GEO_ALERT_REPORT_LOCATION_REQUIRED" });
       }
       const campaignPoint =
         "SRID=4326;POINT(" +
@@ -828,7 +949,7 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
           errorHint: campaignError?.hint || null,
         });
         await cancelGeoAlertEntitlement(entitlement.id, order, userId, "CAMPAIGN_CREATE_FAILED");
-        return res.status(400).json({ error: "GEO_ALERT_CAMPAIGN_CREATE_FAILED" });
+        return reply(400, { error: "GEO_ALERT_CAMPAIGN_CREATE_FAILED" });
       }
       order.created_campaign_id = createdCampaign.id;
     }
@@ -839,6 +960,7 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         status: "ACTIVE",
         paid_at: now.toISOString(),
         updated_at: now.toISOString(),
+        provider: provider === "TEST" ? order.provider : provider,
         provider_transaction_id: providerTransactionId,
         entitlement_id: entitlement.id,
       })
@@ -856,9 +978,7 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         errorMessage: uErr.message || String(uErr),
         errorDetails: uErr.details || null,
       });
-      return res
-        .status(400)
-        .json({ error: "GEO_ALERT_ORDER_ACTIVATION_FAILED" });
+      return reply(400, { error: "GEO_ALERT_ORDER_ACTIVATION_FAILED" });
     }
     // T1.8E.5H: an area-alert activation supersedes every earlier live area-alert order for
     // the report, regardless of tier. Other products keep exact product matching.
@@ -932,16 +1052,15 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
         areaAlertDispatch = { ok: false, error: "AREA_ALERT_DISPATCH_FAILED" };
       }
     }
-    return res.json({
+    return reply(200, {
       order: updatedOrder,
       entitlement,
       campaignId: order.created_campaign_id || null,
       areaAlertDispatch,
-      testActivation: true,
+      testActivation: provider === "TEST",
     });
-  } catch (e) {
-    return res.status(500).json({ error: e?.message || "Server error" });
-  }
-});
+}
 
 module.exports = router;
+module.exports.activateOrder = activateOrder;
+

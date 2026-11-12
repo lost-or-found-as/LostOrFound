@@ -3,7 +3,7 @@
 // My cases and Saksdetaljer so both offer the same actions on the same conditions.
 import { API_BASE_URL } from "./config";
 import { supabase } from "./supabase";
-import { activateTestReportOrder, createReportOrder, fetchReportProductCatalog } from "./reportCommerce";
+import { completeReportOrder, createReportOrder, fetchReportProductCatalog, storePlatform } from "./reportCommerce";
 import { REPORT_PRODUCT_CODES } from "./reportProducts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -87,7 +87,7 @@ export function isHistoricFromStart(r: LifecycleReport, now = Date.now()): boole
   return Number.isFinite(when) && now - when >= HISTORIC_FROM_START_DAYS * DAY_MS;
 }
 
-/** Test-mode purchase of a historic period (real store payment comes later). */
+/** Purchase of a historic period (store payment, or free/test activation by the server). */
 export async function buyLongTermRequest(id: string, years: number) {
   const clientRequestId = `long-term-${id}-${years}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const created = await createReportOrder({
@@ -95,10 +95,10 @@ export async function buyLongTermRequest(id: string, years: number) {
     productCode: "LONG_TERM_WATCH",
     longTerm: { years },
     clientRequestId,
-    platform: "TEST",
+    platform: storePlatform(),
     provider: "TEST",
   });
-  return activateTestReportOrder(created.order.id);
+  return completeReportOrder(created.order);
 }
 
 async function reportRequest(path: string, method: "POST" | "DELETE") {
@@ -121,17 +121,17 @@ export const closeReportRequest = (id: string) => reportRequest(`/${encodeURICom
 export const deleteReportRequest = (id: string) => reportRequest(`/${encodeURIComponent(id)}`, "DELETE");
 export const extendFoundRequest = (id: string) => reportRequest(`/${encodeURIComponent(id)}/extend-found`, "POST");
 
-/** Test-mode 30-day extension of a LOST case (real store payment comes later). */
+/** 30-day extension of a LOST case (store payment, or free/test activation by the server). */
 export async function extendLostRequest(id: string) {
   const clientRequestId = `report-reactivation-${id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const created = await createReportOrder({
     reportId: id,
     productCode: REPORT_PRODUCT_CODES.REPORT_REACTIVATION,
     clientRequestId,
-    platform: "TEST",
+    platform: storePlatform(),
     provider: "TEST",
   });
-  return activateTestReportOrder(created.order.id);
+  return completeReportOrder(created.order);
 }
 
 /**

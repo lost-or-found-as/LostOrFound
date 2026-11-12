@@ -44,6 +44,15 @@ const EXACT: Record<string, TranslationKey> = {
   WATCH_AREA_LIMIT_REACHED: "errors.watchAreaLimit",
   QUERY_TOO_SHORT: "errors.queryTooShort",
   IMAGE_UPLOAD_FAILED: "errors.imageUpload",
+  // T1.9AE: store purchases
+  STORE_NOT_READY: "purchases.storeNotReady",
+  STORE_PRODUCT_NOT_FOUND: "purchase.productMissingBody",
+  PRODUCT_NOT_IN_STORE: "purchase.productMissingBody",
+  PURCHASE_PENDING: "purchase.pendingBody",
+  PURCHASE_FAILED: "purchase.failedBody",
+  PURCHASE_NOT_CONFIRMED: "purchase.notConfirmedBody",
+  TRANSACTION_ALREADY_USED: "purchase.failedBody",
+  REVENUECAT_NOT_CONFIGURED: "purchases.storeNotReady",
   // App validation (AuthContext)
   EMAIL_PASSWORD_REQUIRED: "errors.auth.emailPasswordRequired",
   PASSWORD_TOO_SHORT: "errors.auth.weakPassword",

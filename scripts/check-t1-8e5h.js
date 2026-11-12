@@ -103,7 +103,7 @@ const iCampaign = act.indexOf('.from("geo_alert_campaigns")\n        .insert(');
 const iDispatch = act.indexOf("dispatchAreaAlertCampaign(");
 check(iGuarded > 0, "ACTIVATION_NOT_GUARDED");
 check(iCampaign > iGuarded && iDispatch > iCampaign, "ACTIVATION_ORDER_WRONG");
-check(/res\.status\(409\)\.json\(guarded\.rejection\)/.test(act), "ACTIVATION_REJECTION_NOT_409");
+check(/res\.status\(409\)\.json\(guarded\.rejection\)|reply\(409, guarded\.rejection\)/.test(act), "ACTIVATION_REJECTION_NOT_409");
 check(!/"23505"/.test(act), "CAMPAIGN_REUSE_BRANCH_REMAINS");
 check(!/GEO_ALERT_CAMPAIGN_REUSE_FAILED|existing-campaign-reused/.test(rc), "CAMPAIGN_REUSE_CODE_REMAINS");
 check((rc.match(/await cancelGeoAlertEntitlement\(/g) || []).length === 2, "COMPENSATION_MISSING");

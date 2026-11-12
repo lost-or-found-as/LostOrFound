@@ -185,6 +185,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       applySession(null);
+      // T1.9AE: the store account follows the app account.
+      void require("../lib/storePurchases").signOutStore();
     } finally {
       setInitialized(true);
       setLoading(false);

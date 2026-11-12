@@ -33,7 +33,7 @@ ok(/howCard/.test(home), "steps card on the home screen");
 // 3. Mine kjøp: server orders, pilot-free shown, restore errors in plain text.
 const screen = read("app/premium-status.tsx");
 ok(/fetchMyPurchases\(\)/.test(screen), "purchases come from the server");
-ok(!/userErrorMessage/.test(screen), "no raw store error text");
+ok(/restoreErrorKey\(err\)/.test(screen) && !/err\.message/.test(screen), "no raw store error text");
 ok(/purchases\.sectionHistory/.test(screen), "TIDLIGERE section");
 ok(/"\/my-purchases"/.test(read("src/lib/reportCommerce.ts")), "client calls /my-purchases");
 const mp = requireTs(path.join(root, "src/lib/myPurchases.ts"));
