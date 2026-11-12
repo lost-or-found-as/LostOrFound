@@ -73,8 +73,15 @@ function AreaAlertDetails() {
     ? daysLeft != null ? t("areaAlert.daysLeft", { count: daysLeft }) : t("areaAlert.active")
     : state === "notStarted" ? t("areaAlert.status.notStarted") : t("areaAlert.status.ended");
 
-  const goObservation = (kind: "SEEN" | "FOUND") =>
-    router.push({ pathname: "/observation-create", params: { campaignId: String(id || ""), kind } });
+  // T1.9AC: the observation map opens in the alert area (rounded point from the server).
+  const goObservation = (kind: "SEEN" | "FOUND") => {
+    const center = data?.mapCenter;
+    const where =
+      center && Number.isFinite(center.latitude) && Number.isFinite(center.longitude)
+        ? { latitude: String(center.latitude), longitude: String(center.longitude) }
+        : {};
+    router.push({ pathname: "/observation-create", params: { campaignId: String(id || ""), kind, ...where } });
+  };
 
   const detailRows: { label: string; value: string }[] = report ? [
     { label: t("areaAlert.category"), value: categoryLabel(report.category, language) || "–" },

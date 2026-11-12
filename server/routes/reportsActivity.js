@@ -8,6 +8,7 @@
 "use strict";
 
 const express = require("express");
+const { loadThumbnailUrls } = require("../lib/reportThumbnails");
 const router = express.Router();
 
 // Robust Supabase admin client import supporting default and common named exports.
@@ -65,6 +66,8 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
     const reportSet = new Set(reportIds);
 
     // T1.9I: lifecycle facts My cases needs for its menu (extend twice, then historic case).
+    // T1.9AC: thumbnails load alongside the lifecycle facts.
+    const thumbnailsPromise = loadThumbnailUrls(supaAdmin, reportIds);
     const [extensionOrders, watches] = await Promise.all([
       supaAdmin
         .from("report_orders")
@@ -91,6 +94,8 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
       const watch = watchByReport.get(rep.id);
       rep.long_term_until = isLiveWatch(watch) ? watch.current_period_end || null : null;
     }
+    const thumbnails = await thumbnailsPromise;
+    for (const rep of reps) rep.thumbnail_url = thumbnails.get(rep.id) || null;
 
     // 2) Load all matches for these reports and merge both query results.
     const { data: lostMatches, error: lmErr } = await supaAdmin

@@ -1,5 +1,6 @@
 "use strict";
 const express = require("express");
+const { roundedPoint } = require("../lib/roundedPoint");
 const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
 const { requireUser } = require("../mw/auth");
@@ -49,12 +50,20 @@ router.get("/:campaignId/view", requireUser, async (req, res) => {
 
     const { data: campaign, error } = await supaAdmin
       .from("geo_alert_campaigns")
-      .select("id,status,radius_m,starts_at,ends_at,report_id,reports(id,title,category,subcategory_key,color,brand,description,location_label,status)")
+      .select("id,status,radius_m,starts_at,ends_at,report_id,reports(id,title,category,subcategory_key,color,brand,description,location_label,status,lat,lng)")
       .eq("id", campaignId)
       .maybeSingle();
     if (error) throw error;
     if (!campaign) return res.status(404).json({ error: "AREA_ALERT_NOT_AVAILABLE" });
-    return res.json({ ok: true, campaign, recipientStatus: access.recipientStatus });
+    // T1.9AC: the observation map starts in the alert area. Only a rounded point (about 1 km)
+    // leaves the server; the exact place of the lost case stays private.
+    const report = campaign.reports || null;
+    const mapCenter = roundedPoint(report?.lat, report?.lng);
+    if (report) {
+      delete report.lat;
+      delete report.lng;
+    }
+    return res.json({ ok: true, campaign, mapCenter, recipientStatus: access.recipientStatus });
   } catch (e) {
     return res.status(500).json({ error: e?.message || "AREA_ALERT_VIEW_FAILED" });
   }
