@@ -45,7 +45,8 @@ export function quoteGeoAlert(reportId: string, input: GeoAlertQuoteInput) {
 export function createReportOrder(input: {
   reportId: string;
   // T1.9H: "LONG_TERM_WATCH" with longTerm.years; the server picks the product variant.
-  productCode: ReportProductCode | "GEO_ALERT" | "LONG_TERM_WATCH";
+  // T1.9AM: "AREA_VISIBILITY" with geoAlert.radiusM; the server picks the tier.
+  productCode: ReportProductCode | "GEO_ALERT" | "AREA_VISIBILITY" | "LONG_TERM_WATCH";
   clientRequestId: string;
   platform: "IOS" | "ANDROID" | "WEB" | "TEST";
   provider: "APPLE" | "GOOGLE" | "REVENUECAT" | "STRIPE" | "TEST";

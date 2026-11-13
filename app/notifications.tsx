@@ -164,7 +164,8 @@ function notificationBody(n: Notif, language: Lang, t: Translate) {
   if (type === "AREA_ALERT_OBSERVATION")
     return t("notifications.open.the.observation.for.details");
   if (type === "AREA_ALERT" || type === "GEO_ALERT")
-    return t("notifications.areaAlertBody");
+    // T1.9AM: «Synlig i nærheten» is listed without push.
+    return String(n.title || "") === "AREA_VISIBILITY" ? t("notifications.areaVisibilityBody") : t("notifications.areaAlertBody");
   return n.body ? String(n.body) : null;
 }
 
@@ -500,6 +501,16 @@ function NotificationsScreen() {
               />
             }
             renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
+            ListFooterComponent={
+              selectedTab === "nearby" ? (
+                <View style={styles.nearbyFooter}>
+                  <Text style={styles.nearbyFooterText}>{t("notifications.nearbyFooter")}</Text>
+                  <Pressable accessibilityRole="link" onPress={() => router.push("/alert-areas")} style={styles.nearbyFooterLink} hitSlop={6}>
+                    <Text style={styles.nearbyFooterLinkText}>{t("notifications.editAlertAreas")}</Text>
+                  </Pressable>
+                </View>
+              ) : undefined
+            }
             renderItem={({ item }) => {
               const unread = !item.read_at;
               const invalid = item.target_status === "missing";
@@ -534,6 +545,10 @@ function NotificationsScreen() {
                       <Text style={styles.caseContext} numberOfLines={1}>
                         {caseLabel}
                       </Text>
+                    )}
+                    {/* T1.9AM: area alerts (with push) are marked; «Synlig i nærheten» is not. */}
+                    {selectedTab === "nearby" && String(item.title || "") !== "AREA_VISIBILITY" && (
+                      <Text style={styles.alertedTag}>{t("notifications.alertedTag")}</Text>
                     )}
                     {!!body && (
                       <Text style={styles.body} numberOfLines={2}>
@@ -588,6 +603,23 @@ const styles = StyleSheet.create({
   noticeWrap: { paddingHorizontal: 16, paddingTop: 8 },
   notice: { marginTop: 0 },
   list: { padding: 16, paddingTop: 4, paddingBottom: 32, flexGrow: 1 },
+  // T1.9AM
+  alertedTag: {
+    alignSelf: "flex-start",
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: "900",
+    color: theme.tone.error.fg,
+    backgroundColor: theme.tone.error.bg,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  nearbyFooter: { marginTop: 12, padding: 14, borderRadius: 14, backgroundColor: theme.tone.info.bg, borderWidth: 1, borderColor: theme.tone.info.border, gap: 2 },
+  nearbyFooterText: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: theme.tone.info.fg },
+  nearbyFooterLink: { minHeight: 36, justifyContent: "center" },
+  nearbyFooterLinkText: { fontSize: 14, fontWeight: "900", color: "#1D4ED8" },
   sectionTitle: {
     fontSize: 12,
     fontWeight: "800",

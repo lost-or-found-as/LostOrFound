@@ -216,7 +216,7 @@ router.get("/:id/activity", requireUser, async (req, res) => {
         ? supaAdmin.from("conversation_reads").select("conversation_id, last_read_at").eq("user_id", userId).in("conversation_id", confirmedIds)
         : Promise.resolve({ data: [] }),
       supaAdmin.from("area_alert_observations").select("id, observation_type, status, created_at").eq("report_id", reportId),
-      supaAdmin.from("geo_alert_campaigns").select("id, radius_m, activated_at").eq("report_id", reportId),
+      supaAdmin.from("geo_alert_campaigns").select("id, kind, radius_m, activated_at").eq("report_id", reportId),
       supaAdmin.from("report_orders").select("product_code, status, paid_at, refunded_at").eq("report_id", reportId).eq("user_id", userId).not("paid_at", "is", null),
       supaAdmin.from("long_term_watches").select("status, current_period_end").eq("report_id", reportId).maybeSingle(),
     ]);

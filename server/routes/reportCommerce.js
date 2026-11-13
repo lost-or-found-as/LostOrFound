@@ -13,7 +13,16 @@ const supaAdmin =
 const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const { calculateGeoAlertQuote } = require("../lib/geoAlertPricing");
-const { dispatchAreaAlertCampaign } = require("../lib/geoAlertDispatch");
+const { dispatchAreaAlertCampaign, dispatchAreaVisibilityCampaign } = require("../lib/geoAlertDispatch");
+const {
+  VISIBILITY_REQUEST_CODE,
+  VISIBILITY_DURATION_HOURS,
+  AREA_VISIBILITY_NO_FOLLOWERS,
+  isVisibilityProduct,
+  calculateVisibilityQuote,
+  visibilityBlockReason,
+  visibilityStatus,
+} = require("../lib/areaVisibility");
 const {
   isGeoAlertProduct,
   getGeoAlertActivationState,
@@ -107,6 +116,15 @@ async function ownedReport(reportId, userId) {
   if (error) throw error;
   return data || null;
 }
+// T1.9AM: the case's campaigns (both kinds), for the visibility rules and status.
+async function reportCampaigns(reportId) {
+  const { data, error } = await supaAdmin
+    .from("geo_alert_campaigns")
+    .select("id,kind,status,ends_at")
+    .eq("report_id", reportId);
+  if (error) throw error;
+  return data || [];
+}
 async function activeProduct(code) {
   const { data, error } = await supaAdmin
     .from("product_catalog")
@@ -182,8 +200,9 @@ router.get("/reports/:reportId/geo-alert-status", requireUser, async (req, res) 
     const reportId = String(req.params.reportId || "").trim();
     const report = await ownedReport(reportId, userId);
     if (!report) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
-    const status = await getGeoAlertStatus(reportId);
-    return res.json({ ok: true, reportId, ...status });
+    const [status, campaigns] = await Promise.all([getGeoAlertStatus(reportId), reportCampaigns(reportId)]);
+    // T1.9AM: until when the case shows in «I nærheten», and whether an area alert is the reason.
+    return res.json({ ok: true, reportId, ...status, visibility: visibilityStatus(campaigns) });
   } catch (e) {
     console.error("[geo-alert][status-failed]", {
       reportId: req.params?.reportId || null,
@@ -390,6 +409,38 @@ router.post("/orders", requireUser, async (req, res) => {
         reminderCount: GEO_ALERT_REMINDER_COUNT,
       };
       geoQuote = calculateGeoAlertQuote(normalizedGeoAlert);
+      productCode = geoQuote.productCode;
+      priceSnapshot = geoQuote.priceSnapshot;
+    } else if (productCode === VISIBILITY_REQUEST_CODE) {
+      // T1.9AM: «Synlig i nærheten». The tier follows how many people follow the area.
+      const requested = req.body?.geoAlert || {};
+      const radiusM = Number(requested.radiusM);
+      if (!VALID_GEO_ALERT_RADII.has(radiusM))
+        return res.status(400).json({ error: "INVALID_RADIUS" });
+      const block = visibilityBlockReason(await reportCampaigns(reportId));
+      if (block) return res.status(409).json(block);
+      const { data: previewRows, error: previewError } = await supaAdmin.rpc("preview_geo_alert_audience", {
+        p_report_id: reportId,
+        p_user_id: userId,
+        p_radius_m: radiusM,
+      });
+      if (previewError) return res.status(400).json({ error: previewError.message });
+      const preview = Array.isArray(previewRows) ? previewRows[0] : previewRows;
+      if (!preview) return res.status(404).json({ error: "LOST_REPORT_WITH_LOCATION_NOT_FOUND" });
+      const followers = Number(preview.eligible_users || 0);
+      // Nobody would see it: nothing to sell.
+      if (followers <= 0) return res.status(409).json({ error: AREA_VISIBILITY_NO_FOLLOWERS });
+      geoQuote = calculateVisibilityQuote({ followers, radiusM });
+      normalizedGeoAlert = {
+        kind: "VISIBILITY",
+        radiusM,
+        areaSqKm: Number(preview.area_sq_km),
+        populationDensityBand: "LOW",
+        estimatedEligibleUsers: followers,
+        estimatedEligibleInstallations: 0,
+        durationHours: VISIBILITY_DURATION_HOURS,
+        reminderCount: 0,
+      };
       productCode = geoQuote.productCode;
       priceSnapshot = geoQuote.priceSnapshot;
     }
@@ -608,9 +659,9 @@ router.post("/orders/:id/test-activate", requireUser, async (req, res) => {
       .maybeSingle();
     if (oErr) return res.status(400).json({ error: oErr.message });
     if (!order) return res.status(404).json({ error: "ORDER_NOT_FOUND" });
-    const isGeoAlertOrder = String(order.product_code || "").startsWith(
-      "GEO_ALERT_TIER_",
-    );
+    // T1.9AM: visibility follows the same pilot and test rules as area alerts.
+    const isGeoAlertOrder =
+      String(order.product_code || "").startsWith("GEO_ALERT_TIER_") || isVisibilityProduct(order.product_code);
     // T1.9T: a free pilot area alert can be activated by anyone (there is nothing to pay).
     const pilotFreeOrder =
       (isGeoAlertOrder || order.product_code === "REPORT_REACTIVATION") &&
@@ -720,6 +771,11 @@ async function activateOrder({ order, userId, provider, providerTransactionId, m
       periodEnd = new Date(lostExtensionEnd(report, now.getTime()));
     } else if (order.product_code.startsWith("GEO_ALERT_TIER_")) {
       periodEnd = new Date(now.getTime() + GEO_ALERT_DURATION_HOURS * 3600000);
+    } else if (isVisibilityProduct(order.product_code)) {
+      // T1.9AM: checked again (an area alert may have started since the order was made).
+      const block = visibilityBlockReason(await reportCampaigns(order.report_id), now.getTime());
+      if (block) return reply(409, block);
+      periodEnd = new Date(now.getTime() + VISIBILITY_DURATION_HOURS * 3600000);
     } else if (isLongTermProduct(order.product_code)) {
       // T1.9H: a renewal continues from the end of the running period.
       const context = await loadLongTermContext(order.report_id, userId);
@@ -897,8 +953,10 @@ async function activateOrder({ order, userId, provider, providerTransactionId, m
       }
     }
 
-    if (order.product_code.startsWith("GEO_ALERT_TIER_")) {
+    const visibilityOrder = isVisibilityProduct(order.product_code);
+    if (order.product_code.startsWith("GEO_ALERT_TIER_") || visibilityOrder) {
       const g = order.request_payload?.geoAlert || {};
+      const durationHours = visibilityOrder ? VISIBILITY_DURATION_HOURS : GEO_ALERT_DURATION_HOURS;
       if (report.lat == null || report.lng == null) {
         await cancelGeoAlertEntitlement(entitlement.id, order, userId, "REPORT_LOCATION_REQUIRED");
         return reply(400, { error: "GEO_ALERT_REPORT_LOCATION_REQUIRED" });
@@ -916,6 +974,7 @@ async function activateOrder({ order, userId, provider, providerTransactionId, m
           report_id: order.report_id,
           order_id: order.id,
           status: "ACTIVE",
+          kind: visibilityOrder ? "VISIBILITY" : "ALERT",
           geometry_type: "CIRCLE",
           geometry: campaignPoint,
           radius_m: Number(g.radiusM || 1500),
@@ -924,7 +983,7 @@ async function activateOrder({ order, userId, provider, providerTransactionId, m
             g.populationDensityBand || "LOW",
           ).toUpperCase(),
           estimated_eligible_users: Number(g.estimatedEligibleUsers || 0),
-          duration_hours: GEO_ALERT_DURATION_HOURS,
+          duration_hours: durationHours,
           reminder_count: GEO_ALERT_REMINDER_COUNT,
           price_tier: order.product_code,
           price_snapshot: order.price_snapshot || {},
@@ -991,7 +1050,9 @@ async function activateOrder({ order, userId, provider, providerTransactionId, m
       .neq("id", order.id);
     supersedeQuery = isGeoAlertProduct(order.product_code)
       ? supersedeQuery.like("product_code", "GEO_ALERT_TIER_%")
-      : supersedeQuery.eq("product_code", order.product_code);
+      : isVisibilityProduct(order.product_code)
+        ? supersedeQuery.like("product_code", "AREA_VISIBILITY_TIER_%")
+        : supersedeQuery.eq("product_code", order.product_code);
     // T1.9H: historic periods add up (a renewal follows the running period), so they never
     // supersede each other.
     const { data: supersededOrders, error: supersedeError } = isLongTermProduct(order.product_code)
@@ -1016,7 +1077,15 @@ async function activateOrder({ order, userId, provider, providerTransactionId, m
     }
 
     let areaAlertDispatch = null;
-    if (order.created_campaign_id) {
+    if (order.created_campaign_id && isVisibilityProduct(order.product_code)) {
+      // T1.9AM: visibility puts the case in «I nærheten»; nobody gets a push.
+      try {
+        areaAlertDispatch = await dispatchAreaVisibilityCampaign(order.created_campaign_id);
+      } catch (dispatchError) {
+        console.error("[area-visibility][dispatch-failed]", { orderId: order.id, error: dispatchError?.message || String(dispatchError) });
+        areaAlertDispatch = { ok: false, error: "AREA_VISIBILITY_DISPATCH_FAILED" };
+      }
+    } else if (order.created_campaign_id) {
       try {
         areaAlertDispatch = await dispatchAreaAlertCampaign(
           order.created_campaign_id,

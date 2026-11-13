@@ -8,10 +8,13 @@ const {notifyUser}=require("../lib/userNotify");
 const {localizedPair}=require("../lib/messages");
 const {checkLimit,limitResponse}=require("../lib/rateLimits");
 const {isSuspended}=require("../lib/chatSafetyStore");
+const {getAreaAlertAccess}=require("../lib/areaAlertAccess");
 function cleanText(v,n){const s=String(v||"").trim();return s?s.slice(0,n):null;}
 function validPoint(lat,lng){return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180;}
 async function getCampaign(id){const q=await supaAdmin.from("geo_alert_campaigns").select("id,user_id,report_id,status,ends_at,reports(id,user_id,type,status,deleted_at,title)").eq("id",id).maybeSingle();if(q.error)throw q.error;return q.data||null;}
-async function received(c,u){const q=await supaAdmin.from("geo_alert_recipients").select("campaign_id").eq("campaign_id",c).eq("user_id",u).maybeSingle();if(q.error)throw q.error;return !!q.data;}
+// T1.9AM: push recipients and people who only have the case in «I nærheten» (no push, or
+// «Synlig i nærheten») may both report a sighting.
+async function received(c,u){return (await getAreaAlertAccess(c,u)).allowed;}
 router.post("/",requireUser,async(req,res)=>{try{
  const userId=req.user?.id,campaignId=String(req.body?.campaignId||"").trim(),type=String(req.body?.observationType||"").trim().toUpperCase();
  const lat=Number(req.body?.latitude),lng=Number(req.body?.longitude),observedAt=new Date(req.body?.observedAt||Date.now()),clientRequestId=String(req.body?.clientRequestId||"").trim();

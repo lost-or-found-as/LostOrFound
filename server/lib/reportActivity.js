@@ -66,7 +66,13 @@ function buildReportActivity({ report, matches, confirmations, lastMessages, unr
   for (const o of observations || [])
     events.push({ type: "OBSERVATION", at: o.created_at, observationId: o.id, kind: String(o.observation_type || "SEEN").toUpperCase(), isNew: String(o.status || "").toUpperCase() === "NEW" });
   for (const c of campaigns || [])
-    if (c.activated_at) events.push({ type: "AREA_ALERT_SENT", at: c.activated_at, radiusM: Number(c.radius_m || 0) || null });
+    if (c.activated_at)
+      // T1.9AM: «Synlig i nærheten» is its own event.
+      events.push({
+        type: String(c.kind || "ALERT").toUpperCase() === "VISIBILITY" ? "AREA_VISIBILITY" : "AREA_ALERT_SENT",
+        at: c.activated_at,
+        radiusM: Number(c.radius_m || 0) || null,
+      });
   for (const o of orders || [])
     if (String(o.product_code) === EXTENSION_PRODUCT_CODE && o.paid_at) events.push({ type: "REACTIVATED", at: o.paid_at });
     else if (isLongTermProduct(o.product_code) && o.paid_at) events.push({ type: "LONG_TERM", at: o.paid_at, years: yearsOfProduct(o.product_code) });

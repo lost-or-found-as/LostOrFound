@@ -7,6 +7,8 @@ export type GeoAlertPreviewInput = {
   durationHours: 24 | 72 | 168;
   reminderCount: 0 | 1 | 2;
   populationDensityBand?: "VERY_LOW" | "LOW" | "MEDIUM" | "HIGH" | "VERY_HIGH";
+  // T1.9AM: VISIBILITY prices «Synlig i nærheten» by the people who follow the area.
+  kind?: "ALERT" | "VISIBILITY";
 };
 
 export type GeoAlertPreviewResult = {

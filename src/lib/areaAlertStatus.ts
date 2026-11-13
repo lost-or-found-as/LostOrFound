@@ -20,6 +20,8 @@ export type GeoAlertStatus = {
   remaining: number;
   canOrder: boolean;
   activations: GeoAlertActivation[];
+  // T1.9AM: until when the case shows in «I nærheten» (an area alert includes it).
+  visibility?: { activeUntil: string | null; viaAreaAlert: boolean };
 };
 
 export type AreaAlertViewKind = "none" | "live" | "available" | "completed";

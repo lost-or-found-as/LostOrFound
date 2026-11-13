@@ -281,4 +281,28 @@ async function dispatchAreaAlertCampaign(campaignId) {
   return result;
 }
 
-module.exports = { dispatchAreaAlertCampaign };
+/**
+ * T1.9AM: «Synlig i nærheten». Only layer 1: the case shows in «I nærheten» for everyone who
+ * follows the area. No push, no per-person limits (nobody is disturbed).
+ */
+async function dispatchAreaVisibilityCampaign(campaignId) {
+  const id = String(campaignId || "").trim();
+  if (!id) throw new Error("CAMPAIGN_ID_REQUIRED");
+  const { data: dispatchable, error: dispatchableError } = await supaAdmin.rpc("geo_alert_campaign_is_dispatchable", { p_campaign_id: id });
+  if (dispatchableError) throw dispatchableError;
+  if (!dispatchable) return { ok: false, error: "CAMPAIGN_NOT_DISPATCHABLE", eligible: 0, sent: 0 };
+  const { data: inAppRows, error: inAppError } = await supaAdmin.rpc("geo_alert_create_in_app_notifications", { p_campaign_id: id });
+  if (inAppError) throw inAppError;
+  const inApp = Array.isArray(inAppRows) ? inAppRows[0] : inAppRows;
+  const result = {
+    ok: true,
+    kind: "VISIBILITY",
+    eligible: Number(inApp?.eligible_users || 0),
+    notificationsCreated: Number(inApp?.created_notifications || 0),
+    sent: 0,
+  };
+  console.info("[area-visibility][delivery-summary]", { campaignId: id, ...result });
+  return result;
+}
+
+module.exports = { dispatchAreaAlertCampaign, dispatchAreaVisibilityCampaign };

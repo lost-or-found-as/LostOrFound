@@ -4,6 +4,7 @@ const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
 const { requireUser } = require("../mw/auth");
 const { calculateGeoAlertQuote } = require("../lib/geoAlertPricing");
+const { calculateVisibilityQuote } = require("../lib/areaVisibility");
 
 const VALID_RADII = new Set([250, 500, 1000, 1500, 3000, 5000, 10000, 25000, 50000]);
 const VALID_DURATIONS = new Set([24, 72, 168]);
@@ -29,11 +30,33 @@ router.post("/", requireUser, async (req, res) => {
     const preview = Array.isArray(data) ? data[0] : data;
     if (!preview) return res.status(404).json({ error: "LOST_REPORT_WITH_LOCATION_NOT_FOUND" });
 
-    const quote = calculateGeoAlertQuote({
-      radiusM,
-      areaSqKm: Number(preview.area_sq_km),
-      estimatedEligibleInstallations: Number(preview.eligible_installations || 0),
-    });
+    // T1.9AM: kind VISIBILITY prices by the people who follow the area (no push); the price
+    // comes from the product catalog.
+    const kind = String(req.body?.kind || "ALERT").toUpperCase();
+    let quote;
+    if (kind === "VISIBILITY") {
+      const visibility = calculateVisibilityQuote({ followers: Number(preview.eligible_users || 0), radiusM });
+      const { data: product, error: productError } = await supaAdmin
+        .from("product_catalog")
+        .select("base_price_ore,currency")
+        .eq("code", visibility.productCode)
+        .eq("active", true)
+        .maybeSingle();
+      if (productError) throw productError;
+      if (!product) return res.status(409).json({ error: "PRODUCT_NOT_AVAILABLE" });
+      quote = {
+        ...visibility,
+        amountOre: visibility.pilotFree ? 0 : Number(product.base_price_ore),
+        listPriceOre: Number(product.base_price_ore),
+        currency: product.currency,
+      };
+    } else {
+      quote = calculateGeoAlertQuote({
+        radiusM,
+        areaSqKm: Number(preview.area_sq_km),
+        estimatedEligibleInstallations: Number(preview.eligible_installations || 0),
+      });
+    }
 
     return res.json({
       ok: true,

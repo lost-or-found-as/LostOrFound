@@ -38,6 +38,7 @@ export type ActivityEvent =
   | { type: "MESSAGE"; at: string; matchId: string; fromMe: boolean; unread: number }
   | { type: "OBSERVATION"; at: string; observationId: string; kind: "SEEN" | "FOUND"; isNew: boolean }
   | { type: "AREA_ALERT_SENT"; at: string; radiusM: number | null }
+  | { type: "AREA_VISIBILITY"; at: string; radiusM: number | null }
   | { type: "REACTIVATED"; at: string }
   | { type: "EXTENDED"; at: string }
   | { type: "LONG_TERM"; at: string; years: number | null }
@@ -241,6 +242,8 @@ export function activityText(event: ActivityEvent, reportType: string | null | u
         params: {},
         tone: event.isNew ? "new" : "plain",
       };
+    case "AREA_VISIBILITY":
+      return { key: "caseDetail.activity.areaVisibility", params: {}, tone: "plain" };
     case "AREA_ALERT_SENT":
       return { key: "caseDetail.activity.areaAlert", params: {}, tone: "plain" };
     case "REACTIVATED":

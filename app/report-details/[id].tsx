@@ -59,6 +59,7 @@ import { BottomSheet, Button, ConfirmSheet, IconButton, InfoButton, SCORE_LABEL_
 import { custodyText } from "../../src/lib/custodyDisplay";
 import { isAnimal } from "../../src/lib/registerForm";
 import { PetSightingsCard } from "../../src/ui/PetSightingsCard";
+import { reachOffer } from "../../src/lib/areaVisibility";
 import type { TranslationKey } from "../../src/i18n/locales/en";
 
 type D = {
@@ -239,6 +240,16 @@ function Screen() {
       pathname: "/geo-alert-create",
       params: { reportId: r.id, title, lat: String(r.lat), lng: String(r.lng) },
     });
+  // T1.9AM: «Synlig i nærheten» – the cheaper option without push.
+  const openVisibility = () =>
+    router.push({
+      pathname: "/area-visibility-create",
+      params: { reportId: r.id, title, lat: String(r.lat), lng: String(r.lng) },
+    });
+  const offer = reachOffer(geoStatus);
+  // The pet suggestion above already holds the area-alert button.
+  const offerAlert = offer.alert && step.kind !== "petAreaAlert";
+  const showReach = showAreaAlert && !expired && (offer.visibility || offerAlert || !!offer.visibleUntil);
   const openMatches = () => router.push({ pathname: "/match", params: { reportId: r.id } });
   const openChat = (matchId: string) => router.push(`/chat/${matchId}`);
   const editReport = () => router.push({ pathname: "/(report)/create-report", params: { editReportId: r.id } });
@@ -540,14 +551,46 @@ function Screen() {
 
         {/* Varsle folk i nærheten */}
         {showAreaAlert && geoView.kind !== "none" && <AreaAlertServiceCard view={geoView} onSendNew={openAreaAlert} />}
-        {showAreaAlert && geoView.kind === "none" && !expired && step.kind !== "petAreaAlert" && (
+        {/* T1.9AM: Få flere til å se etter – «Synlig i nærheten» or an area alert. */}
+        {showReach && (
           <View style={s.card}>
             <View style={s.cardHeader}>
-              <Text style={s.h2}>{t("caseDetail.notifyNearbyTitle")}</Text>
+              <Text style={s.h2}>{t("caseDetail.reach.title")}</Text>
               <InfoButton title={t("info.areaAlert.title")} body={t("info.areaAlert.body")} label={t("info.areaAlert.label")} bordered={false} />
             </View>
-            <Text style={s.muted}>{t("caseDetail.notifyNearbyBody")}</Text>
-            <Button label={t("caseDetail.notifyNearbyAction")} variant="neutral" onPress={openAreaAlert} />
+            {offer.visibleUntil ? (
+              <View style={s.reachLive}>
+                <Ionicons name="eye-outline" size={18} color={theme.tone.success.icon} />
+                <Text style={s.reachLiveText}>{t("caseDetail.reach.visibleUntil", { date: formatDate(offer.visibleUntil, language) })}</Text>
+              </View>
+            ) : (
+              <Text style={s.muted}>{t("caseDetail.reach.body")}</Text>
+            )}
+            {offer.visibility && (
+              <Pressable accessibilityRole="button" onPress={openVisibility} style={({ pressed }) => [s.reachOption, s.reachOptionMain, pressed && s.pressed]}>
+                <View style={[s.reachIcon, { backgroundColor: theme.tone.info.bg }]}>
+                  <Ionicons name="list-outline" size={20} color={theme.tone.info.icon} />
+                </View>
+                <View style={s.reachText}>
+                  <Text style={s.reachTitle}>{t("caseDetail.reach.visibilityTitle")}</Text>
+                  <Text style={s.reachBody}>{t("caseDetail.reach.visibilityBody")}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
+              </Pressable>
+            )}
+            {offerAlert && (
+              <Pressable accessibilityRole="button" onPress={openAreaAlert} style={({ pressed }) => [s.reachOption, pressed && s.pressed]}>
+                <View style={[s.reachIcon, { backgroundColor: theme.tone.error.bg }]}>
+                  <Ionicons name="notifications-outline" size={20} color={theme.tone.error.icon} />
+                </View>
+                <View style={s.reachText}>
+                  <Text style={s.reachTitle}>{t("caseDetail.reach.alertTitle")}</Text>
+                  <Text style={s.reachBody}>{t("caseDetail.reach.alertBody")}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
+              </Pressable>
+            )}
+            <Text style={s.reachFoot}>{t("caseDetail.reach.priceNote")}</Text>
           </View>
         )}
 
@@ -779,6 +822,17 @@ const s = StyleSheet.create({
   chipStrong: { backgroundColor: theme.score.excellent.bg, color: theme.score.excellent.fg },
   chipPossible: { backgroundColor: theme.score.possible.bg, color: theme.score.possible.fg },
   stepButton: { marginTop: 4 },
+  // T1.9AM
+  reachLive: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: theme.tone.success.bg, borderRadius: 12, padding: 10 },
+  reachLiveText: { flex: 1, fontSize: 14, fontWeight: "800", color: theme.tone.success.fg },
+  reachOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, minHeight: 64 },
+  reachOptionMain: { borderWidth: 2, borderColor: theme.colors.primary },
+  reachIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  reachText: { flex: 1, gap: 2 },
+  reachTitle: { fontSize: 15, fontWeight: "900", color: theme.colors.text },
+  reachBody: { fontSize: 13, lineHeight: 18, fontWeight: "600", color: theme.colors.textSecondary },
+  reachFoot: { fontSize: 12, lineHeight: 17, fontWeight: "600", color: theme.colors.textSecondary },
+  pressed: { opacity: 0.7 },
   card: {
     padding: 16,
     borderRadius: 18,

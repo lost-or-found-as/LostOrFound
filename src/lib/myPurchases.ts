@@ -13,6 +13,7 @@ export type PurchaseRowInput = {
 export function productNameKey(code: string): TranslationKey {
   const c = String(code || "").toUpperCase();
   if (c.startsWith("GEO_ALERT")) return "purchases.areaAlert";
+  if (c.startsWith("AREA_VISIBILITY")) return "purchases.areaVisibility";
   if (c.startsWith("LONG_TERM_WATCH")) return "purchases.historicCase";
   if (c === "REPORT_REACTIVATION") return "purchases.extension";
   return "purchases.otherService";

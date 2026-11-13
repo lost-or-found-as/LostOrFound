@@ -11,7 +11,7 @@ const check = (ok, code) => { if (!ok) errors.push(code); };
 // Screens that need a registered account must be wrapped by requireAccount().
 const GATED = [
   "app/my-reports.tsx", "app/notifications.tsx", "app/alert-areas.tsx",
-  "app/push-settings.tsx", "app/match.tsx", "app/premium-status.tsx", "app/geo-alert-create.tsx",
+  "app/push-settings.tsx", "app/match.tsx", "app/premium-status.tsx", "app/geo-alert-create.tsx", "app/area-visibility-create.tsx",
   "app/observation-create.tsx",
   "app/area-alert/[id].tsx", "app/chat/[matchId].tsx", "app/match-comparison/[matchId].tsx",
   "app/matches/[matchId].tsx", "app/observation-chat/[id].tsx", "app/observation/[id].tsx",
