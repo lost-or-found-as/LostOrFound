@@ -498,6 +498,15 @@ function Screen() {
             petName={r.pet_name ?? null}
             refreshKey={activity.events[0]?.at ?? null}
             onOpenObservation={(observationId) => router.push(`/observation/${observationId}`)}
+            onAddTip={
+              closed
+                ? undefined
+                : () =>
+                    router.push({
+                      pathname: "/sighting-add",
+                      params: { reportId: String(r.id), title, lat: String(r.lat ?? ""), lng: String(r.lng ?? "") },
+                    })
+            }
           />
         )}
 

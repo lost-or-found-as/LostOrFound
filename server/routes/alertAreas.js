@@ -6,6 +6,7 @@ const express = require("express");
 const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
 const { requireUser } = require("../mw/auth");
+const { backfillNearby } = require("../lib/nearbyBackfill");
 
 const RADII = new Set([250, 500, 1000, 3000, 5000, 10000]);
 const CURRENT_LOCATION_RADII = new Set([1000, 3000, 5000, 10000]);
@@ -125,6 +126,8 @@ router.put("/current-location", requireUser, async (req, res) => {
           )
           .single();
     if (result.error) throw result.error;
+    // T1.9AN: cases already running where the user now is show up in «I nærheten».
+    void backfillNearby(req.user.id, "current-location");
     return res.json({ area: result.data });
   } catch (error) {
     console.error("[alert-areas] current location storage failed", {
@@ -215,6 +218,8 @@ router.post("/", requireUser, async (req, res) => {
     });
 
     if (error) throw error;
+    // T1.9AN: cases already running in the new area show up in «I nærheten».
+    void backfillNearby(req.user.id, "area-created");
 
     return res.status(201).json({
       area: Array.isArray(data) ? data[0] : data,
@@ -290,6 +295,7 @@ router.patch("/:id", requireUser, async (req, res) => {
       if (error) throw error;
       const area = Array.isArray(data) ? data[0] : data;
       if (!area) return res.status(404).json({ error: "NOT_FOUND" });
+      void backfillNearby(req.user.id, "area-changed");
       return res.json({ area });
     }
 
@@ -310,6 +316,7 @@ router.patch("/:id", requireUser, async (req, res) => {
       .maybeSingle();
     if (error) throw error;
     if (!data) return res.status(404).json({ error: "NOT_FOUND" });
+    if (data.active) void backfillNearby(req.user.id, "area-turned-on");
     return res.json({ area: data });
   } catch (error) {
     const message = String(error?.message || "");

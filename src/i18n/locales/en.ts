@@ -1877,6 +1877,25 @@ export const en = {
   "notifications.alertedTag": "Alerted",
   "notifications.nearbyFooter": "Here you see missing cases from the areas you follow.",
   "notifications.editAlertAreas": "Edit alert areas",
+  // T1.9AN: owner tips in «Last seen».
+  "caseDetail.sightings.addTip": "Add a tip",
+  "caseDetail.sightings.yourTip": "Your tip",
+  "caseDetail.sightings.deleteTipTitle": "Delete the tip?",
+  "caseDetail.sightings.deleteTipBody": "The tip is removed from «Last seen».",
+  "caseDetail.sightings.deleteTip": "Delete",
+  "sightingAdd.title": "Add a tip",
+  "sightingAdd.lead": "Has someone told you they saw the animal, by phone or on social media? Put it on the map to see where it has been.",
+  "sightingAdd.where": "Where",
+  "sightingAdd.whereHelp": "Tap the map where the animal was seen.",
+  "sightingAdd.whereSet": "Drag the pin to move it.",
+  "sightingAdd.when": "When",
+  "sightingAdd.whenInvalid": "The time cannot be in the future.",
+  "sightingAdd.note": "What do you know?",
+  "sightingAdd.notePlaceholder": "E.g. «The neighbour saw her at the bus stop, she ran towards the woods»",
+  "sightingAdd.private": "Only you see the tip. It is not shown to others.",
+  "sightingAdd.errorTitle": "The tip was not saved",
+  "sightingAdd.errorBody": "Please try again shortly.",
+  "sightingAdd.save": "Save tip",
 } as const;
 
 export type TranslationKey = keyof typeof en;

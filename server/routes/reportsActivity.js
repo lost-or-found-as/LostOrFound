@@ -27,7 +27,7 @@ const requireUser = authModule?.requireUser || authModule;
 const { loadReportMatches } = require("./matches");
 const { buildReportActivity, OPEN_MATCH_STATUSES } = require("../lib/reportActivity");
 const { isLiveWatch, paidExtensionCount } = require("../lib/longTermWatch");
-const { buildSightings, visibleObservations, SIGHTING_LIMIT } = require("../lib/petSightings");
+const { buildSightings, visibleObservations, cleanOwnerTip, SIGHTING_LIMIT, OWNER_TIP_LIMIT } = require("../lib/petSightings");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -298,6 +298,14 @@ router.get("/:id/sightings", requireUser, async (req, res) => {
       .limit(SIGHTING_LIMIT * 2);
     if (oErr) throw oErr;
     const observations = visibleObservations(rows).slice(0, SIGHTING_LIMIT);
+    // T1.9AN: tips the owner put on the map themselves.
+    const { data: ownerTips, error: tErr } = await supaAdmin
+      .from("report_owner_sightings")
+      .select("id, seen_at, latitude, longitude, note")
+      .eq("report_id", reportId)
+      .order("seen_at", { ascending: false })
+      .limit(SIGHTING_LIMIT);
+    if (tErr) throw tErr;
     const points = await Promise.all(
       observations.map(async (o) => {
         const { data, error } = await supaAdmin.rpc("observation_point", { p_observation_id: o.id });
@@ -306,7 +314,7 @@ router.get("/:id/sightings", requireUser, async (req, res) => {
         return pt ? { id: o.id, latitude: pt.latitude, longitude: pt.longitude } : null;
       }),
     );
-    return res.json({ ok: true, reportId, ...buildSightings({ report, observations, points: points.filter(Boolean) }) });
+    return res.json({ ok: true, reportId, ...buildSightings({ report, observations, points: points.filter(Boolean), ownerTips }) });
   } catch (e) {
     console.error("[reports][sightings-failed]", {
       reportId: req.params?.id || null,
@@ -314,6 +322,66 @@ router.get("/:id/sightings", requireUser, async (req, res) => {
       errorMessage: e?.message || String(e),
     });
     return res.status(500).json({ error: "REPORT_SIGHTINGS_FAILED" });
+  }
+});
+
+// T1.9AN: the owner adds a tip they got outside the app (phone, social media, own search).
+async function ownLostReport(reportId, userId) {
+  const { data, error } = await supaAdmin
+    .from("reports")
+    .select("id, user_id, type, status")
+    .eq("id", reportId)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) throw error;
+  return data && String(data.type).toUpperCase() === "LOST" ? data : null;
+}
+
+router.post("/:id/sightings", requireUser, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const reportId = String(req.params.id || "").trim();
+    const report = await ownLostReport(reportId, userId);
+    if (!report) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
+    if (String(report.status).toUpperCase() !== "ACTIVE") return res.status(409).json({ error: "REPORT_NOT_ACTIVE" });
+    const tip = cleanOwnerTip(req.body);
+    if (tip.error) return res.status(400).json({ error: tip.error });
+    const { count, error: cErr } = await supaAdmin
+      .from("report_owner_sightings")
+      .select("id", { count: "exact", head: true })
+      .eq("report_id", reportId);
+    if (cErr) throw cErr;
+    if (Number(count || 0) >= OWNER_TIP_LIMIT) return res.status(429).json({ error: "OWNER_TIP_LIMIT_REACHED" });
+    const { data, error } = await supaAdmin
+      .from("report_owner_sightings")
+      .insert({ report_id: reportId, user_id: userId, ...tip.value })
+      .select("id, seen_at, latitude, longitude, note")
+      .single();
+    if (error) throw error;
+    return res.status(201).json({ ok: true, tip: data });
+  } catch (e) {
+    console.error("[reports][owner-tip-failed]", { reportId: req.params?.id || null, errorCode: e?.code || null, errorMessage: e?.message || String(e) });
+    return res.status(500).json({ error: "OWNER_TIP_FAILED" });
+  }
+});
+
+router.delete("/:id/sightings/:tipId", requireUser, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const reportId = String(req.params.id || "").trim();
+    if (!(await ownLostReport(reportId, userId))) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
+    const { error } = await supaAdmin
+      .from("report_owner_sightings")
+      .delete()
+      .eq("id", String(req.params.tipId || ""))
+      .eq("report_id", reportId)
+      .eq("user_id", userId);
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("[reports][owner-tip-delete-failed]", { reportId: req.params?.id || null, errorCode: e?.code || null, errorMessage: e?.message || String(e) });
+    return res.status(500).json({ error: "OWNER_TIP_DELETE_FAILED" });
   }
 });
 

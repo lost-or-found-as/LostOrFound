@@ -30,7 +30,7 @@ const points = [
 ];
 const built = buildSightings({ report, observations, points });
 eq(built.sightings.map((s) => s.id), ["o2", "o1"], "newest first, dismissed and pointless left out");
-eq(built.sightings[0], { id: "o2", kind: "SEEN", at: "2026-11-12T06:40:00Z", comment: "Løp mot skogen", direction: "nord", latitude: 59.98, longitude: 10.73, isNew: true }, "sighting fields");
+eq(built.sightings[0], { id: "o2", kind: "SEEN", at: "2026-11-12T06:40:00Z", comment: "Løp mot skogen", direction: "nord", latitude: 59.98, longitude: 10.73, isNew: true, source: "AREA_ALERT" }, "sighting fields");
 eq(built.start, { at: "2026-11-11T17:30:00Z", latitude: 59.95, longitude: 10.76, label: "Tåsenveien 12, 0853 Oslo" }, "start point");
 eq(buildSightings({ report: { ...report, lat: null }, observations: [], points: [] }).start, null, "no start without a point");
 const many = Array.from({ length: 30 }, (_, i) => ({ id: `m${i}`, status: "NEW", observed_at: new Date(Date.UTC(2026, 10, 1, i)).toISOString() }));

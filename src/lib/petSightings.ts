@@ -7,7 +7,9 @@ import { supabase } from "./supabase";
 export type SightingStart = { at: string | null; latitude: number; longitude: number; label: string | null };
 export type Sighting = {
   id: string;
-  kind: "SEEN" | "FOUND";
+  // T1.9AN: TIP = a tip the owner put on the map (source OWNER).
+  kind: "SEEN" | "FOUND" | "TIP";
+  source?: "AREA_ALERT" | "OWNER";
   at: string;
   comment: string | null;
   direction: string | null;
@@ -31,6 +33,34 @@ export async function fetchSightings(reportId: string): Promise<Sightings> {
     start: body?.start ?? null,
     sightings: Array.isArray(body?.sightings) ? body.sightings : [],
   };
+}
+
+async function authHeaders() {
+  const token = (await supabase.auth.getSession()).data.session?.access_token;
+  if (!token) throw Object.assign(new Error("AUTH_REQUIRED"), { code: "AUTH_REQUIRED" });
+  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+}
+
+async function call(path: string, init: RequestInit) {
+  const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers: await authHeaders() });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(String(body?.error || `HTTP_${res.status}`)), { code: body?.error });
+  return body;
+}
+
+/** T1.9AN: the owner puts a tip they got outside the app on the map. */
+export async function addOwnerTip(reportId: string, tip: { latitude: number; longitude: number; seenAt: string; note: string | null }) {
+  return call(`/reports/${encodeURIComponent(reportId)}/sightings`, { method: "POST", body: JSON.stringify(tip) });
+}
+
+export async function deleteOwnerTip(reportId: string, tipId: string) {
+  return call(`/reports/${encodeURIComponent(reportId)}/sightings/${encodeURIComponent(tipId)}`, { method: "DELETE" });
+}
+
+/** An owner tip cannot be in the future. */
+export function tipTimeIsValid(date: Date, now = Date.now()): boolean {
+  const ms = date.getTime();
+  return Number.isFinite(ms) && ms <= now + 60000 && ms >= now - 366 * 86400000;
 }
 
 type Point = { latitude: number; longitude: number };
