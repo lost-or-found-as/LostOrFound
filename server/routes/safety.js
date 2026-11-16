@@ -12,6 +12,7 @@
 const express = require("express");
 const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
+const { logAdminAccess } = require("../lib/adminAudit");
 const { requireUser } = require("../mw/auth");
 const { isAdmin, normalizeReport, snapshotMessages, shouldAutoSuspend, AUTO_SUSPEND_WINDOW_DAYS } = require("../lib/chatSafety");
 const { chatParties, otherParty, loadChatState, chatMessages, activeSuspensions } = require("../lib/chatSafetyStore");
@@ -167,6 +168,14 @@ router.get("/admin/reports", requireUser, requireAdmin, async (req, res) => {
         },
       });
     }
+    // T1.9AO: admin saw these reports and their message snapshots.
+    void logAdminAccess({
+      adminUserId: req.user.id,
+      action: "VIEW_CHAT_REPORTS",
+      entityType: "chat_reports",
+      reason: "Review of reported chats",
+      metadata: { status: handled ? "handled" : "open", count: out.length },
+    });
     return res.json({ ok: true, reports: out });
   } catch (e) {
     return fail(res, e, "ADMIN_REPORTS_FAILED");
@@ -193,6 +202,14 @@ router.post("/admin/reports/:id/resolve", requireUser, requireAdmin, async (req,
       .update({ status: action === "SUSPEND" ? "ACTION_TAKEN" : "NO_ACTION", handled_at: now, handled_by: req.user.id })
       .eq("id", q.data.id);
     if (upd.error) throw upd.error;
+    void logAdminAccess({
+      adminUserId: req.user.id,
+      action: action === "SUSPEND" ? "SUSPEND_ACCOUNT" : "RESOLVE_CHAT_REPORT",
+      entityType: "chat_report",
+      entityId: q.data.id,
+      reason: "Handling of a reported chat",
+      metadata: { action, reportedUserId: q.data.reported_user_id },
+    });
     return res.json({ ok: true });
   } catch (e) {
     return fail(res, e, "ADMIN_RESOLVE_FAILED");
@@ -216,6 +233,13 @@ router.post("/admin/users/:userId/restore", requireUser, requireAdmin, async (re
       .eq("reported_user_id", userId)
       .eq("status", "OPEN");
     if (upd.error) throw upd.error;
+    void logAdminAccess({
+      adminUserId: req.user.id,
+      action: "RESTORE_ACCOUNT",
+      entityType: "user",
+      entityId: userId,
+      reason: "Account restored after review",
+    });
     return res.json({ ok: true });
   } catch (e) {
     return fail(res, e, "ADMIN_RESTORE_FAILED");

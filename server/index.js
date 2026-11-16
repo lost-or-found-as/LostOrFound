@@ -253,6 +253,12 @@ try {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://127.0.0.1:${PORT}`);
+  // T1.9AO: nightly deletion of old cases (RETENTION_PURGE_MODE: report by default, delete, off).
+  const { scheduleRetention, retentionMode } = require("./lib/retentionPurge");
+  const { supaAdmin } = require("./supabaseClient");
+  const { deleteOwnedReport } = require("./routes/reports");
+  scheduleRetention({ deps: { supa: supaAdmin, deleteOwnedReport, log: console } });
+  console.log(`[BOOT] retention=${retentionMode()}`);
   console.log(`[BOOT] cwd=${process.cwd()}`);
   console.log(`[BOOT] serverDir=${__dirname}`);
 });

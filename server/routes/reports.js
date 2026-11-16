@@ -1031,6 +1031,38 @@ router.post("/:id/close", requireUser, async (req, res) => {
  * A report with purchases is kept as archived (bookkeeping). Returns { status, body }.
  * T1.9P: shared by DELETE /reports/:id and account deletion.
  */
+// Removes the stored photos ("bucket/path" strings). Used by both the hard and the soft delete.
+async function removeStoredImages(paths) {
+  const byBucket = new Map();
+  for (const p of paths) {
+    const [bucket, ...rest] = String(p).split("/");
+    const objectPath = rest.join("/");
+    if (!bucket || !objectPath) continue;
+    if (!byBucket.has(bucket)) byBucket.set(bucket, []);
+    byBucket.get(bucket).push(objectPath);
+  }
+
+  const storageCleanup = [];
+  for (const [bucket, objectPaths] of byBucket.entries()) {
+    try {
+      const { error: sErr } = await supaAdmin.storage
+        .from(bucket)
+        .remove(objectPaths);
+      if (sErr)
+        storageCleanup.push({ bucket, ok: false, error: sErr.message });
+      else
+        storageCleanup.push({ bucket, ok: true, count: objectPaths.length });
+    } catch (e) {
+      storageCleanup.push({
+        bucket,
+        ok: false,
+        error: String(e?.message ?? e),
+      });
+    }
+  }
+  return storageCleanup;
+}
+
 async function deleteOwnedReport(reportId, userId) {
   const reply = (status, body) => ({ status, body });
   try {
@@ -1127,11 +1159,14 @@ async function deleteOwnedReport(reportId, userId) {
         .eq("user_id", userId);
       if (softDeleteError)
         return reply(400, { error: "REPORT_DELETE_FAILED" });
+      // T1.9AO: the photos go in a soft delete too; only the row stays (for the paid orders).
+      const storageCleanup = await removeStoredImages(paths);
       return reply(200, {
         ok: true,
         deleted: reportId,
         deletionMode: "SOFT",
         cleanupResults,
+        storageCleanup,
       });
     }
     const { error: dErr } = await supaAdmin
@@ -1142,33 +1177,7 @@ async function deleteOwnedReport(reportId, userId) {
     if (dErr)
       return reply(400, { error: "REPORT_DELETE_FAILED", cleanupResults });
 
-    const byBucket = new Map();
-    for (const p of paths) {
-      const [bucket, ...rest] = String(p).split("/");
-      const objectPath = rest.join("/");
-      if (!bucket || !objectPath) continue;
-      if (!byBucket.has(bucket)) byBucket.set(bucket, []);
-      byBucket.get(bucket).push(objectPath);
-    }
-
-    const storageCleanup = [];
-    for (const [bucket, objectPaths] of byBucket.entries()) {
-      try {
-        const { error: sErr } = await supaAdmin.storage
-          .from(bucket)
-          .remove(objectPaths);
-        if (sErr)
-          storageCleanup.push({ bucket, ok: false, error: sErr.message });
-        else
-          storageCleanup.push({ bucket, ok: true, count: objectPaths.length });
-      } catch (e) {
-        storageCleanup.push({
-          bucket,
-          ok: false,
-          error: String(e?.message ?? e),
-        });
-      }
-    }
+    const storageCleanup = await removeStoredImages(paths);
 
     return reply(200, {
       ok: true,
