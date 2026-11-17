@@ -7,6 +7,8 @@
 //                      with paid orders keeps its row for the accounts, emptied of personal text
 //   off              – do nothing
 // Runs once a night at 03:40 UTC. Every deletion is written to report_retention_events.
+// T1.9AP: the same run also removes photo-suggestion log rows (image_analyses) older than
+// 12 months, as the privacy policy promises. Same mode: report counts, delete removes.
 const MODES = new Set(["off", "report", "delete"]);
 const RUN_HOUR_UTC = 3;
 const RUN_MINUTE_UTC = 40;
@@ -39,14 +41,48 @@ const SCRUB_FIELDS = Object.freeze({
   share_token: null,
 });
 
+/** Cut-off for log rows: `months` before `now`. */
+function cutoffIso(months, now = Date.now()) {
+  const d = new Date(now);
+  d.setUTCMonth(d.getUTCMonth() - months);
+  return d.toISOString();
+}
+
+/**
+ * Photo-suggestion log (image_analyses): rows older than `months`. Report mode counts them,
+ * delete mode removes them. Returns the number found or removed.
+ */
+async function purgeImageAnalyses({ mode, months = DEFAULT_MONTHS, supa, log = console, now = Date.now() }) {
+  if (mode === "off") return 0;
+  const before = cutoffIso(months, now);
+  if (mode === "report") {
+    const { count, error } = await supa.from("image_analyses").select("id", { count: "exact", head: true }).lt("created_at", before);
+    if (error) throw error;
+    log.info("[retention][report]", { imageAnalyses: count || 0, before });
+    return count || 0;
+  }
+  const { count, error } = await supa.from("image_analyses").delete({ count: "exact" }).lt("created_at", before);
+  if (error) throw error;
+  log.info("[retention][delete]", { imageAnalyses: count || 0, before });
+  return count || 0;
+}
+
 /**
  * One run. deps = { supa, deleteOwnedReport, log } (passed in so the run can be tested).
- * Returns { mode, candidates, deleted, scrubbed, failed }.
+ * Returns { mode, candidates, deleted, scrubbed, failed, imageAnalyses }.
  */
 async function runRetention({ mode = retentionMode(), months = DEFAULT_MONTHS, deps }) {
   const { supa, deleteOwnedReport, log = console } = deps;
-  const summary = { mode, candidates: 0, deleted: 0, scrubbed: 0, failed: 0 };
+  const summary = { mode, candidates: 0, deleted: 0, scrubbed: 0, failed: 0, imageAnalyses: 0 };
   if (mode === "off") return summary;
+
+  // The log purge runs first and on its own: a failure here must not stop the case purge.
+  try {
+    summary.imageAnalyses = await purgeImageAnalyses({ mode, months, supa, log });
+  } catch (e) {
+    summary.failed += 1;
+    log.error("[retention][image-analyses-failed]", { errorMessage: e?.message || String(e) });
+  }
 
   const { data, error } = await supa.rpc("report_retention_candidates", { p_months: months, p_limit: BATCH_LIMIT });
   if (error) throw error;
@@ -109,4 +145,4 @@ function scheduleRetention({ deps, env = process.env, now = () => Date.now() }) 
   return timer;
 }
 
-module.exports = { retentionMode, msUntilNextRun, runRetention, scheduleRetention, SCRUB_FIELDS, DEFAULT_MONTHS };
+module.exports = { retentionMode, msUntilNextRun, runRetention, purgeImageAnalyses, cutoffIso, scheduleRetention, SCRUB_FIELDS, DEFAULT_MONTHS };

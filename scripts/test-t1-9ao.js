@@ -23,6 +23,7 @@ function fakeSupa(fixtures = {}) {
       limit() { return api; },
       eq(c, v) { q.filters.push(["eq", c, v]); return api; },
       in(c, v) { q.filters.push(["in", c, v]); return api; },
+      lt(c, v) { q.filters.push(["lt", c, v]); return api; },
       update(p) { q.op = "update"; q.payload = p; return api; },
       delete() { q.op = "delete"; return api; },
       insert(p) { q.op = "insert"; q.payload = p; calls.push(q); return Promise.resolve({ error: null }); },
@@ -30,7 +31,7 @@ function fakeSupa(fixtures = {}) {
         calls.push(q);
         const data = q.op === "select" ? (fixtures[table] || []) : null;
         const error = fixtures[`${table}:error`] || null;
-        return Promise.resolve({ data, error }).then(res, rej);
+        return Promise.resolve({ data, error, count: fixtures[`${table}:count`] || 0 }).then(res, rej);
       },
     };
     return api;
