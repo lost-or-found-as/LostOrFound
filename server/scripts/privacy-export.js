@@ -9,28 +9,11 @@ const fs = require("fs");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 const { buildPrivacyExport } = require("../lib/privacyExport");
+const { findAccount } = require("../lib/accountDeletion");
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : undefined;
-}
-
-async function findAccount(supa, { email, userId }) {
-  if (userId) {
-    const { data, error } = await supa.auth.admin.getUserById(userId);
-    if (error) throw error;
-    return data?.user || null;
-  }
-  const wanted = String(email || "").trim().toLowerCase();
-  for (let page = 1; page <= 100; page += 1) {
-    const { data, error } = await supa.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) throw error;
-    const users = data?.users || [];
-    const hit = users.find((u) => String(u.email || "").toLowerCase() === wanted);
-    if (hit) return hit;
-    if (users.length < 1000) return null;
-  }
-  return null;
 }
 
 async function main() {

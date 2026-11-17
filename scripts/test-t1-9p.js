@@ -22,9 +22,11 @@ ok(/\.eq\("report_id", reportId\)[\s\S]{0,200}if \(Number\(orderCount \|\| 0\) >
 
 const account = read("server/routes/account.js");
 ok(/router\.delete\("\/", requireUser,/.test(account), "DELETE /account for registered accounts");
-ok(/deleteOwnedReport\(r\.id, userId\)[\s\S]*supaAdmin\.auth\.admin\.deleteUser\(userId\)/.test(account), "reports first, then the sign-in");
-ok(/return res\.status\(500\)\.json\(\{ error: "ACCOUNT_DELETE_FAILED" \}\);[\s\S]*deleteUser/.test(account), "a failed report stops before the account is deleted");
-for (const t of ["notifications", "report_creation_events"]) ok(account.includes(`table: "${t}"`), `${t} cleaned up`);
+ok(/deleteAccount\(req\.user\.id, \{ supa: supaAdmin, deleteOwnedReport/.test(account) && /error: "ACCOUNT_DELETE_FAILED"/.test(account), "route uses the shared account deletion (T1.9AQ)");
+const accountLib = read("server/lib/accountDeletion.js");
+ok(/deleteOwnedReport\(r\.id, userId\)[\s\S]*supa\.auth\.admin\.deleteUser\(userId\)/.test(accountLib), "reports first, then the sign-in");
+ok(/throw new AccountDeletionError\("ACCOUNT_DELETE_FAILED", `report[\s\S]*deleteUser/.test(accountLib), "a failed report stops before the account is deleted");
+for (const t of ["notifications", "report_creation_events"]) ok(accountLib.includes(`table: "${t}"`), `${t} cleaned up`);
 
 const profile = read("app/(tabs)/profile.tsx");
 ok(/!!user && !isGuest && \([\s\S]{0,200}profile\.deleteAccount\.button/.test(profile), "Slett konto in Profil for accounts");
