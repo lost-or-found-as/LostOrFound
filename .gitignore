@@ -52,3 +52,4 @@ supabase/.temp/
 
 # T1.9AO: data exports for access requests are personal data
 innsyn-*.json
+statistikk-*.html
