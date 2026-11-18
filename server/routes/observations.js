@@ -2,6 +2,7 @@
 "use strict";
 const express=require("express");
 const router=express.Router();
+const {awardSafely}=require("../lib/helperBonus");
 const {supaAdmin}=require("../supabaseClient");
 const {requireUser}=require("../mw/auth");
 const {notifyUser}=require("../lib/userNotify");
@@ -56,6 +57,8 @@ router.post("/:id/status",requireUser,async(req,res)=>{try{
  const userId=req.user?.id,id=String(req.params.id||"").trim(),status=String(req.body?.status||"").toUpperCase();if(!["RELEVANT","DISMISSED"].includes(status))return res.status(400).json({error:"INVALID_STATUS"});
  const o=await supaAdmin.from("area_alert_observations").select("id,report_owner_user_id,observer_user_id").eq("id",id).maybeSingle();if(o.error)throw o.error;if(!o.data||o.data.report_owner_user_id!==userId)return res.status(404).json({error:"OBSERVATION_NOT_FOUND"});
  const u=await supaAdmin.from("area_alert_observations").update({status,updated_at:new Date().toISOString()}).eq("id",id).select("id,status").single();if(u.error)throw u.error;
+ // T1.9AS: the owner marking a sighting as useful gives the observer 1 bonus (once per sighting).
+ if(status==="RELEVANT")void awardSafely({userId:o.data.observer_user_id,event:"SIGHTING_USEFUL",sourceType:"observation",sourceId:id,counterpartUserId:userId},{supa:supaAdmin});
  await notifyUser({
   userId:o.data.observer_user_id,type:"OBSERVATION_STATUS",entityType:"observation",entityId:id,
   titles:localizedPair(status==="RELEVANT"?"push.observationRelevant.title":"push.observationDismissed.title"),

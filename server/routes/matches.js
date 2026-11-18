@@ -1,3 +1,4 @@
+const { awardSafely } = require("../lib/helperBonus");
 // server/routes/matches.js
 // Matches API:
 // - GET /matches?reportId=... retrieves matches for a report.
@@ -331,7 +332,7 @@ router.post("/:id/status", requireUser, async (req, res) => {
     const { data: match, error: mErr } = await supaAdmin
       .from("matches")
       .select(
-        `id, status, lost:lost_id ( user_id ), found:found_id ( user_id )`,
+        `id, status, lost_id, found_id, lost:lost_id ( user_id ), found:found_id ( user_id )`,
       )
       .eq("id", matchId)
       .single();
@@ -368,6 +369,14 @@ router.post("/:id/status", requireUser, async (req, res) => {
       ) {
         return res.status(500).json({ error: "Failed to create conversation" });
       }
+    }
+
+    // T1.9AS: the owner confirming the match gives the finder 3 bonus (once per match).
+    if (status === "CONFIRMED" && match.status !== "CONFIRMED" && match.found?.user_id) {
+      void awardSafely(
+        { userId: match.found.user_id, event: "MATCH_CONFIRMED", sourceType: "match", sourceId: matchId, reportId: match.found_id, counterpartUserId: match.lost?.user_id },
+        { supa: supaAdmin },
+      );
     }
 
     // B2a: Notify the other party on the first confirmation.

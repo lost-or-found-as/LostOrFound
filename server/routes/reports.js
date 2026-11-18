@@ -1,5 +1,6 @@
 // server/routes/reports.js
 "use strict";
+const { awardSafely } = require("../lib/helperBonus");
 
 const express = require("express");
 const router = express.Router();
@@ -600,6 +601,14 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       return res
         .status(500)
         .json({ error: "Could not register report creation safely" });
+    }
+
+    // T1.9AS: a registered find gives 1 bonus after 24 hours (registered accounts only).
+    if (data.type === "FOUND" && !isAnonymousUser(user)) {
+      void awardSafely(
+        { userId: user.id, event: "FOUND_REGISTERED", sourceType: "report", sourceId: data.id, reportId: data.id },
+        { supa: supaAdmin },
+      );
     }
 
     if (identifier) {

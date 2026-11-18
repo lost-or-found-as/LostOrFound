@@ -25,6 +25,7 @@ const USER_TABLES = Object.freeze([
   ["app_feedback", "user_id", []],
   ["image_analyses", "user_id", []],
   ["account_suspensions", "user_id", ["lifted_by"]],
+  ["helper_bonus_ledger", "user_id", ["counterpart_user_id", "source_id", "report_id"]],
   ["chat_reports", "reporter_id", ["reported_user_id", "message_snapshot", "handled_by"]],
   ["user_blocks", "blocker_id", ["blocked_id"]],
 ]);

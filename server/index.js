@@ -240,6 +240,7 @@ try {
 }
 
 // ---- Mount /resolutions ----
+try { const bonusRoutes=require("./routes/bonus"); app.use("/bonus",bonusRoutes); console.log("[BOOT] Mounted /bonus routes"); } catch(e){ console.warn("[BOOT] /bonus NOT mounted:",e?.message||e); }
 try { const resolutionRoutes=require("./routes/resolutions"); app.use("/resolutions",resolutionRoutes); console.log("[BOOT] Mounted /resolutions routes"); } catch(e){ console.warn("[BOOT] /resolutions NOT mounted:",e?.message||e); }
 
 // ---- Mount /geo ----
@@ -259,6 +260,10 @@ app.listen(PORT, () => {
   const { deleteOwnedReport } = require("./routes/reports");
   scheduleRetention({ deps: { supa: supaAdmin, deleteOwnedReport, log: console } });
   console.log(`[BOOT] retention=${retentionMode()}`);
+  // T1.9AS: pending bonus for registered finds becomes valid after 24 hours (checked hourly).
+  const { scheduleBonusMaintenance, bonusEnabled } = require("./lib/helperBonus");
+  scheduleBonusMaintenance({ supa: supaAdmin, log: console });
+  console.log(`[BOOT] helperBonus=${bonusEnabled() ? "on" : "off"}`);
   console.log(`[BOOT] cwd=${process.cwd()}`);
   console.log(`[BOOT] serverDir=${__dirname}`);
 });
