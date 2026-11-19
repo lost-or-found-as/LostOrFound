@@ -97,6 +97,11 @@ export default function RegisterScreen() {
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
   const [rewardOther, setRewardOther] = useState(false);
   const [missing, setMissing] = useState<TranslationKey[]>([]);
+  // Once the missing list is shown (after Send), it follows the form: a field that gets filled
+  // disappears from the list at once instead of waiting for the next Send.
+  useEffect(() => {
+    setMissing((prev) => (prev.length ? missingFields(draft, rewardEnabled) : prev));
+  }, [draft, rewardEnabled]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [limitSheet, setLimitSheet] = useState(false);
@@ -196,7 +201,7 @@ export default function RegisterScreen() {
       setField("colorSecondary", suggestion.colors[1] ?? "");
       marks.colors = true;
     }
-    if (suggestion?.brand && !String(draft.brand || "").trim()) {
+    if (suggestion?.brand && !isAnimal(draft.category, draft.subcategoryKey) && !String(draft.brand || "").trim()) {
       setField("brand", suggestion.brand);
       marks.brand = true;
     }
@@ -716,6 +721,8 @@ export default function RegisterScreen() {
               )}
             </View>
             <Text style={s.mutedSmall}>{t("register.details.colorHelp")}</Text>
+            {/* Brand does not apply to animals. */}
+            {!animal && (
             <View style={s.field}>
               <Text style={s.label}>
                 {t("register.details.brand")}
@@ -728,6 +735,7 @@ export default function RegisterScreen() {
                 style={s.input}
               />
             </View>
+            )}
             <View style={s.field}>
               <Text style={s.label}>
                 {t("register.details.description")}
