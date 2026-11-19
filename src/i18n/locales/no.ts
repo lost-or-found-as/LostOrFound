@@ -1685,6 +1685,7 @@ export const no: TranslationDictionary = {
   "cases.loadFailed.body": "Sjekk nettet og prøv igjen.",
   "cases.noMatchesSearching": "Ingen treff ennå · vi leter",
   "cases.chatNew": "Chat · ny melding",
+  "cases.newObservations": "Observasjoner: {{count}} nye – åpne saken for å se dem",
   "cases.pullToRefresh": "Dra ned for å oppdatere",
   "cases.menu.view": "Se saken",
   "cases.menu.free": "gratis",

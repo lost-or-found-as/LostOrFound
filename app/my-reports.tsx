@@ -212,6 +212,8 @@ function MyReportsScreen() {
   const [activityByReport, setActivityByReport] = useState<
     Record<string, LastActivity | null>
   >({});
+  // T1.9AT: sightings the owner has not opened yet.
+  const [newObsByReport, setNewObsByReport] = useState<Record<string, number>>({});
   const [matchCountByReport, setMatchCountByReport] = useState<
     Record<string, number>
   >({});
@@ -346,6 +348,7 @@ function MyReportsScreen() {
       setUnreadByReport(unread);
       setActivityByReport(activity);
       setMatchCountByReport(matchCounts);
+      setNewObsByReport((data.newObservations ?? {}) as Record<string, number>);
       setReports(sortReportsByActivity(reps, activity));
       setLoadError(false);
       hasLoadedRef.current = true;
@@ -679,6 +682,7 @@ function MyReportsScreen() {
     const status = reportStatus(r, language, t);
     const latestChatId = act?.match_id;
     const count = matchCountByReport[r.id] ?? 0;
+    const newObs = newObsByReport[r.id] ?? 0;
     const lost = r.type === "LOST";
     const thumb = thumbnailOf(r);
     const title = caseTitle(r, language);
@@ -752,6 +756,15 @@ function MyReportsScreen() {
             />
           </View>
         </View>
+
+        {newObs > 0 && (
+          <View style={styles.lastMessage}>
+            <Ionicons name="eye-outline" size={16} color={theme.colors.unread} />
+            <Text style={[styles.lastMessageText, styles.unreadText]} numberOfLines={1}>
+              {t("cases.newObservations", { count: newObs })}
+            </Text>
+          </View>
+        )}
 
         {act && (
           <View style={styles.lastMessage}>

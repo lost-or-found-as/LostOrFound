@@ -1689,6 +1689,7 @@ export const en = {
   "cases.loadFailed.body": "Check your connection and try again.",
   "cases.noMatchesSearching": "No matches yet · we are looking",
   "cases.chatNew": "Chat · new message",
+  "cases.newObservations": "Sightings: {{count}} new – open the case to see them",
   "cases.pullToRefresh": "Pull down to refresh",
   "cases.menu.view": "View case",
   "cases.menu.free": "free",

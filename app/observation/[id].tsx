@@ -131,7 +131,7 @@ function Screen() {
   const resolved = o?.status === "CONFIRMED" || resolution.status === "ACCEPTED";
 
   const statusText = (status?: string) =>
-    status === "NEW"
+    status === "NEW" || status === "ACKNOWLEDGED"
       ? t("observation.detail.statusNew")
       : status === "RELEVANT"
         ? t("observation.detail.statusRelevant")

@@ -122,9 +122,15 @@ h1{margin:0;font-size:44px;text-align:center;line-height:1.1}.sub,.meta{margin:0
 .bottom{display:flex;align-items:center;gap:6mm;border-top:2px solid #0F172A;padding-top:5mm}
 .qr{width:42mm;height:42mm;flex-shrink:0}.qr svg{width:100%;height:100%}
 .cta{font-size:24px;font-weight:900}.url{font-size:13px;color:#475569;word-break:break-all}
-.print{position:fixed;right:16px;bottom:16px;padding:12px 18px;border-radius:12px;border:0;background:#111827;color:#fff;font-weight:900;font-size:16px}
-@media print{.print{display:none}}`;
-  const body = `<div class="page">
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:186mm;margin:0 auto;padding:12px 16px}
+.bar p{margin:0;font-size:14px;color:#334155}
+.print{flex-shrink:0;min-height:44px;padding:0 18px;border-radius:12px;border:0;background:#111827;color:#fff;font-weight:900;font-size:16px}
+@media screen{body{background:#E5E7EB}.page{background:#FFFFFF;margin:0 12px 24px;padding:8mm 6mm;border-radius:4mm;box-shadow:0 2px 12px rgba(15,23,42,.15)}
+@media (min-width:760px){.page{margin:0 auto 24px}}
+@media (max-width:600px){.kicker{font-size:40px}h1{font-size:30px}.sub,.meta{font-size:17px}.photo{height:auto;aspect-ratio:4/3}.bottom{flex-direction:column;text-align:center}.qr{width:44vw;height:44vw}}}
+@media print{.bar{display:none}}`;
+  const body = `<div class="bar"><p>${esc(message(lang, "share.posterHint"))}</p><button class="print" onclick="window.print()">${esc(message(lang, "share.posterPrint"))}</button></div>
+<div class="page">
 <div class="kicker">${esc(c.kicker)}</div>
 ${photoUrl ? `<img class="photo" src="${esc(photoUrl)}" alt="${esc(c.heading)}">` : ""}
 <h1>${esc(c.heading)}</h1>
@@ -133,8 +139,7 @@ ${c.since || c.area ? `<p class="meta">${esc([c.since, c.area].filter(Boolean).j
 ${c.description ? `<p class="desc">${esc(c.description.slice(0, 280))}</p>` : ""}
 ${c.temperament ? `<div class="warn">${esc(c.temperament)}</div>` : ""}
 <div class="bottom">${qrSvg ? `<div class="qr">${qrSvg}</div>` : ""}<div><div class="cta">${esc(message(lang, "share.posterScan"))}</div><div>${esc(message(lang, "share.posterFooter"))}</div><div class="url">${esc(pageUrl)}</div></div></div>
-</div>
-<button class="print" onclick="window.print()">${esc(message(lang, "share.posterPrint"))}</button>`;
+</div>`;
   return `<!doctype html><html lang="${lang === "no" ? "nb" : esc(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(`${c.kicker}: ${c.heading}`)}</title><style>${style}</style></head><body>${body}</body></html>`;
 }
 

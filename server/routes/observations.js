@@ -51,6 +51,8 @@ router.get("/:id",requireUser,async(req,res)=>{try{
  if(!q.data||(q.data.observer_user_id!==userId&&q.data.report_owner_user_id!==userId))return res.status(404).json({error:"OBSERVATION_NOT_FOUND"});
  const p=await supaAdmin.rpc("observation_point",{p_observation_id:id});if(p.error)throw p.error;const pt=Array.isArray(p.data)?p.data[0]:p.data;
  const c=await supaAdmin.from("observation_conversations").select("id").eq("observation_id",id).maybeSingle();if(c.error&&c.error.code!=="42P01")throw c.error;
+ // T1.9AT: the owner has now seen it; it no longer counts as new on the case card.
+ if(q.data.report_owner_user_id===userId&&q.data.status==="NEW"){const a=await supaAdmin.from("area_alert_observations").update({status:"ACKNOWLEDGED",updated_at:new Date().toISOString()}).eq("id",id).eq("status","NEW");if(a.error)console.warn("[observations] acknowledge failed",a.error.message);else q.data.status="ACKNOWLEDGED";}
  return res.json({ok:true,role:q.data.report_owner_user_id===userId?"OWNER":"OBSERVER",conversationId:c.data?.id||null,observation:{...q.data,latitude:pt?.latitude,longitude:pt?.longitude}});
 }catch(e){return res.status(500).json({error:e?.message||"OBSERVATION_LOAD_FAILED"});}});
 router.post("/:id/status",requireUser,async(req,res)=>{try{

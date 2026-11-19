@@ -68,6 +68,19 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
     const reportIds = reps.map((r) => r.id);
     const reportSet = new Set(reportIds);
 
+    // T1.9AT: sightings the owner has not opened yet, shown on the case card.
+    const newObservations = {};
+    {
+      const { data: obs, error: oErr } = await supaAdmin
+        .from("area_alert_observations")
+        .select("report_id")
+        .in("report_id", reportIds)
+        .eq("report_owner_user_id", user.id)
+        .eq("status", "NEW");
+      if (oErr) console.warn("[reports] new observations failed", oErr.message);
+      for (const o of obs || []) newObservations[o.report_id] = (newObservations[o.report_id] || 0) + 1;
+    }
+
     // T1.9I: lifecycle facts My cases needs for its menu (extend twice, then historic case).
     // T1.9AC: thumbnails load alongside the lifecycle facts.
     const thumbnailsPromise = loadThumbnailUrls(supaAdmin, reportIds);
@@ -148,7 +161,7 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
     ]));
 
     if (matchIds.length === 0) {
-      return res.json({ reports: reps, matchToReport, historyMatchToReport, lastMessages: [] });
+      return res.json({ reports: reps, matchToReport, historyMatchToReport, lastMessages: [], newObservations });
     }
 
     // 4) Load the latest message per match in one request. Requires last_message_per_conversation.
@@ -170,6 +183,7 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
       matchToReport,
       historyMatchToReport,
       lastMessages: lastRows || [],
+      newObservations,
     });
   } catch (e) {
     return res.status(500).json({ error: e?.message ?? "Server error" });

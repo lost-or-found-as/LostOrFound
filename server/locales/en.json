@@ -58,5 +58,6 @@
   "share.closedBody": "The owner has closed the case or stopped sharing it. Thank you for wanting to help!",
   "share.posterScan": "Scan the code to report",
   "share.posterPrint": "Print the poster",
-  "share.posterFooter": "Report anonymously in the Lost or Found app"
+  "share.posterFooter": "Report anonymously in the Lost or Found app",
+  "share.posterHint": "Print it, or choose «Save as PDF» to send the poster on."
 }

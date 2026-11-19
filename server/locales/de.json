@@ -51,5 +51,6 @@
   "share.closedBody": "Der Eigentümer hat den Fall abgeschlossen oder teilt ihn nicht mehr. Danke, dass du helfen wolltest!",
   "share.posterScan": "Code scannen und melden",
   "share.posterPrint": "Plakat drucken",
-  "share.posterFooter": "Anonym in der Lost-or-Found-App melden"
+  "share.posterFooter": "Anonym in der Lost-or-Found-App melden",
+  "share.posterHint": "Drucken oder „Als PDF sichern“ wählen, um das Plakat weiterzugeben."
 }

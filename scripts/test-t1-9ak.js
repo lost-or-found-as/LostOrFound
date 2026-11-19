@@ -42,7 +42,7 @@ ok(/Lost/.test(item) && !/Luna/.test(item) && !/shy/i.test(item), "an item shows
 const poster = page.renderPoster({ report, lang: "no", photoUrl: null, pageUrl: "https://api.lostorfound.app/s/abcdefghijklmnopqrst", qrSvg: "<svg id=\"qr\"></svg>" });
 ok(/<svg id="qr"><\/svg>/.test(poster) && /@page\{size:A4/.test(poster), "A4 poster with the QR code");
 ok(/Skann koden/.test(poster) && /window\.print\(\)/.test(poster), "scan text and print button");
-ok(/@media print\{\.print\{display:none\}\}/.test(poster), "print button not printed");
+ok(/@media print\{\.bar\{display:none\}\}/.test(poster), "print toolbar not printed (T1.9AT)");
 ok(page.renderPoster({ report, lang: "en", photoUrl: null, pageUrl: "u", qrSvg: null }).includes("Scan the code"), "poster works without a QR code");
 
 // Routes.

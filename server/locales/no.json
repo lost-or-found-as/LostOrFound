@@ -58,5 +58,6 @@
   "share.closedBody": "Eieren har avsluttet saken eller sluttet å dele den. Takk for at du ville hjelpe!",
   "share.posterScan": "Skann koden for å melde fra",
   "share.posterPrint": "Skriv ut plakaten",
-  "share.posterFooter": "Meld fra anonymt i Lost or Found-appen"
+  "share.posterFooter": "Meld fra anonymt i Lost or Found-appen",
+  "share.posterHint": "Skriv ut, eller velg «Lagre som PDF» for å sende plakaten videre."
 }
