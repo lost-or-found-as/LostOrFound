@@ -48,6 +48,8 @@ export default function MapPickerScreen() {
     longitude: draft.location?.longitude ?? 10.7522,
   });
   const [locating, setLocating] = useState(false);
+  // T1.9AU: the blue dot appears once the user has asked for their location.
+  const [showUser, setShowUser] = useState(false);
   const [addressQuery, setAddressQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [addressResults, setAddressResults] = useState<any[]>([]);
@@ -195,8 +197,13 @@ export default function MapPickerScreen() {
   };
 
   const placePoint = (point: Point) => {
+    // T1.9AU: with a route or an area open, my location and the address search only move the
+    // map; the user taps the points and the chosen tab stays. Only a place gets a pin here.
+    const drawingShape = selectedArea ? selectedArea.kind !== "CIRCLE" : mode !== "CIRCLE";
     if (isFound) {
       setFoundPin(point);
+    } else if (drawingShape) {
+      // Map only, see above.
     } else if (selectedArea?.kind === "CIRCLE") {
       setAreas((current) => current.map((area) => area.id === selectedArea.id ? { ...area, points: [point] } : area));
     } else if (!atLimit) {
@@ -262,6 +269,7 @@ export default function MapPickerScreen() {
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const point = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      setShowUser(true);
       placePoint(point);
     } catch {
       setNotice({ tone: "warning", title: t("report.map.location.failedTitle"), body: t("report.map.location.failedBody") });
@@ -394,7 +402,7 @@ export default function MapPickerScreen() {
   if (isFound) {
     return (
       <View style={styles.safe}>
-        <MapView ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} onPress={onMapPress}>
+        <MapView ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} showsUserLocation={showUser} onPress={onMapPress}>
           <Marker coordinate={foundPin} draggable onDragEnd={(event) => { clearNotice(); setFoundPin(event.nativeEvent.coordinate); }} />
         </MapView>
         {renderTop()}
@@ -413,7 +421,7 @@ export default function MapPickerScreen() {
 
   return (
     <View style={styles.safe}>
-      <MapView ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} onPress={onMapPress}>
+      <MapView ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} showsUserLocation={showUser} onPress={onMapPress}>
         {areas.map(renderArea)}
         {workingPoints.map((point, index) => <Marker key={`working-${index}`} coordinate={point} pinColor="#F59E0B" />)}
         {mode === "ROUTE" && workingPoints.length > 1 && <Polyline coordinates={workingPoints} strokeWidth={6} strokeColor="#F59E0B" />}

@@ -61,6 +61,36 @@ import type { TranslationKey } from "../../src/i18n/locales/en";
 const MAX_IMAGES = 3;
 // T1.9N: map shown before a place is chosen when the phone's position is not available.
 const NORWAY_REGION = { latitude: 64.5, longitude: 12.5, latitudeDelta: 14, longitudeDelta: 14 };
+type PreviewRegion = { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
+
+/** Map span for the preview: the search radius fits with some margin, at least a few blocks. */
+function previewDelta(radiusMeters?: number | null): number {
+  return Math.min(1.2, Math.max(0.012, (Number(radiusMeters) || 0) * 4 / 111000));
+}
+
+/**
+ * T1.9AU: the small, locked map on the form. iOS can ignore the region of a map that mounts
+ * before it has a size (it then showed half of Norway), so the map also moves itself to the
+ * region once it is ready, and it is mounted anew when the region changes.
+ */
+function PreviewMap({ region, showsUserLocation, children }: { region: PreviewRegion; showsUserLocation?: boolean; children?: React.ReactNode }) {
+  const ref = useRef<MapView>(null);
+  return (
+    <MapView
+      key={`${region.latitude},${region.longitude},${region.latitudeDelta}`}
+      ref={ref}
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      initialRegion={region}
+      onMapReady={() => ref.current?.animateToRegion(region, 0)}
+      showsUserLocation={showsUserLocation}
+      scrollEnabled={false}
+      zoomEnabled={false}
+    >
+      {children}
+    </MapView>
+  );
+}
 const REWARD_PRESETS = [0, 200, 500];
 // The reward is only offered where the app knows the currency rules (same as today).
 const rewardEnabledForLocale = () => {
@@ -825,13 +855,7 @@ export default function RegisterScreen() {
               style={s.mapBox}
             >
               {confirmed && lat != null && lng != null ? (
-                <MapView
-                  pointerEvents="none"
-                  style={StyleSheet.absoluteFill}
-                  region={{ latitude: lat, longitude: lng, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                >
+                <PreviewMap region={{ latitude: lat, longitude: lng, latitudeDelta: previewDelta(draft.location?.radiusMeters), longitudeDelta: previewDelta(draft.location?.radiusMeters) }}>
                   <Marker coordinate={{ latitude: lat, longitude: lng }} />
                   {type === "LOST" && !!draft.location?.radiusMeters && (
                     <Circle
@@ -841,17 +865,10 @@ export default function RegisterScreen() {
                       fillColor="rgba(37,99,235,.12)"
                     />
                   )}
-                </MapView>
+                </PreviewMap>
               ) : (
                 <>
-                  <MapView
-                    pointerEvents="none"
-                    style={StyleSheet.absoluteFill}
-                    region={here ? { ...here, latitudeDelta: 0.02, longitudeDelta: 0.02 } : NORWAY_REGION}
-                    showsUserLocation={!!here}
-                    scrollEnabled={false}
-                    zoomEnabled={false}
-                  />
+                  <PreviewMap region={here ? { ...here, latitudeDelta: 0.02, longitudeDelta: 0.02 } : NORWAY_REGION} showsUserLocation={!!here} />
                   <View style={s.mapHint}>
                     <Text style={s.mapPillText}>{type === "FOUND" ? t("register.where.pickFound") : t("register.where.pickLost")}</Text>
                   </View>
