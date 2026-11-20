@@ -475,6 +475,8 @@ function Screen() {
           <Row label={t("caseDetail.object")} value={[title, category].filter(Boolean).join(" · ")} />
           <Row label={t("caseDetail.color")} value={colors} />
           <Row label={t("caseDetail.brand")} value={r.brand} />
+          {/* T1.9AW */}
+          <Row label={t("caseDetail.size")} value={r.item_size} />
           {/* T1.9AJ: pets */}
           <Row label={t("caseDetail.pet.name")} value={r.pet_name} />
           <Row label={t("caseDetail.pet.breed")} value={r.pet_breed} />

@@ -1,5 +1,6 @@
 // src/lib/imageAnalysis.ts
-// T1.9AI: asks the server what a registration photo shows. The photo is shrunk to a small JPEG
+// T1.9AI: asks the server what a registration photo shows. T1.9AW: all photos of the registration
+// (up to three) go together, so a photo of a label can add brand and size. The photo is shrunk to a small JPEG
 // first (about 60-150 KB). Every failure returns null: the screen then simply shows the search,
 // so registration never depends on the analysis.
 import * as ImageManipulator from "expo-image-manipulator";
@@ -13,10 +14,13 @@ export type PhotoSuggestion = {
   item: string | null;
   colors: string[];
   brand: string | null;
+  // T1.9AW: a size read from a label, as written ("M", "38").
+  size: string | null;
   alternatives: PhotoAlternative[];
 };
 
-const TIMEOUT_MS = 20000;
+const TIMEOUT_MS = 25000;
+const MAX_PHOTOS = 3;
 
 /** Small JPEG as base64 for the analysis (not the stored photo). */
 async function analysisImage(uri: string): Promise<string | null> {
@@ -28,11 +32,20 @@ async function analysisImage(uri: string): Promise<string | null> {
   return out.base64 ?? null;
 }
 
-/** The server's suggestion for a photo, or null when there is none (any error, limit or switch off). */
+/** The server's suggestion for one photo, or null (any error, limit or switch off). */
 export async function analyzeReportPhoto(uri: string): Promise<PhotoSuggestion | null> {
+  return analyzeReportPhotos([uri]);
+}
+
+/** T1.9AW: the server's suggestion for the photos of one item together, or null. */
+export async function analyzeReportPhotos(uris: string[]): Promise<PhotoSuggestion | null> {
   try {
-    const image = await analysisImage(uri);
-    if (!image) return null;
+    const images: string[] = [];
+    for (const uri of uris.slice(0, MAX_PHOTOS)) {
+      const image = await analysisImage(uri);
+      if (image) images.push(image);
+    }
+    if (!images.length) return null;
     const token = (await supabase.auth.getSession()).data.session?.access_token;
     if (!token) return null;
     const controller = new AbortController();
@@ -41,7 +54,7 @@ export async function analyzeReportPhoto(uri: string): Promise<PhotoSuggestion |
       const res = await fetch(`${API_BASE_URL}/image-analysis`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ image }),
+        body: JSON.stringify({ images }),
         signal: controller.signal,
       });
       if (!res.ok) return null;
@@ -66,6 +79,7 @@ export function toSuggestion(data: any): PhotoSuggestion | null {
     item: typeof s.item === "string" ? s.item : null,
     colors: Array.isArray(s.colors) ? s.colors.filter((c: unknown) => typeof c === "string").slice(0, 2) : [],
     brand: typeof s.brand === "string" && s.brand.trim() ? s.brand.trim() : null,
+    size: typeof s.size === "string" && s.size.trim() ? s.size.trim().slice(0, 30) : null,
     alternatives: Array.isArray(s.alternatives)
       ? s.alternatives
           .filter((a: any) => typeof a?.key === "string")

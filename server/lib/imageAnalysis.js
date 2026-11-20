@@ -1,5 +1,6 @@
 "use strict";
-// T1.9AI: photo analysis for registration. The app sends one small JPEG; the server asks a vision
+// T1.9AI: photo analysis for registration. The app sends one to three small JPEGs of the same item
+// (T1.9AW: all photos together, so a label photo can add brand and size); the server asks a vision
 // model (Claude Haiku via the Anthropic API) which item from OUR catalog it shows, its colours
 // and a visible brand. The answer is checked against the catalog, so only known keys reach the
 // app, and the user always confirms. The photo is not stored by us; image_analyses keeps only
@@ -11,11 +12,14 @@
 //   IMAGE_ANALYSIS_MODEL            optional, default claude-haiku-5-5
 //   IMAGE_ANALYSIS_UNLIMITED_USER_IDS  optional, comma-separated test accounts without the daily limit (T1.9AV)
 const catalog = require("../data/itemCatalog.json");
+const { isAnimal } = require("./reportPet");
 
 const DEFAULT_MODEL = "claude-haiku-5-5";
 const API_URL = "https://api.anthropic.com/v1/messages";
-const TIMEOUT_MS = 15000;
+const TIMEOUT_MS = 18000;
+const MAX_IMAGES = 3; // T1.9AW: the photos of one registration, analysed together
 const MAX_IMAGE_BYTES = 700 * 1024; // decoded JPEG; the app sends about 60-150 KB
+const MAX_TOTAL_BYTES = 900 * 1024; // T1.9AW: all photos of one request together
 const DAILY_LIMIT = Object.freeze({ account: 10, guest: 3 });
 const CONFIDENCE = new Set(["high", "medium", "low"]);
 
@@ -48,6 +52,20 @@ function checkImage(base64) {
   return bytes;
 }
 
+/**
+ * T1.9AW: the photos of one request, from { images: [...] } or the older { image } (builds before
+ * T1.9AW). Returns the base64 list; throws IMAGE_INVALID, IMAGE_TOO_LARGE or TOO_MANY_IMAGES.
+ */
+function requestImages(body) {
+  const list = Array.isArray(body?.images) ? body.images : body?.image != null ? [body.image] : [];
+  if (!list.length) throw analysisError("IMAGE_INVALID");
+  if (list.length > MAX_IMAGES) throw analysisError("TOO_MANY_IMAGES");
+  let total = 0;
+  for (const image of list) total += checkImage(image);
+  if (total > MAX_TOTAL_BYTES) throw analysisError("IMAGE_TOO_LARGE");
+  return list.map(String);
+}
+
 /** The fixed instructions plus the catalog keys (English names), cached by the API between calls. */
 function systemPrompt() {
   const categories = Object.entries(catalog.categories).map(([k, v]) => `${k}: ${v.en}`).join("\n");
@@ -60,16 +78,20 @@ function systemPrompt() {
     .map(([k, v]) => `${k}: ${v.en}`)
     .join("\n");
   return [
-    "You help people register a lost or found item in a lost-and-found app. You get one photo.",
+    "You help people register a lost or found item in a lost-and-found app. You get one to three photos of the same item;",
+    "a later photo often shows a detail such as a label, a size tag or a logo.",
     "Answer with ONE JSON object and nothing else, in this shape:",
-    '{"category":"<category key>","item":"<item key or null>","colors":["<color key>"],"brand":"<brand or null>","confidence":"high|medium|low","alternatives":["<item key>"]}',
+    '{"category":"<category key>","item":"<item key or null>","colors":["<color key>"],"brand":"<brand or null>","size":"<size or null>","confidence":"high|medium|low","alternatives":["<item key>"]}',
     "Rules:",
     "- Use only keys from the lists below. If no item fits, use null for item and the closest category.",
     "- colors: the main colour first, at most two.",
-    "- brand: only when a logo or brand name is clearly visible on the item; otherwise null.",
+    "- Item and colours: judge from the photo that shows the whole item best.",
+    "- brand: only when a logo, brand name or brand label is clearly visible on the item in any photo; otherwise null.",
+    "- size: only when a size is clearly printed on a label or tag of the item (for example M, 38, EU 42, 128 cm, 20 L); copy it short, otherwise null.",
     "- alternatives: up to three other likely item keys when you are not sure; otherwise [].",
     "- confidence: high only when the item is clearly visible and unambiguous.",
-    "- Never read out or repeat text from cards, IDs, passports, documents, screens or licence plates.",
+    "- Never read out or repeat text from cards, IDs, passports, documents, screens or licence plates. Brand and size labels sewn or printed on clothes, shoes and gear are fine.",
+    "- Never copy names, addresses, phone numbers or other personal details written on a label.",
     "- If the photo shows no item (for example only a person, a face or a landscape), use null for item and low confidence.",
     "",
     "Categories:",
@@ -120,6 +142,8 @@ function validateSuggestion(raw) {
       alternatives.push(a);
   const confidence = CONFIDENCE.has(r.confidence) ? r.confidence : "low";
   const brand = cleanText(r.brand, 40);
+  // T1.9AW: a short size from a label; animals never have one.
+  const size = itemKey && isAnimal("PETS", itemKey) ? null : cleanText(r.size, 20);
   let status;
   if (itemKey && confidence !== "low") status = "OK";
   else if (itemKey || alternatives.length) status = "UNSURE";
@@ -132,13 +156,16 @@ function validateSuggestion(raw) {
     item: status === "OK" ? itemKey : null,
     colors,
     brand,
+    size,
     confidence,
     alternatives: offered.map((key) => ({ key, category: (catalog.itemCategories[key] || [])[0] || null })),
   };
 }
 
-/** Calls the model. Returns { raw, model, inputTokens, outputTokens }. */
+/** Calls the model with one photo or a list of photos. Returns { raw, model, inputTokens, outputTokens }. */
 async function askModel(imageBase64, { env = process.env, fetchImpl = fetch } = {}) {
+  const images = (Array.isArray(imageBase64) ? imageBase64 : [imageBase64]).slice(0, MAX_IMAGES);
+  const many = images.length > 1;
   const model = String(env.IMAGE_ANALYSIS_MODEL || DEFAULT_MODEL);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -160,8 +187,16 @@ async function askModel(imageBase64, { env = process.env, fetchImpl = fetch } = 
           {
             role: "user",
             content: [
-              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } },
-              { type: "text", text: "What item is this? Answer with the JSON object only." },
+              ...images.flatMap((data, i) => [
+                ...(many ? [{ type: "text", text: `Photo ${i + 1}:` }] : []),
+                { type: "image", source: { type: "base64", media_type: "image/jpeg", data } },
+              ]),
+              {
+                type: "text",
+                text: many
+                  ? "These photos show the same item. What item is it? Answer with the JSON object only."
+                  : "What item is this? Answer with the JSON object only.",
+              },
             ],
           },
         ],
@@ -186,7 +221,10 @@ async function askModel(imageBase64, { env = process.env, fetchImpl = fetch } = 
 module.exports = {
   DAILY_LIMIT,
   unlimitedUser,
+  MAX_IMAGES,
   MAX_IMAGE_BYTES,
+  MAX_TOTAL_BYTES,
+  requestImages,
   analysisEnabled,
   analysisError,
   checkImage,

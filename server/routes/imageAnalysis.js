@@ -1,7 +1,8 @@
 "use strict";
 // T1.9AI: photo analysis for registration (guests too, they can report finds).
-//   POST /image-analysis   { image: "<base64 JPEG>" }
-//   200 { status: "OK" | "UNSURE" | "NO_ITEM", suggestion: { category, item, colors, brand, confidence, alternatives } }
+//   POST /image-analysis   { images: ["<base64 JPEG>", ...] }  (1-3 photos of one item; T1.9AW)
+//                          { image: "<base64 JPEG>" }            (builds before T1.9AW)
+//   200 { status: "OK" | "UNSURE" | "NO_ITEM", suggestion: { category, item, colors, brand, size, confidence, alternatives } }
 //   429 IMAGE_ANALYSIS_DAILY_LIMIT · 503 IMAGE_ANALYSIS_DISABLED · 502 ANALYSIS_UNAVAILABLE / ANALYSIS_TIMEOUT
 // The app treats every error the same way: the suggestion card is hidden and search works as before.
 const express = require("express");
@@ -32,8 +33,9 @@ router.post("/", requireUserOrGuest, async (req, res) => {
   const userId = req.user?.id;
   const isGuest = !!req.isGuest;
   if (!analysis.analysisEnabled()) return res.status(503).json({ error: "IMAGE_ANALYSIS_DISABLED" });
+  let images;
   try {
-    analysis.checkImage(req.body?.image);
+    images = analysis.requestImages(req.body);
   } catch (e) {
     return res.status(400).json({ error: e.code || "IMAGE_INVALID" });
   }
@@ -46,7 +48,7 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       if (used >= limit) return res.status(429).json({ error: "IMAGE_ANALYSIS_DAILY_LIMIT", limit, used });
     }
 
-    const answer = await analysis.askModel(String(req.body.image));
+    const answer = await analysis.askModel(images);
     const suggestion = analysis.validateSuggestion(answer.raw);
     await record({
       user_id: userId,

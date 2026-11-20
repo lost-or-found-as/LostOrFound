@@ -32,6 +32,8 @@ export type ReportDraft = {
   color?: string;
   colorSecondary?: string;
   brand?: string;
+  // T1.9AW: optional size in the user's own words ("M", "38", "128 cm"); never for animals.
+  itemSize?: string;
   rewardNOK?: string;
   occurredAtISO?: string;
   // T1.9K (new registration): how precisely the date is known, and where a found item is now.
@@ -62,6 +64,7 @@ const initialDraft: ReportDraft = {
   color: "",
   colorSecondary: "",
   brand: "",
+  itemSize: "",
   rewardNOK: "0",
   occurredAtISO: undefined,
   location: { latitude: 59.9139, longitude: 10.7522, radiusMeters: 500, confirmed: false },

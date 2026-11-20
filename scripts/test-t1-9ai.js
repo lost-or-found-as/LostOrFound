@@ -80,7 +80,8 @@ const lib = require(path.join(root, "server/lib/imageAnalysis.js"));
 
   // App.
   const screen = read("app/(report)/register.tsx");
-  ok(/if \(first && !draft\.subcategoryKey\) void runPhotoAnalysis\(uri\)/.test(screen), "only the first photo, only before an item is chosen");
+  // T1.9AW replaced "first photo only": every added photo sends all photos (see test-t1-9aw.js).
+  ok(/void runPhotoAnalysis\(next, !!draft\.subcategoryKey\);/.test(screen), "photos analysed when added");
   ok(/onPress=\{\(\) => applyPhotoSuggestion\(photoAi\.suggestion!\.item!/.test(screen), "suggestion used only on tap");
   ok(/!draft\.color\)/.test(screen) && /!String\(draft\.brand \|\| ""\)\.trim\(\)/.test(screen), "never overwrites what the user typed");
   ok(/register\.photo\.fromPhoto/.test(screen), "fields from the photo are marked");

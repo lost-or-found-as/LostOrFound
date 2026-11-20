@@ -5,6 +5,9 @@
 // Uses the same draft as the current screen, so the map screen works unchanged.
 // T1.9AI: the first photo is analysed; the suggested item, colours and brand are offered on a
 // card and only used when the user taps «Bruk forslaget» (or picks one of the alternatives).
+// T1.9AW: every added photo sends all photos again, so a label photo can add brand and size; once
+// the item is chosen, new findings come on a small «Nytt fra bildene» card that fills empty fields.
+// Optional size field for everything except animals (quick choices XS-XXL for clothes).
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -30,7 +33,7 @@ import { formatDate, formatDateTimeCustom, formatMoney, formatTime } from "../..
 import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
 import { captureOneImage, pickOneImage, uploadReportImage } from "../../src/lib/images";
-import { analyzeReportPhoto, type PhotoSuggestion } from "../../src/lib/imageAnalysis";
+import { analyzeReportPhotos, type PhotoSuggestion } from "../../src/lib/imageAnalysis";
 import { ensureFoundIdentity, ensureLostAuthenticated, isAnonymousUser } from "../../src/lib/authGate";
 import { ensureProfileRow } from "../../src/lib/profile";
 import { reverseGeocodeToLabel } from "../../src/lib/reverseGeocode";
@@ -38,6 +41,7 @@ import { reportHandledError } from "../../src/lib/sentry";
 import { userErrorMessage } from "../../src/lib/userError";
 import {
   cleanRewardInput,
+  CLOTHING_SIZES,
   isAnimal,
   isLongAgo,
   IDENTIFIER_KIND_LABELS,
@@ -49,6 +53,7 @@ import {
   occurredAtFor,
   reportBody,
   searchItems,
+  showsLetterSizes,
   type Custody,
   type OccurredPrecision,
 } from "../../src/lib/registerForm";
@@ -141,7 +146,9 @@ export default function RegisterScreen() {
     state: "idle",
     suggestion: null,
   });
-  const [fromPhoto, setFromPhoto] = useState<{ colors?: boolean; brand?: boolean }>({});
+  const [fromPhoto, setFromPhoto] = useState<{ colors?: boolean; brand?: boolean; size?: boolean }>({});
+  // T1.9AW: what new photos found after the item was chosen (only fields that are still empty).
+  const [photoExtras, setPhotoExtras] = useState<{ colors?: string[]; brand?: string; size?: string } | null>(null);
   const photoAiRun = useRef(0);
 
   const type: "LOST" | "FOUND" = draft.type === "FOUND" ? "FOUND" : "LOST";
@@ -198,10 +205,32 @@ export default function RegisterScreen() {
   const longAgo = type === "LOST" && isLongAgo(draft.occurredAtISO);
   const areaCount = (draft.searchAreas || []).length;
 
-  const runPhotoAnalysis = async (uri: string) => {
+  /** T1.9AW: the fields a suggestion could still fill (empty ones only; no brand or size for animals). */
+  const extrasFrom = (suggestion: PhotoSuggestion | null) => {
+    if (!suggestion) return null;
+    const extras: { colors?: string[]; brand?: string; size?: string } = {};
+    if (suggestion.colors.length && !draft.color) extras.colors = suggestion.colors;
+    const pet = isAnimal(draft.category, draft.subcategoryKey);
+    if (!pet && suggestion.brand && !String(draft.brand || "").trim()) extras.brand = suggestion.brand;
+    if (!pet && suggestion.size && !String(draft.itemSize || "").trim()) extras.size = suggestion.size;
+    return Object.keys(extras).length ? extras : null;
+  };
+
+  // T1.9AW: all photos are analysed together. Before an item is chosen the result is the item
+  // suggestion; after that only new details are offered.
+  const runPhotoAnalysis = async (uris: string[], itemChosen: boolean) => {
     const run = ++photoAiRun.current;
+    if (itemChosen) {
+      setPhotoExtras(null);
+      setPhotoAi({ state: "loading", suggestion: null });
+      const suggestion = await analyzeReportPhotos(uris);
+      if (run !== photoAiRun.current) return;
+      setPhotoAi({ state: "done", suggestion: null });
+      setPhotoExtras(extrasFrom(suggestion));
+      return;
+    }
     setPhotoAi({ state: "loading", suggestion: null });
-    const suggestion = await analyzeReportPhoto(uri);
+    const suggestion = await analyzeReportPhotos(uris);
     if (run !== photoAiRun.current) return;
     setPhotoAi({ state: "done", suggestion: suggestion && suggestion.status !== "NO_ITEM" ? suggestion : null });
   };
@@ -209,10 +238,30 @@ export default function RegisterScreen() {
   const chooseImage = async (camera: boolean) => {
     const uri = camera ? await captureOneImage() : await pickOneImage();
     if (!uri) return;
-    const first = images.length === 0;
-    setImages((prev) => [...prev, uri].slice(0, MAX_IMAGES));
-    // Only the first photo is analysed, and only while no item is chosen yet.
-    if (first && !draft.subcategoryKey) void runPhotoAnalysis(uri);
+    const next = [...images, uri].slice(0, MAX_IMAGES);
+    setImages(next);
+    void runPhotoAnalysis(next, !!draft.subcategoryKey);
+  };
+
+  /** T1.9AW: fills the empty fields the new photos found. */
+  const applyPhotoExtras = () => {
+    if (!photoExtras) return;
+    const marks = { ...fromPhoto };
+    if (photoExtras.colors?.length && !draft.color) {
+      setField("color", photoExtras.colors[0]);
+      setField("colorSecondary", photoExtras.colors[1] ?? "");
+      marks.colors = true;
+    }
+    if (photoExtras.brand && !String(draft.brand || "").trim()) {
+      setField("brand", photoExtras.brand);
+      marks.brand = true;
+    }
+    if (photoExtras.size && !String(draft.itemSize || "").trim()) {
+      setField("itemSize", photoExtras.size);
+      marks.size = true;
+    }
+    setFromPhoto(marks);
+    setPhotoExtras(null);
   };
 
   const dismissPhotoSuggestion = () => {
@@ -225,7 +274,7 @@ export default function RegisterScreen() {
     const suggestion = photoAi.suggestion;
     if (category) setField("category", category);
     setField("subcategoryKey", item);
-    const marks: { colors?: boolean; brand?: boolean } = {};
+    const marks: { colors?: boolean; brand?: boolean; size?: boolean } = {};
     if (suggestion?.colors.length && !draft.color) {
       setField("color", suggestion.colors[0]);
       setField("colorSecondary", suggestion.colors[1] ?? "");
@@ -234,6 +283,11 @@ export default function RegisterScreen() {
     if (suggestion?.brand && !isAnimal(draft.category, draft.subcategoryKey) && !String(draft.brand || "").trim()) {
       setField("brand", suggestion.brand);
       marks.brand = true;
+    }
+    // T1.9AW: a size read from a label, same rule as brand (the chosen item decides, not the old one).
+    if (suggestion?.size && !isAnimal(category ?? undefined, item) && !String(draft.itemSize || "").trim()) {
+      setField("itemSize", suggestion.size);
+      marks.size = true;
     }
     setFromPhoto(marks);
     dismissPhotoSuggestion();
@@ -437,8 +491,9 @@ export default function RegisterScreen() {
                     style={s.photoRemove}
                     onPress={() => {
                       setImages((prev) => prev.filter((x) => x !== uri));
-                      // T1.9AI: the suggestion belongs to the first photo.
+                      // T1.9AI: the suggestion belongs to the first photo. T1.9AW: findings from removed photos go too.
                       if (uri === images[0]) dismissPhotoSuggestion();
+                      setPhotoExtras(null);
                     }}
                   >
                     <Ionicons name="close" size={16} color="#FFFFFF" />
@@ -482,7 +537,7 @@ export default function RegisterScreen() {
                   <View style={s.flex}>
                     <Text style={s.photoAiLabel}>{t("register.photo.suggestionLabel")}</Text>
                     <Text style={s.photoAiItem}>{itemName(photoAi.suggestion.item, language, photoAi.suggestion.category ?? undefined)}</Text>
-                    {(photoAi.suggestion.colors.length > 0 || !!photoAi.suggestion.brand) && (
+                    {(photoAi.suggestion.colors.length > 0 || !!photoAi.suggestion.brand || !!photoAi.suggestion.size) && (
                       <Text style={s.photoAiMeta}>
                         {[
                           photoAi.suggestion.colors.length === 2
@@ -494,6 +549,7 @@ export default function RegisterScreen() {
                               ? colorName(photoAi.suggestion.colors[0], language)
                               : "",
                           photoAi.suggestion.brand ?? "",
+                          photoAi.suggestion.size ? t("register.photo.sizeValue", { size: photoAi.suggestion.size }) : "",
                         ]
                           .filter(Boolean)
                           .join(" · ")}
@@ -537,6 +593,44 @@ export default function RegisterScreen() {
                   </Pressable>
                 </View>
                 <Text style={s.mutedSmall}>{t("register.photo.privacy")}</Text>
+              </View>
+            )}
+
+            {/* T1.9AW: after the item is chosen, new photos can still add colour, brand and size. */}
+            {!!draft.subcategoryKey && photoAi.state === "loading" && (
+              <View style={[s.rowCenter, s.photoExtrasLoading]} accessibilityRole="progressbar" accessibilityLabel={t("register.photo.analyzingMore")}>
+                <ActivityIndicator color="#1D4ED8" />
+                <Text style={s.mutedSmall}>{t("register.photo.analyzingMore")}</Text>
+              </View>
+            )}
+            {!!draft.subcategoryKey && !!photoExtras && (
+              <View style={s.photoExtras}>
+                <Text style={s.photoAiLabel}>{t("register.photo.extrasLabel")}</Text>
+                <Text style={s.photoAiMeta}>
+                  {[
+                    photoExtras.colors?.length === 2
+                      ? t("catalog.colorPair", {
+                          first: colorName(photoExtras.colors[0], language),
+                          second: colorName(photoExtras.colors[1], language).toLocaleLowerCase(),
+                        })
+                      : photoExtras.colors?.[0]
+                        ? colorName(photoExtras.colors[0], language)
+                        : "",
+                    photoExtras.brand ? t("register.photo.brandValue", { brand: photoExtras.brand }) : "",
+                    photoExtras.size ? t("register.photo.sizeValue", { size: photoExtras.size }) : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+                <View style={s.photoAiButtons}>
+                  <Pressable accessibilityRole="button" style={[s.photoAiButton, s.photoAiButtonPrimary]} onPress={applyPhotoExtras}>
+                    <Text style={s.photoAiButtonPrimaryText}>{t("register.photo.extrasUse")}</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" style={s.photoAiButton} onPress={() => setPhotoExtras(null)}>
+                    <Text style={s.photoAiButtonText}>{t("register.photo.extrasNo")}</Text>
+                  </Pressable>
+                </View>
+                <Text style={s.mutedSmall}>{t("register.photo.extrasHelp")}</Text>
               </View>
             )}
 
@@ -762,6 +856,42 @@ export default function RegisterScreen() {
                 accessibilityLabel={t("register.details.brand")}
                 value={draft.brand || ""}
                 onChangeText={(v) => setField("brand", v)}
+                style={s.input}
+              />
+            </View>
+            )}
+            {/* T1.9AW: optional size for everything except animals; quick choices for clothes. */}
+            {!animal && (
+            <View style={s.field}>
+              <Text style={s.label}>
+                {t("register.details.size")}
+                {fromPhoto.size && !!draft.itemSize ? <Text style={s.fromPhoto}>{` · ${t("register.photo.fromPhoto")}`}</Text> : null}
+              </Text>
+              {showsLetterSizes(draft.category, draft.subcategoryKey) && (
+                <View style={[s.chips, s.sizeChips]}>
+                  {CLOTHING_SIZES.map((size) => {
+                    const on = String(draft.itemSize || "").trim().toUpperCase() === size;
+                    return (
+                      <Pressable
+                        key={size}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        style={[s.chip, on && s.chipStrong]}
+                        onPress={() => setField("itemSize", on ? "" : size)}
+                      >
+                        <Text style={[s.chipText, on && s.chipStrongText]}>{size}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+              <TextInput
+                accessibilityLabel={t("register.details.size")}
+                value={draft.itemSize || ""}
+                onChangeText={(v) => setField("itemSize", v.slice(0, 30))}
+                placeholder={t("register.details.sizePlaceholder")}
+                placeholderTextColor={theme.colors.muted}
+                maxLength={30}
                 style={s.input}
               />
             </View>
@@ -1072,6 +1202,9 @@ const s = StyleSheet.create({
   photoAiBox: { marginTop: 10, padding: 14, borderRadius: 14, backgroundColor: "#F1F5F9", gap: 8 },
   photoAiTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   photoAiSuggestion: { marginTop: 10, padding: 14, borderRadius: 14, backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE", gap: 10 },
+  photoExtras: { marginTop: 10, padding: 14, borderRadius: 14, backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE", gap: 8 },
+  photoExtrasLoading: { marginTop: 10, gap: 8 },
+  sizeChips: { marginBottom: 8 },
   photoAiThumb: { width: 56, height: 56, borderRadius: 12, backgroundColor: "#E5E7EB" },
   photoAiLabel: { fontSize: 12, fontWeight: "800", color: "#1D4ED8", letterSpacing: 0.5, textTransform: "uppercase" },
   photoAiItem: { fontSize: 18, fontWeight: "900", color: theme.colors.text },

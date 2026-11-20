@@ -63,6 +63,8 @@ type ReportFull = {
   color?: string | null;
   secondary_color?: string | null;
   brand?: string | null;
+  // T1.9AW
+  item_size?: string | null;
   occurred_at?: string | null;
   created_at?: string;
   lat?: number | null;
@@ -169,6 +171,24 @@ function compareRows(m: MatchFull, language: Lang, t: (k: TranslationKey, p?: an
           ? `${lostBrand} ↔ ${foundBrand}`
           : t("matchDetail.compare.brandOneSide", { brand: lostBrand || foundBrand }),
       mark: same ? "good" : lostBrand && foundBrand ? "bad" : "unknown",
+    });
+  }
+
+  // T1.9AW: size is shown, never scored; a difference stays neutral (people often remember it wrong).
+  const lostSize = String(m.lost.item_size ?? "").trim();
+  const foundSize = String(m.found.item_size ?? "").trim();
+  if (lostSize || foundSize) {
+    const norm = (v: string) => v.replace(/\s+/g, "").toUpperCase();
+    const same = !!lostSize && !!foundSize && norm(lostSize) === norm(foundSize);
+    rows.push({
+      key: "size",
+      labelKey: "matchDetail.compare.size",
+      value: same
+        ? lostSize
+        : lostSize && foundSize
+          ? `${lostSize} ↔ ${foundSize}`
+          : t("matchDetail.compare.sizeOneSide", { size: lostSize || foundSize }),
+      mark: same ? "good" : "unknown",
     });
   }
 

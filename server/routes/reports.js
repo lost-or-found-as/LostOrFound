@@ -21,6 +21,7 @@ const { canonicalItemKey } = require("../lib/itemKeys");
 const { normalizeIdentifier, saveIdentifier, loadIdentifier } = require("../lib/reportIdentifier");
 const { normalizeCustody, normalizeOccurredPrecision } = require("../lib/reportCustody");
 const { normalizePet } = require("../lib/reportPet");
+const { normalizeItemSize } = require("../lib/reportItemSize");
 const { checkLimit, limitResponse } = require("../lib/rateLimits");
 const { isSuspended } = require("../lib/chatSafetyStore");
 
@@ -295,6 +296,8 @@ function normalizeReportPatch(body) {
   // T1.9F: validated colour key (throws INVALID_SECONDARY_COLOR).
   if ("secondary_color" in input) patch.secondary_color = normalizeSecondaryColor(input.secondary_color);
   if ("brand" in input) patch.brand = input.brand || null;
+  // T1.9AW: the size is cleaned here; an animal drops it in the update below.
+  if ("item_size" in input) patch.item_size = normalizeItemSize(null, null, input.item_size);
   // T1.9AJ: pet fields (the category check happens when the report is created).
   if ("pet_name" in input) patch.pet_name = String(input.pet_name ?? "").replace(/\s+/g, " ").trim().slice(0, 40) || null;
   if ("pet_breed" in input) patch.pet_breed = String(input.pet_breed ?? "").replace(/\s+/g, " ").trim().slice(0, 60) || null;
@@ -418,6 +421,7 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       custody_place = null,
       occurred_precision = null,
       pet_name = null,
+      item_size = null,
       pet_breed = null,
       pet_temperament = null,
     } = req.body || {};
@@ -444,6 +448,8 @@ router.post("/", requireUserOrGuest, async (req, res) => {
     let custodyFields;
     let precisionFields;
     let petFields;
+    // T1.9AW: optional size, never for animals.
+    const itemSize = normalizeItemSize(category, canonicalItemKey(subcategory_key), item_size);
     try {
       custodyFields = normalizeCustody(normalizedType, custody, custody_place);
       precisionFields = normalizeOccurredPrecision(occurred_precision, occurred_at);
@@ -560,6 +566,8 @@ router.post("/", requireUserOrGuest, async (req, res) => {
       ...precisionFields,
       // T1.9AJ: only sent when set, like custody.
       ...Object.fromEntries(Object.entries(petFields).filter(([, v]) => v != null)),
+      // T1.9AW: only sent when set, like the pet fields.
+      ...(itemSize ? { item_size: itemSize } : {}),
     };
 
     const { data, error } = await supaAdmin
@@ -743,6 +751,12 @@ router.patch("/:id", requireUser, async (req, res) => {
         return res.status(400).json({ error: petErr?.code || "INVALID_INPUT" });
       }
       if (String(existing.type).toUpperCase() !== "LOST") patch.pet_temperament = null;
+    }
+    // T1.9AW: a case that is (or becomes) an animal has no size.
+    if (["category", "subcategory_key", "item_size"].some((k) => k in patch)) {
+      const merged = { ...existing, ...patch };
+      const size = normalizeItemSize(merged.category, merged.subcategory_key, merged.item_size);
+      if (size !== (existing.item_size ?? null) || "item_size" in patch) patch.item_size = size;
     }
 
     // Require required core fields to stay valid after patch.

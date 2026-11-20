@@ -199,6 +199,8 @@ export function reportBody(
     color: draft.color || undefined,
     secondary_color: secondary,
     brand: String(draft.brand || "").trim() || undefined,
+    // T1.9AW: optional size, never for animals.
+    item_size: isAnimal(draft.category, draft.subcategoryKey) ? undefined : itemSizeText(draft.itemSize) || undefined,
     occurred_at: draft.occurredAtISO,
     occurred_precision: draft.occurredPrecision || "EXACT",
     lat: draft.location?.latitude,
@@ -215,6 +217,18 @@ export function reportBody(
     client_request_id: options.clientRequestId,
     ...(options.testOverrideWeeklyLimit ? { test_override_weekly_limit: true } : {}),
   };
+}
+
+/** T1.9AW: the size as stored: whitespace collapsed, at most 30 characters. */
+export function itemSizeText(value: string | undefined | null): string {
+  return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, 30);
+}
+
+/** T1.9AW: clothes get quick size choices; everything else (except animals) gets free text. */
+export const CLOTHING_SIZES = ["XS", "S", "M", "L", "XL", "XXL"] as const;
+const NO_LETTER_SIZES = new Set(["UMBRELLA", "SCARF", "NECK_GAITER", "BELT", "SHOES", "SNEAKERS", "BOOTS", "SANDALS"]);
+export function showsLetterSizes(category: string | undefined, key: string | undefined): boolean {
+  return String(category || "").toUpperCase() === "CLOTHING_ACCESSORIES" && !!key && !NO_LETTER_SIZES.has(String(key).toUpperCase());
 }
 
 function petBody(draft: ReportDraft): Record<string, unknown> {

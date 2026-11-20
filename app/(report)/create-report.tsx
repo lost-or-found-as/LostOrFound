@@ -355,6 +355,8 @@ export default function CreateReportScreen() {
   const color = (draft as any).color ?? "";
   const colorSecondary = (draft as any).colorSecondary ?? "";
   const brand = (draft as any).brand ?? "";
+  // T1.9AW: optional size (not for animals).
+  const itemSize = String((draft as any).itemSize ?? "");
   // T1.9AL: pet fields can be edited.
   const petName = String((draft as any).petName ?? "");
   const petBreed = String((draft as any).petBreed ?? "");
@@ -609,6 +611,7 @@ export default function CreateReportScreen() {
         setField("color" as any, report.color ?? "");
         setField("colorSecondary" as any, reportSecondaryColor(report) ?? "");
         setField("brand" as any, report.brand ?? "");
+        setField("itemSize" as any, report.item_size ?? "");
         setField("petName" as any, report.pet_name ?? "");
         setField("petBreed" as any, report.pet_breed ?? "");
         setField("petTemperament" as any, report.pet_temperament ?? "");
@@ -1054,6 +1057,8 @@ export default function CreateReportScreen() {
           color: color.trim() || undefined,
           secondary_color: secondary || (isEditMode ? null : undefined),
           brand: brand.trim() || undefined,
+          // T1.9AW: null clears the size when editing; animals never send one.
+          ...(animal ? {} : { item_size: itemSize.replace(/\s+/g, " ").trim().slice(0, 30) || (isEditMode ? null : undefined) }),
           // T1.9AL: null clears a field when editing; the server drops them for other items.
           ...(animal
             ? {
@@ -1260,6 +1265,7 @@ export default function CreateReportScreen() {
       color,
       colorSecondary,
       brand,
+      itemSize,
       animal,
       petName,
       petBreed,
@@ -1691,6 +1697,23 @@ export default function CreateReportScreen() {
                   />
                 </View>
               </View>
+
+              {/* T1.9AW: optional size, not for animals. */}
+              {!animal && (
+                <>
+                  <Text style={[styles.caption, { marginTop: theme.space.lg }]}>
+                    {t("report.create.size.optional")}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    value={itemSize}
+                    onChangeText={(v) => setField("itemSize" as any, v.slice(0, 30))}
+                    placeholder={t("register.details.sizePlaceholder")}
+                    placeholderTextColor={theme.colors.muted}
+                    maxLength={30}
+                  />
+                </>
+              )}
 
               <Text style={[styles.caption, { marginTop: theme.space.lg }]}>
                 {t("report.create.comment.optional")}
