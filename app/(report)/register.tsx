@@ -60,7 +60,7 @@ import {
 import { ALL_COLOR_KEYS, COLOR_SWATCHES, COMMON_COLOR_KEYS, nextColors } from "../../src/ui/colorSwatches";
 import { theme } from "../../src/ui/theme";
 import { InlineNotice } from "../../src/ui/InlineNotice";
-import { BottomSheet, Button, ConfirmSheet, ScreenHeader } from "../../src/ui/kit";
+import { BottomSheet, Button, ConfirmSheet, InfoButton, ScreenHeader } from "../../src/ui/kit";
 import type { TranslationKey } from "../../src/i18n/locales/en";
 
 const MAX_IMAGES = 3;
@@ -1030,7 +1030,9 @@ export default function RegisterScreen() {
             <View style={[s.card, isMissing("extra") && s.cardMissing]} onLayout={(e) => (sectionY.current.extra = e.nativeEvent.layout.y)}>
               <View style={s.cardHeader}>
                 {numberBadge(4)}
-                <Text style={s.h2}>{t("register.reward.title")}</Text>
+                <Text style={[s.h2, s.flex]}>{t("register.reward.title")}</Text>
+                {/* T1.9BA */}
+                <InfoButton title={t("register.reward.infoTitle")} body={t("register.reward.infoBody")} />
               </View>
               <View style={s.chips}>
                 {REWARD_PRESETS.map((amount) => {
@@ -1083,7 +1085,9 @@ export default function RegisterScreen() {
             <View style={[s.card, isMissing("extra") && s.cardMissing]} onLayout={(e) => (sectionY.current.extra = e.nativeEvent.layout.y)}>
               <View style={s.cardHeader}>
                 {numberBadge(4)}
-                <Text style={s.h2}>{animal ? t("register.custody.pet.title") : t("register.custody.title")}</Text>
+                <Text style={[s.h2, s.flex]}>{animal ? t("register.custody.pet.title") : t("register.custody.title")}</Text>
+                {/* T1.9BA */}
+                <InfoButton title={t("register.custody.infoTitle")} body={t("register.custody.infoBody")} />
               </View>
               {(["WITH_FINDER", "LEFT_AT_PLACE", "HANDED_IN"] as Custody[]).map((value) => {
                 const on = (draft.custody || "WITH_FINDER") === value;

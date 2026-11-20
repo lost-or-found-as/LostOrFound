@@ -18,7 +18,7 @@ import {
   unregisterPushInstallation,
   type PushPermissionState,
 } from "../src/lib/pushNotifications";
-import { Button, ConfirmSheet, ScreenHeader } from "../src/ui/kit";
+import { Button, ConfirmSheet, InfoButton, ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
 
 type Feedback = { tone: "success" | "error"; body: string };
@@ -147,6 +147,8 @@ function PushSettingsScreen() {
         <ScreenHeader
           title={t("pushSettings.push.notifications")}
           onBack={() => router.back()}
+          // T1.9BA
+          right={<InfoButton title={t("pushSettings.info.title")} body={t("pushSettings.info.body")} />}
         />
         <View style={styles.container}>
           <View style={styles.card}>

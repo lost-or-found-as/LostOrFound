@@ -8,7 +8,7 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, V
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { PremiumHeader } from "../src/ui/PremiumHeader";
+import { InfoButton, ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
 import { WithdrawalConsent } from "../src/ui/WithdrawalConsent";
 import { theme } from "../src/ui/theme";
@@ -107,7 +107,16 @@ function AreaVisibilityCreateScreen() {
     }
   };
 
-  const header = <PremiumHeader title={t("areaVisibility.title")} subtitle={String(params.title || "")} onBack={() => router.back()} />;
+  // T1.9BA: the same header as the rest of the app, with an explanation.
+  const header = (
+    <ScreenHeader
+      title={t("areaVisibility.title")}
+      subtitle={String(params.title || "")}
+      onBack={() => router.back()}
+      raised
+      right={<InfoButton title={t("areaVisibility.info.title")} body={t("areaVisibility.info.body")} />}
+    />
+  );
   const backToCase = (
     <Pressable accessibilityRole="button" style={s.primary} onPress={() => router.back()}>
       <Text style={s.primaryText}>{t("areaAlertCreate.backToCase")}</Text>

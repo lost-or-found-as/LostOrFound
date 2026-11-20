@@ -16,7 +16,7 @@ import MapView, {
   Region,
 } from "react-native-maps";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { PremiumHeader } from "../src/ui/PremiumHeader";
+import { InfoButton, ScreenHeader } from "../src/ui/kit";
 import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
 
@@ -206,7 +206,7 @@ function GeoAlertCreateScreen() {
   if (!validLocation) {
     return (
       <View style={styles.safe}>
-        <PremiumHeader
+        <ScreenHeader
           title={tr(language, "areaAlertCreate.area.alert")}
           onBack={() => router.back()}
         />
@@ -223,10 +223,13 @@ function GeoAlertCreateScreen() {
   }
 
   const header = (
-    <PremiumHeader
+    <ScreenHeader
       title={tr(language, "areaAlertCreate.notify.people.nearby")}
       subtitle={String(params.title || "")}
       onBack={() => router.back()}
+      raised
+      // T1.9BA: the same header as the rest of the app, with an explanation.
+      right={<InfoButton title={tr(language, "areaAlertCreate.info.title")} body={tr(language, "areaAlertCreate.info.body")} />}
     />
   );
 
@@ -342,7 +345,7 @@ function GeoAlertCreateScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.safe}>
-        <PremiumHeader
+        <ScreenHeader
           title={tr(language, "areaAlertCreate.notify.people.nearby")}
           subtitle={String(params.title || "")}
           onBack={() => router.back()}

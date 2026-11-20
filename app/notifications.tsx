@@ -10,7 +10,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../src/lib/supabase";
 import { API_BASE_URL } from "../src/lib/config";
 import { theme } from "../src/ui/theme";
-import { ConfirmSheet, EmptyState, IconButton, ScreenHeader } from "../src/ui/kit";
+import { ConfirmSheet, EmptyState, IconButton, InfoButton, ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
 import { groupByDay, notificationIcon, type NotificationTone } from "../src/lib/notificationDisplay";
 import { useI18n } from "../src/i18n/I18nProvider";
@@ -453,11 +453,15 @@ function NotificationsScreen() {
           subtitle={unreadCount ? t("notifications.unread.count", { count: unreadCount }) : t("notifications.allRead")}
           onBack={() => router.back()}
           right={
-            unreadCount ? (
-              <Pressable accessibilityRole="button" onPress={() => void markAllRead()} disabled={busy} style={styles.markAll} hitSlop={6}>
-                <Text style={styles.markAllText}>{t("notifications.markAllRead")}</Text>
-              </Pressable>
-            ) : undefined
+            <View style={styles.headerRight}>
+              {unreadCount ? (
+                <Pressable accessibilityRole="button" onPress={() => void markAllRead()} disabled={busy} style={styles.markAll} hitSlop={6}>
+                  <Text style={styles.markAllText}>{t("notifications.markAllRead")}</Text>
+                </Pressable>
+              ) : null}
+              {/* T1.9BA */}
+              <InfoButton title={t("notifications.info.title")} body={t("notifications.info.body")} />
+            </View>
           }
         >
           <View style={styles.tabs} accessibilityRole="tablist">
@@ -595,6 +599,7 @@ function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   muted: { marginTop: 8, color: theme.colors.textSecondary, fontWeight: "700" },
