@@ -1,9 +1,9 @@
 // app/(tabs)/profile.tsx
 // T1.9W: account card, menu rows in two labelled groups, log out and delete account (both
 // confirmed in a sheet).
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -18,6 +18,7 @@ import { deleteAccountRequest } from "../../src/lib/accountDeletion";
 import { openLegal } from "../../src/lib/legal";
 import { userErrorMessage } from "../../src/lib/userError";
 import { Button, ConfirmSheet } from "../../src/ui/kit";
+import { fetchMyBonus, levelKey, starText, type MyBonus } from "../../src/lib/helperBonus";
 
 type MenuRow = {
   key: string;
@@ -46,6 +47,18 @@ export default function ProfileTab() {
       live = false;
     };
   }, [user?.id, isGuest]);
+  // T1.9AX: the bonus row only appears while the server has the bonus switched on.
+  const [bonus, setBonus] = useState<MyBonus | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!user || isGuest) return;
+      let live = true;
+      void fetchMyBonus().then((value) => live && setBonus(value));
+      return () => {
+        live = false;
+      };
+    }, [user?.id, isGuest]),
+  );
   // T1.9D: test builds (staging) can prove that errors reach Sentry.
   const isTestBuild = process.env.EXPO_PUBLIC_APP_ENV === "staging";
   const [sentryTest, setSentryTest] = useState<"idle" | "sending" | "sent" | "failed">("idle");
@@ -96,6 +109,22 @@ export default function ProfileTab() {
       onPress: () => router.push("/push-settings"),
     },
     { key: "purchases", icon: "receipt-outline", title: t("profile.purchases"), onPress: () => router.push("/premium-status") },
+    ...(bonus?.enabled
+      ? [
+          {
+            key: "bonus",
+            icon: "ribbon-outline" as const,
+            title: t("bonus.title"),
+            value: [
+              bonus.level ? `${t(levelKey(bonus.level))}${bonus.stars > 0 ? ` ${starText(bonus.stars)}` : ""}` : "",
+              t("bonus.balanceValue", { count: bonus.balance }),
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            onPress: () => router.push("/bonus"),
+          },
+        ]
+      : []),
   ];
 
   const helpRows: MenuRow[] = [

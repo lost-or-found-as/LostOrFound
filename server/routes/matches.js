@@ -1,4 +1,4 @@
-const { awardSafely } = require("../lib/helperBonus");
+const { awardSafely, bonusEnabled, helperStatus } = require("../lib/helperBonus");
 // server/routes/matches.js
 // Matches API:
 // - GET /matches?reportId=... retrieves matches for a report.
@@ -309,8 +309,21 @@ router.get("/:id", requireUser, async (req, res) => {
       return res.status(404).json({ error: "Match not found" });
     }
 
+    // T1.9AX: the other party's helper level (level, stars and returns only; never the balance).
+    let counterpartHelper = null;
+    if (bonusEnabled()) {
+      const otherId = match.lost.user_id === user.id ? match.found.user_id : match.lost.user_id;
+      try {
+        const st = otherId ? await helperStatus({ supa: supaAdmin, userId: otherId }) : null;
+        if (st?.level) counterpartHelper = st;
+      } catch (e) {
+        console.warn("[bonus] helper status failed", e?.message ?? e);
+      }
+    }
+
     return res.json({
       match: redactCustodyForViewer(enrichMatchColorInfo(enrichMatchAreaInfo(match)), user.id),
+      counterpart_helper: counterpartHelper,
     });
   } catch (e) {
     return res.status(500).json({ error: e?.message ?? "Server error" });

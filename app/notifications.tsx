@@ -334,6 +334,11 @@ function NotificationsScreen() {
           router.push(`/observation/${n.entity_id}`);
           return;
         }
+        // T1.9AX: bonus notices open «Din bonus».
+        if (notificationType === "BONUS_AWARDED") {
+          router.push("/bonus");
+          return;
+        }
         if ((notificationType === "AREA_ALERT" || notificationType === "GEO_ALERT") && n.entity_id) {
           router.push(`/area-alert/${n.entity_id}`);
           return;

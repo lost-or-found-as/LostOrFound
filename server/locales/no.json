@@ -59,5 +59,11 @@
   "share.posterScan": "Skann koden for å melde fra",
   "share.posterPrint": "Skriv ut plakaten",
   "share.posterFooter": "Meld fra anonymt i Lost or Found-appen",
-  "share.posterHint": "Skriv ut, eller velg «Lagre som PDF» for å sende plakaten videre."
+  "share.posterHint": "Skriv ut, eller velg «Lagre som PDF» for å sende plakaten videre.",
+  "bonus.awarded.title": "Du har fått {{points}} bonus",
+  "bonus.awarded.body.FOUND_REGISTERED": "For et registrert funn. Takk for at du hjelper!",
+  "bonus.awarded.body.SIGHTING_USEFUL": "Eieren syntes observasjonen din var nyttig.",
+  "bonus.awarded.body.MATCH_CONFIRMED": "For et bekreftet treff.",
+  "bonus.awarded.body.SIGHTING_RESOLVED": "Observasjonen din hjalp eieren med å løse saken.",
+  "bonus.awarded.body.RETURN_CONFIRMED": "For en bekreftet levering. Tusen takk for hjelpen!"
 }

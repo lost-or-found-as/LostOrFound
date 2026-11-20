@@ -7,7 +7,8 @@ function localized(value, language) {
   if (!value || typeof value !== "object") return "";
   return value[normalizeLanguage(language)] || value.en || value.no || "";
 }
-async function notifyUser({ userId, type, entityType, entityId, title, body, titles, bodies, data = {} }) {
+// T1.9AX: push: false keeps it in the app only (bonus notices).
+async function notifyUser({ userId, type, entityType, entityId, title, body, titles, bodies, data = {}, push = true }) {
   // T1.9F: in-app text uses the language of the phone the user used most recently.
   const installations = await supaAdmin
     .from("push_installations")
@@ -32,6 +33,7 @@ async function notifyUser({ userId, type, entityType, entityId, title, body, tit
     .single();
 
   if (inserted.error) console.warn("[notify] in-app failed", inserted.error.message);
+  if (!push) return { inApp: !inserted.error, push: 0 };
 
   const q = await supaAdmin
     .from("push_installations")

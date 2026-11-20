@@ -37,6 +37,43 @@ function helperLevel(returns) {
   return LEVELS.find((l) => n >= l.from)?.level || null;
 }
 
+// T1.9AX: after Mesterhjelper (15 returns) one star per 15 more returns, at most five.
+const STAR_STEP = 15;
+const MAX_STARS = 5;
+function helperStars(returns) {
+  const n = Number(returns) || 0;
+  return Math.max(0, Math.min(MAX_STARS, Math.floor((n - LEVELS[0].from) / STAR_STEP)));
+}
+
+/** T1.9AX: the next level (or star) and how many returns it takes, for the progress bar. */
+function nextStep(returns) {
+  const n = Number(returns) || 0;
+  const up = [...LEVELS].reverse().find((l) => n < l.from);
+  if (up) return { kind: "LEVEL", level: up.level, at: up.from };
+  const stars = helperStars(n);
+  if (stars >= MAX_STARS) return null;
+  return { kind: "STAR", stars: stars + 1, at: LEVELS[0].from + (stars + 1) * STAR_STEP };
+}
+
+/** T1.9AX: in-app notice (never push) when bonus is earned. Never throws. */
+async function notifyAwarded({ userId, event, points, ledgerId, notify, log = console }) {
+  try {
+    const send = notify || require("./userNotify").notifyUser;
+    const { localizedPair } = require("./messages");
+    await send({
+      userId,
+      type: "BONUS_AWARDED",
+      entityType: "bonus",
+      entityId: ledgerId || userId,
+      titles: localizedPair("bonus.awarded.title", { points }),
+      bodies: localizedPair(`bonus.awarded.body.${event}`),
+      push: false,
+    });
+  } catch (e) {
+    log.warn?.("[bonus] notice failed", e?.message || String(e));
+  }
+}
+
 function addMonths(ms, months) {
   const d = new Date(ms);
   d.setUTCMonth(d.getUTCMonth() + months);
@@ -71,7 +108,7 @@ async function isSuspended(supa, userId) {
  * Awards bonus for one event. Returns { awarded, points, reason }.
  * input = { userId, event, sourceType, sourceId, reportId, counterpartUserId, caseReportId }
  */
-async function award(input, { supa, now = Date.now(), env = process.env, log = console } = {}) {
+async function award(input, { supa, now = Date.now(), env = process.env, log = console, notify } = {}) {
   const { userId, event, sourceType = null, sourceId = null, reportId = null, counterpartUserId = null, caseReportId = null } = input;
   const done = (awarded, points, reason) => {
     log.log?.(`[bonus] ${event} ${awarded ? `+${points}` : `skipped ${reason}`}`);
@@ -115,7 +152,7 @@ async function award(input, { supa, now = Date.now(), env = process.env, log = c
 
   const pending = event === "FOUND_REGISTERED";
   const validFrom = pending ? now + FOUND_HOLD_MS : now;
-  const { error } = await supa.from("helper_bonus_ledger").insert({
+  const { data: inserted, error } = await supa.from("helper_bonus_ledger").insert({
     user_id: userId,
     event_type: event,
     points,
@@ -127,11 +164,13 @@ async function award(input, { supa, now = Date.now(), env = process.env, log = c
     counterpart_user_id: counterpartUserId,
     valid_from: new Date(validFrom).toISOString(),
     expires_at: new Date(addMonths(validFrom, VALID_MONTHS)).toISOString(),
-  });
+  }).select("id").maybeSingle();
   if (error) {
     if (error.code === "23505") return done(false, 0, "ALREADY_AWARDED");
     throw error;
   }
+  // T1.9AX: tell the helper now; a pending find is told when it turns active (activatePending).
+  if (!pending) await notifyAwarded({ userId, event, points, ledgerId: inserted?.id, notify, log });
   return done(true, points, pending ? "PENDING" : "ACTIVE");
 }
 
@@ -146,8 +185,8 @@ async function awardSafely(input, deps = {}) {
 }
 
 /** Turns pending finds into bonus after 24 hours, or revokes them if the case is gone. */
-async function activatePending({ supa, now = Date.now(), log = console } = {}) {
-  const { data, error } = await supa.from("helper_bonus_ledger").select("id,user_id,report_id")
+async function activatePending({ supa, now = Date.now(), log = console, notify } = {}) {
+  const { data, error } = await supa.from("helper_bonus_ledger").select("id,user_id,report_id,event_type,points")
     .eq("status", "PENDING").lte("valid_from", new Date(now).toISOString()).limit(500);
   if (error) throw error;
   let activated = 0;
@@ -164,7 +203,10 @@ async function activatePending({ supa, now = Date.now(), log = console } = {}) {
     const patch = ok ? { status: "ACTIVE", updated_at: new Date(now).toISOString() } : { status: "REVOKED", remaining: 0, reason, updated_at: new Date(now).toISOString() };
     const u = await supa.from("helper_bonus_ledger").update(patch).eq("id", row.id).eq("status", "PENDING");
     if (u.error) throw u.error;
-    if (ok) activated += 1; else revoked += 1;
+    if (ok) {
+      activated += 1;
+      await notifyAwarded({ userId: row.user_id, event: row.event_type, points: row.points, ledgerId: row.id, notify, log });
+    } else revoked += 1;
   }
   if (activated || revoked) log.log?.(`[bonus] pending: ${activated} activated, ${revoked} revoked`);
   return { activated, revoked };
@@ -188,6 +230,8 @@ async function bonusSummary({ supa, userId, now = Date.now() }) {
     pending,
     returns,
     level: helperLevel(returns),
+    stars: helperStars(returns),
+    next: nextStep(returns),
     nextExpiry: soon ? { points: soon.remaining, at: soon.expires_at } : null,
     history: rows.slice(0, 50).map((r) => ({ event: r.event_type, points: r.points, status: r.status, at: r.created_at, validFrom: r.valid_from })),
   };
@@ -199,7 +243,7 @@ async function helperStatus({ supa, userId }) {
     .eq("user_id", userId).eq("event_type", "RETURN_CONFIRMED").eq("status", "ACTIVE");
   if (error) throw error;
   const returns = count || 0;
-  return { returns, level: helperLevel(returns) };
+  return { returns, level: helperLevel(returns), stars: helperStars(returns) };
 }
 
 function canRedeem(accountCreatedAt, now = Date.now()) {
@@ -215,6 +259,6 @@ function scheduleBonusMaintenance({ supa, log = console, everyMs = 60 * 60 * 100
 
 module.exports = {
   POINTS, MONTHLY_CAP, EVENT_MONTHLY_CAPS, PAIR_DAYS, VALID_MONTHS, REDEEM_MIN_ACCOUNT_DAYS,
-  bonusEnabled, helperLevel, award, awardSafely, activatePending, bonusSummary, helperStatus,
+  bonusEnabled, helperLevel, helperStars, nextStep, award, awardSafely, activatePending, bonusSummary, helperStatus,
   canRedeem, sharedDevice, scheduleBonusMaintenance,
 };

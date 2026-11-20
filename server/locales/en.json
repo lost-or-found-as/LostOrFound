@@ -59,5 +59,11 @@
   "share.posterScan": "Scan the code to report",
   "share.posterPrint": "Print the poster",
   "share.posterFooter": "Report anonymously in the Lost or Found app",
-  "share.posterHint": "Print it, or choose «Save as PDF» to send the poster on."
+  "share.posterHint": "Print it, or choose «Save as PDF» to send the poster on.",
+  "bonus.awarded.title": "You earned {{points}} bonus",
+  "bonus.awarded.body.FOUND_REGISTERED": "For a registered find. Thanks for helping!",
+  "bonus.awarded.body.SIGHTING_USEFUL": "The owner found your sighting useful.",
+  "bonus.awarded.body.MATCH_CONFIRMED": "For a confirmed match.",
+  "bonus.awarded.body.SIGHTING_RESOLVED": "Your sighting helped the owner solve the case.",
+  "bonus.awarded.body.RETURN_CONFIRMED": "For a confirmed return. Thank you so much for helping!"
 }

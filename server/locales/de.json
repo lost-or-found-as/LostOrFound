@@ -52,5 +52,11 @@
   "share.posterScan": "Code scannen und melden",
   "share.posterPrint": "Plakat drucken",
   "share.posterFooter": "Anonym in der Lost-or-Found-App melden",
-  "share.posterHint": "Drucken oder „Als PDF sichern“ wählen, um das Plakat weiterzugeben."
+  "share.posterHint": "Drucken oder „Als PDF sichern“ wählen, um das Plakat weiterzugeben.",
+  "bonus.awarded.title": "Du hast {{points}} Bonus erhalten",
+  "bonus.awarded.body.FOUND_REGISTERED": "Für einen gemeldeten Fund. Danke für deine Hilfe!",
+  "bonus.awarded.body.SIGHTING_USEFUL": "Der Besitzer fand deine Sichtung hilfreich.",
+  "bonus.awarded.body.MATCH_CONFIRMED": "Für einen bestätigten Treffer.",
+  "bonus.awarded.body.SIGHTING_RESOLVED": "Deine Sichtung hat dem Besitzer geholfen, den Fall zu lösen.",
+  "bonus.awarded.body.RETURN_CONFIRMED": "Für eine bestätigte Rückgabe. Vielen Dank für deine Hilfe!"
 }

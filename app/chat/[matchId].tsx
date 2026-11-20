@@ -30,6 +30,7 @@ import { setLastSeen } from "../../src/lib/unread";
 import { caseTitle } from "../../src/lib/caseDisplay";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { Button, ConfirmSheet, ScreenHeader } from "../../src/ui/kit";
+import { levelKey, starText, toHelperStatus, type HelperStatus } from "../../src/lib/helperBonus";
 import { ChatClosedBar, ChatSafetyMenu, useChatSafety } from "../../src/ui/ChatSafety";
 import { unblockChatPartner } from "../../src/lib/chatSafety";
 import type { Lang } from "../../src/i18n/languages";
@@ -75,6 +76,7 @@ function ChatScreen() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [match, setMatch] = useState<MatchInfo>(null);
+  const [helper, setHelper] = useState<HelperStatus | null>(null);
   const [otherReadAt, setOtherReadAt] = useState<string | null>(null);
   const [resolution, setResolution] = useState<Resolution>(null);
   const [proposeOpen, setProposeOpen] = useState(false);
@@ -145,7 +147,11 @@ function ChatScreen() {
       if (!token || !matchId) return;
       const r = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchId)}`, { headers: { Authorization: `Bearer ${token}` } });
       const j = await r.json().catch(() => ({}));
-      if (r.ok) setMatch(j?.match ?? null);
+      if (r.ok) {
+        setMatch(j?.match ?? null);
+        // T1.9AX: the other party's helper level (only sent while the bonus is on).
+        setHelper(toHelperStatus(j?.counterpart_helper));
+      }
     } catch {}
   }, [matchId]);
 
@@ -367,6 +373,15 @@ function ChatScreen() {
           ) : null
         }
       >
+        {helper && (
+          <View style={styles.helperRow} accessibilityLabel={t("bonus.helperA11y", { level: t(levelKey(helper.level)), count: helper.returns })}>
+            <Ionicons name="ribbon-outline" size={14} color={theme.tone.info.icon} />
+            <Text style={styles.helperText}>
+              {t(levelKey(helper.level))}
+              {helper.stars > 0 ? ` ${starText(helper.stars)}` : ""} · {t("bonus.returns", { count: helper.returns })}
+            </Text>
+          </View>
+        )}
         {resolutionBar}
       </ScreenHeader>
       <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -472,6 +487,8 @@ function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
+  helperRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: -4 },
+  helperText: { fontSize: 13, fontWeight: "700", color: theme.tone.info.fg },
   screen: { flex: 1, backgroundColor: theme.colors.bg },
   flex1: { flex: 1 },
   pad: { padding: 16 },
