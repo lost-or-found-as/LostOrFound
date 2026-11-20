@@ -85,10 +85,16 @@ async function restoreReport(supa, reportId, now = Date.now()) {
   if (h.error) throw h.error;
 }
 
+/** T1.9BB: admin closes the open reports and leaves the case as it is (kept hidden, or no action). */
+async function closeReports(supa, reportId, now = Date.now()) {
+  const h = await supa.from("content_reports").update({ handled_at: new Date(now).toISOString() }).eq("report_id", reportId).is("handled_at", null);
+  if (h.error) throw h.error;
+}
+
 /** Admin: cases with open reports or hidden, newest first. */
 async function listReported(supa) {
   const { data, error } = await supa.from("content_reports")
-    .select("report_id,reason,source,comment,created_at,reports(id,type,title,description,location_label,hidden_at,hidden_reason,user_id)")
+    .select("report_id,reason,source,comment,created_at,reports(id,type,title,category,subcategory_key,subcategory_custom,color,description,location_label,hidden_at,hidden_reason)")
     .is("handled_at", null).order("created_at", { ascending: false }).limit(300);
   if (error) throw error;
   const byReport = new Map();
@@ -100,4 +106,4 @@ async function listReported(supa) {
   return [...byReport.values()];
 }
 
-module.exports = { HIDE_AFTER, REASONS, normalizeContentReport, visitorKey, hideReport, revokePendingBonus, recordContentReport, restoreReport, listReported };
+module.exports = { HIDE_AFTER, REASONS, normalizeContentReport, visitorKey, hideReport, revokePendingBonus, recordContentReport, restoreReport, closeReports, listReported };

@@ -14,6 +14,7 @@
 //   GET    /safety/admin/content                  reported and hidden cases
 //   POST   /safety/admin/content/:reportId/restore
 //   POST   /safety/admin/content/:reportId/hide
+//   POST   /safety/admin/content/:reportId/close  T1.9BB: close the reports, leave the case as it is
 //   GET    /safety/admin/bonus-flags              accounts whose bonus looks arranged
 //   POST   /safety/admin/bonus/:ledgerId/revoke
 const express = require("express");
@@ -308,6 +309,16 @@ router.post("/admin/content/:reportId/hide", requireUser, requireAdmin, async (r
     return res.json({ ok: true, hidden: !!row });
   } catch (e) {
     return fail(res, e, "CONTENT_HIDE_FAILED");
+  }
+});
+
+router.post("/admin/content/:reportId/close", requireUser, requireAdmin, async (req, res) => {
+  try {
+    await contentReports.closeReports(supaAdmin, req.params.reportId);
+    void logAdminAccess({ adminUserId: req.user.id, action: "CLOSE_CONTENT_REPORTS", entityType: "report", entityId: req.params.reportId });
+    return res.json({ ok: true });
+  } catch (e) {
+    return fail(res, e, "CONTENT_CLOSE_FAILED");
   }
 });
 

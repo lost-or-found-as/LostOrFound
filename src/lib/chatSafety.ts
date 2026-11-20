@@ -18,6 +18,11 @@ export const REPORT_REASON_KEYS: Record<ReportReason, TranslationKey> = {
   OTHER: "safety.reason.other",
 };
 
+/** Calls /safety on the server with the user's token (T1.9BB: also used by the admin lists). */
+export async function safetyRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  return request<T>(path, init);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = (await supabase.auth.getSession()).data.session?.access_token;
   if (!token) throw codedError("AUTH_REQUIRED");

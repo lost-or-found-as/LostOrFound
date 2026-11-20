@@ -1,5 +1,8 @@
 // app/safety-reports.tsx
 // T1.9M: chat reports for admins (user ids in ADMIN_USER_IDS on the server). Others get NOT_ADMIN.
+// T1.9BB: three sections: Chat (as before), Saker (reported cases: show again, keep hidden, hide,
+// no action) and Bonus (accounts whose bonus looks arranged: withdraw a row). The counts on the
+// section chips are what is waiting.
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
@@ -18,15 +21,22 @@ import {
 } from "../src/lib/chatSafety";
 import { Button, ConfirmSheet, EmptyState, ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
+import { fetchBonusFlags, fetchReportedCases, type BonusFlag, type ReportedCase } from "../src/lib/contentAdmin";
+import { ReportedCasesList } from "../src/ui/admin/ReportedCasesList";
+import { BonusFlagsList } from "../src/ui/admin/BonusFlagsList";
 import { theme } from "../src/ui/theme";
 
 type Tab = "open" | "handled";
+type Section = "chat" | "cases" | "bonus";
 type Pending = { kind: "suspend" | "restore" | "noAction"; report: AdminReport } | null;
 
 function Screen() {
   const router = useRouter();
   const { language, t } = useI18n();
+  const [section, setSection] = useState<Section>("chat");
   const [tab, setTab] = useState<Tab>("open");
+  const [cases, setCases] = useState<ReportedCase[]>([]);
+  const [flags, setFlags] = useState<BonusFlag[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,7 +49,10 @@ function Screen() {
     async (mode: "load" | "refresh" = "load") => {
       if (mode === "refresh") setRefreshing(true);
       try {
-        setReports(await fetchAdminReports(tab));
+        const [chat, reported, bonus] = await Promise.all([fetchAdminReports(tab), fetchReportedCases(), fetchBonusFlags()]);
+        setReports(chat);
+        setCases(reported);
+        setFlags(bonus);
         setError(null);
       } catch (e) {
         setError(userErrorMessage(e, t, "admin.reports.loadError", "admin.reports"));
@@ -85,6 +98,26 @@ function Screen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenHeader title={t("admin.reports.title")} subtitle={t("admin.reports.subtitle")} onBack={() => router.back()} raised>
         <View style={s.tabs} accessibilityRole="tablist">
+          {(["chat", "cases", "bonus"] as const).map((key) => {
+            const count = key === "cases" ? cases.length : key === "bonus" ? flags.length : 0;
+            return (
+              <Pressable
+                key={key}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: section === key }}
+                onPress={() => setSection(key)}
+                style={[s.tab, section === key && s.tabOn]}
+              >
+                <Text style={[s.tabText, section === key && s.tabTextOn]}>
+                  {t(`admin.section.${key}` as const)}
+                  {!loading && count > 0 ? ` ${count}` : ""}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {section === "chat" && (
+        <View style={s.tabs} accessibilityRole="tablist">
           {(["open", "handled"] as const).map((key) => (
             <Pressable
               key={key}
@@ -100,6 +133,7 @@ function Screen() {
             </Pressable>
           ))}
         </View>
+        )}
       </ScreenHeader>
 
       {loading ? (
@@ -112,8 +146,10 @@ function Screen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load("refresh")} />}
         >
           {!!error && <InlineNotice tone="error" title={error} style={s.noMargin} actionLabel={t("errors.retry")} onAction={() => void load()} />}
-          {!error && reports.length === 0 && <EmptyState icon="shield-checkmark-outline" title={t("admin.reports.empty")} />}
-          {reports.map((r) => {
+          {section === "cases" && <ReportedCasesList items={cases} onChanged={() => load()} />}
+          {section === "bonus" && <BonusFlagsList flags={flags} onChanged={() => load()} />}
+          {section === "chat" && !error && reports.length === 0 && <EmptyState icon="shield-checkmark-outline" title={t("admin.reports.empty")} />}
+          {section === "chat" && reports.map((r) => {
             const quote = reportedQuote(r);
             const item = r.item ? caseTitle(r.item, language) : null;
             const by = t(r.reporterRole ? (`admin.reports.by.${r.reporterRole}` as const) : "admin.reports.by.unknown");
