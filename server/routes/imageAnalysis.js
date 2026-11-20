@@ -39,9 +39,12 @@ router.post("/", requireUserOrGuest, async (req, res) => {
   }
   const started = Date.now();
   try {
-    const limit = isGuest ? analysis.DAILY_LIMIT.guest : analysis.DAILY_LIMIT.account;
-    const used = await usedToday(userId);
-    if (used >= limit) return res.status(429).json({ error: "IMAGE_ANALYSIS_DAILY_LIMIT", limit, used });
+    // T1.9AV: test accounts in IMAGE_ANALYSIS_UNLIMITED_USER_IDS skip the daily limit; guests never do.
+    if (isGuest || !analysis.unlimitedUser(userId)) {
+      const limit = isGuest ? analysis.DAILY_LIMIT.guest : analysis.DAILY_LIMIT.account;
+      const used = await usedToday(userId);
+      if (used >= limit) return res.status(429).json({ error: "IMAGE_ANALYSIS_DAILY_LIMIT", limit, used });
+    }
 
     const answer = await analysis.askModel(String(req.body.image));
     const suggestion = analysis.validateSuggestion(answer.raw);

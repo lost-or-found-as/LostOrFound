@@ -9,6 +9,7 @@
 //   IMAGE_ANALYSIS_ENABLED=true     the switch; anything else answers IMAGE_ANALYSIS_DISABLED
 //   ANTHROPIC_API_KEY               secret, Render only
 //   IMAGE_ANALYSIS_MODEL            optional, default claude-haiku-5-5
+//   IMAGE_ANALYSIS_UNLIMITED_USER_IDS  optional, comma-separated test accounts without the daily limit (T1.9AV)
 const catalog = require("../data/itemCatalog.json");
 
 const DEFAULT_MODEL = "claude-haiku-5-5";
@@ -20,6 +21,16 @@ const CONFIDENCE = new Set(["high", "medium", "low"]);
 
 function analysisEnabled(env = process.env) {
   return String(env.IMAGE_ANALYSIS_ENABLED || "").toLowerCase() === "true" && !!String(env.ANTHROPIC_API_KEY || "").trim();
+}
+
+/** T1.9AV: test accounts listed on the server skip the daily limit (the switch and the key still apply). */
+function unlimitedUser(userId, env = process.env) {
+  if (!userId) return false;
+  return String(env.IMAGE_ANALYSIS_UNLIMITED_USER_IDS || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .includes(String(userId));
 }
 
 function analysisError(code, extra = {}) {
@@ -174,6 +185,7 @@ async function askModel(imageBase64, { env = process.env, fetchImpl = fetch } = 
 
 module.exports = {
   DAILY_LIMIT,
+  unlimitedUser,
   MAX_IMAGE_BYTES,
   analysisEnabled,
   analysisError,
