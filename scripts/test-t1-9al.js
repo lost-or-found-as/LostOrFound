@@ -87,10 +87,11 @@ ok(/\{lost && animal && \(\s*<PetSightingsCard/.test(detail), "Sist sett on lost
 const card = read("src/ui/PetSightingsCard.tsx");
 ok(/onOpenObservation\(x\.id\)/.test(card) && /Polyline/.test(card), "card opens observations and draws the route");
 ok(/PLACE_LOOKUPS = 6/.test(card), "place names for the newest sightings only");
-const edit = read("app/(report)/create-report.tsx");
-ok(/setField\("petName" as any, report\.pet_name \?\? ""\)/.test(edit) && /setField\("petTemperament" as any, report\.pet_temperament \?\? ""\)/.test(edit), "edit loads pet fields");
-ok(/pet_name: petName\.trim\(\)\.slice\(0, 40\) \|\| null/.test(edit) && /pet_temperament: type === "LOST" && petTemperament \? petTemperament : null/.test(edit), "edit sends pet fields");
-ok(/\{animal && \(/.test(edit) && /register\.pet\.temperamentTitle/.test(edit), "edit shows pet fields for animals");
+// T1.9BC: editing uses the one-page form (draftFromReport / editBody in registerForm).
+const editLib = read("src/lib/registerForm.ts");
+ok(/petName: r\.pet_name \|\| ""/.test(editLib) && /petTemperament: r\.pet_temperament === "SHY" \|\| r\.pet_temperament === "CALM"/.test(editLib), "edit loads pet fields");
+ok(/if \(body\.pet_name === undefined\) body\.pet_name = null;/.test(editLib) && /if \(body\.pet_temperament === undefined\) body\.pet_temperament = null;/.test(editLib), "edit sends pet fields (emptied ones cleared)");
+ok(/register\.pet\.temperamentTitle/.test(read("app/(report)/register.tsx")), "edit shows pet fields for animals");
 
 // 6. Texts in both languages.
 const no = read("src/i18n/locales/no.ts");

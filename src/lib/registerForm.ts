@@ -13,7 +13,7 @@ import {
 import { translate, type Lang } from "../i18n/translate";
 import type { TranslationKey } from "../i18n/locales/en";
 import type { ReportDraft } from "../contexts/ReportDraftContext";
-import { reportDescriptionText } from "./reportDescription";
+import { reportDescriptionText, reportSecondaryColor } from "./reportDescription";
 
 export type ItemHit = { category: string; key: string; name: string; categoryName: string };
 export type OccurredPrecision = "EXACT" | "MONTH" | "YEAR";
@@ -217,6 +217,66 @@ export function reportBody(
     client_request_id: options.clientRequestId,
     ...(options.testOverrideWeeklyLimit ? { test_override_weekly_limit: true } : {}),
   };
+}
+
+/**
+ * T1.9BC: the form fields of a stored case, for editing in the new form. The identifier comes
+ * from GET /reports/:id (owner only). Unknown or missing values fall back to the empty form.
+ */
+export function draftFromReport(report: any, identifier?: { kind?: string; value?: string } | null): Partial<ReportDraft> {
+  const r = report || {};
+  const radius = Number(r.radius_m ?? r.search_radius_m ?? r.area_radius_m ?? r.location_radius_m ?? 500) || 500;
+  const precision = ["EXACT", "MONTH", "YEAR"].includes(String(r.occurred_precision)) ? r.occurred_precision : "EXACT";
+  const custody = ["WITH_FINDER", "LEFT_AT_PLACE", "HANDED_IN"].includes(String(r.custody)) ? r.custody : "";
+  return {
+    type: r.type === "FOUND" ? "FOUND" : "LOST",
+    category: r.category || "PERSONAL",
+    subcategoryKey: r.subcategory_key || "",
+    subcategoryCustom: r.subcategory_custom || "",
+    description: reportDescriptionText(r.description),
+    color: r.color || "",
+    colorSecondary: reportSecondaryColor(r) || "",
+    brand: r.brand || "",
+    itemSize: r.item_size || "",
+    rewardNOK: String(Math.round(Number(r.reward_ore || 0) / 100)),
+    occurredAtISO: r.occurred_at || undefined,
+    occurredPrecision: precision,
+    custody,
+    custodyPlace: r.custody_place || "",
+    locationLabel: r.location_label || "",
+    location: {
+      latitude: Number(r.lat ?? 59.9139),
+      longitude: Number(r.lng ?? 10.7522),
+      radiusMeters: radius,
+      confirmed: r.lat != null && r.lng != null,
+    },
+    searchAreas: Array.isArray(r.search_areas) ? r.search_areas : [],
+    identifierKind: (identifier?.kind as ReportDraft["identifierKind"]) || undefined,
+    identifierValue: identifier?.value || "",
+    petName: r.pet_name || "",
+    petBreed: r.pet_breed || "",
+    petTemperament: r.pet_temperament === "SHY" || r.pet_temperament === "CALM" ? r.pet_temperament : "",
+  };
+}
+
+/**
+ * T1.9BC: what PATCH /reports/:id gets from the new form. Same fields as a new case, but a field
+ * the user emptied is sent as null so it is cleared, and the type and request id are left out.
+ */
+export function editBody(draft: ReportDraft, options: { language: Lang; rewardEnabled: boolean }): Record<string, unknown> {
+  const body = reportBody(draft, { ...options, clientRequestId: "" });
+  delete body.type;
+  delete body.client_request_id;
+  const animal = isAnimal(draft.category, draft.subcategoryKey);
+  for (const key of ["description", "secondary_color", "brand", "location_label"]) if (body[key] === undefined) body[key] = null;
+  if (!animal && body.item_size === undefined) body.item_size = null;
+  if (animal) {
+    if (body.pet_name === undefined) body.pet_name = null;
+    if (body.pet_breed === undefined) body.pet_breed = null;
+    if (body.pet_temperament === undefined) body.pet_temperament = null;
+  }
+  if (!("identifier" in body)) body.identifier = null;
+  return body;
 }
 
 /** T1.9AW: the size as stored: whitespace collapsed, at most 30 characters. */

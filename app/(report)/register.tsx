@@ -1,13 +1,17 @@
 // app/(report)/register.tsx
-// T1.9K: the new one-page registration, tried next to the current one (Profil → "Prøv ny
-// registrering"). Four numbered cards on one scrolling page: 1 Hva, 2 Detaljer, 3 Når og hvor
-// (with the current map screen), 4 Finnerlønn (lost) or Hvor er gjenstanden nå (found).
+// T1.9K: the one-page registration. Four numbered cards on one scrolling page: 1 What,
+// 2 Details, 3 When and where (with the map screen), 4 Reward (lost) or Where is it now (found).
 // Uses the same draft as the current screen, so the map screen works unchanged.
 // T1.9AI: the first photo is analysed; the suggested item, colours and brand are offered on a
 // card and only used when the user taps «Bruk forslaget» (or picks one of the alternatives).
 // T1.9AW: every added photo sends all photos again, so a label photo can add brand and size; once
 // the item is chosen, new findings come on a small «Nytt fra bildene» card that fills empty fields.
 // Optional size field for everything except animals (quick choices XS-XXL for clothes).
+// T1.9BC: editing an existing case uses this form too (?editReportId=...): the case is loaded into
+// the form, the type cannot change, stored photos are shown and new ones can be added, and «Lagre
+// endringer» sends PATCH /reports/:id (emptied fields are cleared). The server keeps the rules for
+// big changes (what, when, where): free during the first 15 minutes, then at most three, an hour
+// apart. The old form (create-report.tsx) is gone.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -41,6 +45,8 @@ import { reportHandledError } from "../../src/lib/sentry";
 import { userErrorMessage } from "../../src/lib/userError";
 import {
   cleanRewardInput,
+  draftFromReport,
+  editBody,
   CLOTHING_SIZES,
   isAnimal,
   isLongAgo,
@@ -116,7 +122,10 @@ const SECTION_OF: Partial<Record<TranslationKey, Section>> = {
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ type?: string; longAgo?: string }>();
+  const params = useLocalSearchParams<{ type?: string; longAgo?: string; editReportId?: string }>();
+  // T1.9BC: editing an existing case.
+  const editId = typeof params.editReportId === "string" && params.editReportId ? params.editReportId : null;
+  const isEdit = !!editId;
   const { language, t } = useI18n();
   const { draft, setField, reset, flush, loading: draftLoading } = useReportDraft();
   const rewardEnabled = useMemo(rewardEnabledForLocale, []);
@@ -150,6 +159,13 @@ export default function RegisterScreen() {
   // T1.9AW: what new photos found after the item was chosen (only fields that are still empty).
   const [photoExtras, setPhotoExtras] = useState<{ colors?: string[]; brand?: string; size?: string } | null>(null);
   const photoAiRun = useRef(0);
+  // T1.9BC: the stored photos of the case being edited (shown, not removed here).
+  const [storedImages, setStoredImages] = useState<{ path: string; url: string | null; held: boolean }[]>([]);
+  const [editLoading, setEditLoading] = useState(isEdit);
+  const [editError, setEditError] = useState<string | null>(null);
+  const editSavedRef = useRef(false);
+  const editPointRef = useRef<string | null>(null);
+  const maxNewImages = Math.max(0, MAX_IMAGES - storedImages.length);
 
   const type: "LOST" | "FOUND" = draft.type === "FOUND" ? "FOUND" : "LOST";
   const precision: OccurredPrecision = draft.occurredPrecision || "EXACT";
@@ -157,12 +173,66 @@ export default function RegisterScreen() {
 
   // The start screen says which kind of report this is; "Mistet for lenge siden?" starts with a year.
   useEffect(() => {
-    if (draftLoading) return;
+    if (draftLoading || isEdit) return;
     if (params.type === "LOST" || params.type === "FOUND") setField("type", params.type);
     if (params.longAgo === "1") setField("occurredPrecision", "YEAR");
     if (!draft.occurredAtISO) setField("occurredAtISO", new Date().toISOString());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftLoading, params.type, params.longAgo]);
+
+  // T1.9BC: load the case into the form (once), with its stored photos.
+  useEffect(() => {
+    if (draftLoading || !editId) return;
+    let live = true;
+    (async () => {
+      setEditLoading(true);
+      setEditError(null);
+      try {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (!token) throw Object.assign(new Error("AUTH_REQUIRED"), { code: "AUTH_REQUIRED" });
+        const r = await fetch(`${API_BASE_URL}/reports/${encodeURIComponent(editId)}`, { headers: { Authorization: `Bearer ${token}` } });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j?.report) throw Object.assign(new Error(String(j?.error || "REPORT_NOT_FOUND")), { code: String(j?.error || "REPORT_NOT_FOUND") });
+        if (!live) return;
+        await reset();
+        const fields = draftFromReport(j.report, j.identifier);
+        if (fields.location) editPointRef.current = `${fields.location.latitude},${fields.location.longitude}`;
+        for (const [key, value] of Object.entries(fields)) setField(key as any, value as any);
+        const stored = (Array.isArray(j.images) ? j.images : [])
+          .map((x: any) => ({ path: String(x?.path || ""), held: x?.moderation_status === "HELD" }))
+          .filter((x: { path: string }) => x.path);
+        let urls: Record<string, string> = {};
+        if (stored.length) {
+          const sr = await fetch(`${API_BASE_URL}/storage/signed-download-batch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ paths: stored.map((x: { path: string }) => x.path) }),
+          }).catch(() => null);
+          const sj = sr && sr.ok ? await sr.json().catch(() => ({})) : {};
+          urls = sj?.urls || {};
+        }
+        if (live) setStoredImages(stored.map((x: { path: string; held: boolean }) => ({ ...x, url: urls[x.path] || null })));
+      } catch (e) {
+        if (live) setEditError(userErrorMessage(e, t, "report.create.could.not.load.case.2", "register.edit.load"));
+      } finally {
+        if (live) setEditLoading(false);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftLoading, editId]);
+
+  // T1.9BC: leaving the edit without saving must not leave the old case in the draft for the next
+  // new registration.
+  useEffect(() => {
+    if (!isEdit) return;
+    return () => {
+      if (!editSavedRef.current) void reset();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit]);
 
   // Place name from the chosen point (editable), as in the current registration.
   const lat = draft.location?.latitude;
@@ -171,6 +241,8 @@ export default function RegisterScreen() {
   const geoReq = useRef(0);
   useEffect(() => {
     if (!confirmed || lat == null || lng == null) return;
+    // T1.9BC: an edited case keeps its stored place name until the point is moved.
+    if (editPointRef.current === `${lat},${lng}`) return;
     const id = ++geoReq.current;
     reverseGeocodeToLabel(lat, lng, { language })
       .then((label) => {
@@ -238,7 +310,7 @@ export default function RegisterScreen() {
   const chooseImage = async (camera: boolean) => {
     const uri = camera ? await captureOneImage() : await pickOneImage();
     if (!uri) return;
-    const next = [...images, uri].slice(0, MAX_IMAGES);
+    const next = [...images, uri].slice(0, maxNewImages);
     setImages(next);
     void runPhotoAnalysis(next, !!draft.subcategoryKey);
   };
@@ -316,8 +388,69 @@ export default function RegisterScreen() {
   };
 
   const uploadImages = async (reportId: string, uris: string[]) => {
-    const results = await Promise.allSettled(uris.map((uri, i) => uploadReportImage(reportId, uri, i)));
+    // T1.9BC: new photos on an edited case come after the stored ones.
+    const offset = isEdit ? storedImages.length : 0;
+    const results = await Promise.allSettled(uris.map((uri, i) => uploadReportImage(reportId, uri, offset + i)));
     return uris.filter((_, i) => results[i].status === "rejected");
+  };
+
+  // T1.9BC: after «Lagre endringer» the case opens with a short confirmation.
+  const finishEdit = async (reportId: string) => {
+    editSavedRef.current = true;
+    await reset();
+    router.replace({ pathname: "/report-details/[id]", params: { id: reportId, updated: "1" } });
+  };
+
+  const submitEdit = async () => {
+    if (!editId) return;
+    const list = missingFields(draft, rewardEnabled);
+    setMissing(list);
+    if (list.length) {
+      goToMissing(list);
+      return;
+    }
+    if (submittingRef.current) return;
+    setError(null);
+    submittingRef.current = true;
+    setSaving(true);
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) throw Object.assign(new Error("AUTH_REQUIRED"), { code: "AUTH_REQUIRED" });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 20_000);
+      let response: Response;
+      try {
+        response = await fetch(`${API_BASE_URL}/reports/${encodeURIComponent(editId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(editBody(draft, { language, rewardEnabled })),
+          signal: controller.signal,
+        });
+      } catch (e: any) {
+        const code = e?.name === "AbortError" ? "NETWORK_TIMEOUT" : "NETWORK_ERROR";
+        throw Object.assign(new Error(code), { code });
+      } finally {
+        clearTimeout(timer);
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const code = String(data?.error || `HTTP_${response.status}`);
+        throw Object.assign(new Error(code), { code, status: response.status });
+      }
+      const failed = images.length ? await uploadImages(editId, images) : [];
+      if (failed.length) {
+        setImageRetry({ reportId: editId, uris: failed });
+        return;
+      }
+      await finishEdit(editId);
+    } catch (e: any) {
+      const code = String(e?.code || "").toUpperCase();
+      if (!(Number(e?.status) >= 400 && Number(e?.status) < 500)) reportHandledError(e, "register.edit", code || undefined);
+      setError(userErrorMessage(e, t, "report.create.could.not.save.the.case.please", null));
+    } finally {
+      setSaving(false);
+      submittingRef.current = false;
+    }
   };
 
   const finish = async (reportId: string) => {
@@ -426,6 +559,7 @@ export default function RegisterScreen() {
     try {
       const failed = await uploadImages(imageRetry.reportId, imageRetry.uris);
       if (failed.length) setImageRetry({ ...imageRetry, uris: failed });
+      else if (isEdit) await finishEdit(imageRetry.reportId);
       else await finish(imageRetry.reportId);
     } finally {
       setSaving(false);
@@ -439,7 +573,7 @@ export default function RegisterScreen() {
   );
   const isMissing = (section: Section) => missing.some((k) => SECTION_OF[k] === section);
 
-  if (draftLoading)
+  if (draftLoading || editLoading)
     return (
       <View style={[s.safe, s.center]}>
         <ActivityIndicator color={theme.colors.primary} />
@@ -469,12 +603,23 @@ export default function RegisterScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenHeader
         raised
-        title={type === "FOUND" ? t("register.title.found") : t("register.title.lost")}
-        subtitle={t("register.draftSaved")}
+        title={
+          isEdit
+            ? type === "FOUND"
+              ? t("report.create.edit.found.report")
+              : t("report.create.edit.lost.report")
+            : type === "FOUND"
+              ? t("register.title.found")
+              : t("register.title.lost")
+        }
+        subtitle={isEdit ? undefined : t("register.draftSaved")}
         onBack={() => router.back()}
       />
       <KeyboardAvoidingView style={s.flex} behavior={Platform.select({ ios: "padding", android: undefined })}>
         <ScrollView ref={scrollRef} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+          {/* T1.9BC: editing an existing case. */}
+          {isEdit && !!editError && <InlineNotice tone="error" title={t("report.create.could.not.load.case.2")} body={editError} style={s.notice} />}
+          {isEdit && !editError && <InlineNotice tone="info" icon="create-outline" title={t("register.edit.noticeTitle")} body={t("register.edit.noticeBody")} style={s.notice} />}
           {/* 1 Hva */}
           <View style={[s.card, isMissing("what") && s.cardMissing]} onLayout={(e) => (sectionY.current.what = e.nativeEvent.layout.y)}>
             <View style={s.cardHeader}>
@@ -482,6 +627,16 @@ export default function RegisterScreen() {
               <Text style={s.h2}>{type === "FOUND" ? t("register.what.titleFound") : t("register.what.titleLost")}</Text>
             </View>
             <View style={s.photos}>
+              {storedImages.map((img) => (
+                <View key={img.path} accessibilityLabel={img.held ? t("caseDetail.imageHeldTitle") : t("register.edit.storedPhoto")}>
+                  {img.url ? <Image source={{ uri: img.url }} style={[s.photo, img.held && s.photoHeld]} /> : <View style={[s.photo, s.photoMissing]} />}
+                  {img.held && (
+                    <View style={s.photoHeldBadge}>
+                      <Ionicons name="eye-off-outline" size={14} color="#FFFFFF" />
+                    </View>
+                  )}
+                </View>
+              ))}
               {images.map((uri) => (
                 <View key={uri}>
                   <Image source={{ uri }} style={s.photo} />
@@ -500,7 +655,7 @@ export default function RegisterScreen() {
                   </Pressable>
                 </View>
               ))}
-              {images.length < MAX_IMAGES && (
+              {images.length < maxNewImages && (
                 <>
                   <Pressable accessibilityRole="button" style={s.photoAdd} onPress={() => void chooseImage(true)}>
                     <Ionicons name="camera-outline" size={22} color={theme.colors.text} />
@@ -912,7 +1067,7 @@ export default function RegisterScreen() {
             </View>
           </View>
 
-          {/* 3 Når og hvor */}
+          {/* 3 When and where */}
           <View style={[s.card, isMissing("when") && s.cardMissing]} onLayout={(e) => (sectionY.current.when = e.nativeEvent.layout.y)}>
             <View style={s.cardHeader}>
               {numberBadge(3)}
@@ -1025,7 +1180,7 @@ export default function RegisterScreen() {
             )}
           </View>
 
-          {/* 4 Finnerlønn (lost) / Hvor er gjenstanden nå (found) */}
+          {/* 4 Reward (lost) / Where is it now (found) */}
           {type === "LOST" && rewardEnabled && (
             <View style={[s.card, isMissing("extra") && s.cardMissing]} onLayout={(e) => (sectionY.current.extra = e.nativeEvent.layout.y)}>
               <View style={s.cardHeader}>
@@ -1127,7 +1282,7 @@ export default function RegisterScreen() {
             </View>
           )}
 
-          {type === "LOST" && <InlineNotice tone="info" icon="time-outline" title={t("register.freePeriod")} style={s.notice} />}
+          {type === "LOST" && !isEdit && <InlineNotice tone="info" icon="time-outline" title={t("register.freePeriod")} style={s.notice} />}
         </ScrollView>
 
         <View style={s.bottom}>
@@ -1137,7 +1292,11 @@ export default function RegisterScreen() {
             </Text>
           )}
           {!!error && <InlineNotice tone="warning" title={t("report.create.could.not.save")} body={error} style={s.notice} />}
-          <Button label={t("register.send")} onPress={() => void submit()} busy={saving} />
+          {isEdit ? (
+            <Button label={t("report.create.save.changes")} onPress={() => void submitEdit()} busy={saving} disabled={!!editError} />
+          ) : (
+            <Button label={t("register.send")} onPress={() => void submit()} busy={saving} />
+          )}
         </View>
       </KeyboardAvoidingView>
 
@@ -1206,6 +1365,9 @@ const s = StyleSheet.create({
   photoAiBox: { marginTop: 10, padding: 14, borderRadius: 14, backgroundColor: "#F1F5F9", gap: 8 },
   photoAiTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   photoAiSuggestion: { marginTop: 10, padding: 14, borderRadius: 14, backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE", gap: 10 },
+  photoHeld: { opacity: 0.5 },
+  photoMissing: { backgroundColor: theme.colors.divider },
+  photoHeldBadge: { position: "absolute", left: 6, bottom: 6, borderRadius: 10, padding: 3, backgroundColor: "rgba(15,23,42,0.75)" },
   photoExtras: { marginTop: 10, padding: 14, borderRadius: 14, backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE", gap: 8 },
   photoExtrasLoading: { marginTop: 10, gap: 8 },
   sizeChips: { marginBottom: 8 },

@@ -1,6 +1,7 @@
 "use strict";
 const fs = require("fs");
-const files = ["app/(report)/create-report.tsx", "app/(report)/map.tsx"];
+// T1.9BC: the old form is gone; the one-page form registers and edits.
+const files = ["app/(report)/register.tsx", "app/(report)/map.tsx"];
 const localeSource = fs.readFileSync("src/i18n/locales/en.ts", "utf8");
 const localeKeys = new Set([...localeSource.matchAll(/^\s*"([^"]+)"\s*:/gm)].map((match) => match[1]));
 let failed = false;

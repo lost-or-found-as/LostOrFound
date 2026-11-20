@@ -141,6 +141,7 @@ ok(/<RegisterChoice \/>/.test(read("app/start.tsx")), "start shows the new choos
 // T1.9W: the new registration is the default, so the developer switch is gone from Profile.
 ok(!/<Switch/.test(read("app/(tabs)/profile.tsx")) && !/profile\.newRegistration/.test(read("app/(tabs)/profile.tsx")), "no registration switch in Profile");
 ok(/custodyText\(match\.found\?\.custody, match\.found\?\.custody_place, t, \{ placeHidden: youOwnLost && !confirmed \}\)/.test(read("app/matches/[matchId].tsx")), "owner sees custody in the match");
-ok(fs.existsSync(path.join(root, "app/(report)/create-report.tsx")), "current registration is kept");
+// T1.9BC: the old form is gone; the one-page form also edits.
+ok(!fs.existsSync(path.join(root, "app/(report)/create-report.tsx")) && /editReportId/.test(read("app/(report)/register.tsx")), "one form for new and edited cases");
 
 console.log(`OK: T1.9K checks passed (${n} assertions).`);

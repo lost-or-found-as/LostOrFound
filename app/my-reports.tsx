@@ -427,10 +427,8 @@ function MyReportsScreen() {
   };
 
   const editReport = (r: Report) => {
-    router.push({
-      pathname: "/(report)/create-report",
-      params: { editReportId: r.id },
-    });
+    // T1.9BC: editing uses the same form as a new case.
+    router.push({ pathname: "/(report)/register", params: { editReportId: r.id } });
   };
 
   const removeLocally = (id: string) => {

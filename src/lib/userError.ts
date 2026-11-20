@@ -44,6 +44,9 @@ const EXACT: Record<string, TranslationKey> = {
   WATCH_AREA_LIMIT_REACHED: "errors.watchAreaLimit",
   QUERY_TOO_SHORT: "errors.queryTooShort",
   IMAGE_UPLOAD_FAILED: "errors.imageUpload",
+  // T1.9BC: limits on big changes when editing (shown in the new form).
+  CRITICAL_EDIT_COOLDOWN: "report.create.you.recently.changed.the.item.time",
+  CRITICAL_EDIT_LIMIT_REACHED: "report.create.you.can.still.update.the.description",
   // T1.9AY: protection of public content.
   EMAIL_NOT_VERIFIED: "errors.emailNotVerified",
   PUBLIC_TEXT_NOT_ALLOWED: "errors.publicText",

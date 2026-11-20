@@ -74,7 +74,7 @@ async function main() {
   ok(/item_size: isAnimal\(draft\.category, draft\.subcategoryKey\) \? undefined : itemSizeText\(draft\.itemSize\) \|\| undefined/.test(rf), "size in the report body");
   ok(/Row label=\{t\("caseDetail\.size"\)\} value=\{r\.item_size\}/.test(read("app/report-details/[id].tsx")), "size on the case");
   ok(/labelKey: "matchDetail\.compare\.size"/.test(read("app/matches/[matchId].tsx")) && /mark: same \? "good" : "unknown"/.test(read("app/matches/[matchId].tsx")), "size compared, a difference stays neutral");
-  ok(/item_size: itemSize/.test(read("app/(report)/create-report.tsx")), "edit form keeps the size");
+  ok(/itemSize: r\.item_size \|\| ""/.test(rf) && /if \(!animal && body\.item_size === undefined\) body\.item_size = null;/.test(rf), "edit keeps (or clears) the size");
 
   console.log(`T1.9AW OK (${n} checks)`);
 }

@@ -76,7 +76,9 @@ type Confirm = "close" | "delete" | "extend" | "reactivate" | null;
 
 function Screen() {
   const router = useRouter();
-  const { id, created } = useLocalSearchParams<{ id: string; created?: string }>();
+  const { id, created, updated } = useLocalSearchParams<{ id: string; created?: string; updated?: string }>();
+  // T1.9BC: a short confirmation after «Lagre endringer».
+  const [updatedOpen, setUpdatedOpen] = useState(updated === "1");
   const { language, t } = useI18n();
   const reactivationPrice = useReactivationPrice();
   const [data, setData] = useState<D | null>(null);
@@ -252,7 +254,8 @@ function Screen() {
   const showReach = showAreaAlert && !expired && (offer.visibility || offerAlert || !!offer.visibleUntil);
   const openMatches = () => router.push({ pathname: "/match", params: { reportId: r.id } });
   const openChat = (matchId: string) => router.push(`/chat/${matchId}`);
-  const editReport = () => router.push({ pathname: "/(report)/create-report", params: { editReportId: r.id } });
+  // T1.9BC: editing uses the same form as a new case.
+  const editReport = () => router.push({ pathname: "/(report)/register", params: { editReportId: r.id } });
   // T1.9AK: a lost, open case can be shared as a page and a poster.
   const canShare = lost && !closed && !expired;
   const shareCase = async (kind: "link" | "poster") => {
@@ -435,6 +438,20 @@ function Screen() {
           <InlineNotice tone="warning" icon="alert-circle-outline" title={t("caseDetail.actionFailed")} body={actionError} style={s.notice} />
         )}
 
+        {updatedOpen && (
+          <InlineNotice
+            tone="success"
+            icon="checkmark-circle-outline"
+            title={t("report.create.case.updated")}
+            body={t("report.create.the.report.has.been.updated.matches")}
+            style={s.notice}
+            actionLabel={t("common.close")}
+            onAction={() => {
+              setUpdatedOpen(false);
+              router.setParams({ updated: undefined });
+            }}
+          />
+        )}
         {/* T1.9AY: hidden after reports from several people. */}
         {!!r.hidden_at && (
           <InlineNotice tone="warning" icon="eye-off-outline" title={t("caseDetail.hiddenTitle")} body={t("caseDetail.hiddenBody")} style={s.notice} />

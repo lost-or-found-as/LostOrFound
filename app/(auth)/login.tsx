@@ -40,7 +40,7 @@ function withTimeout<T>(p: Promise<T>, ms = 20000) {
 }
 
 function isLostIntent(intent?: string, upgrade?: string, returnTo?: string) {
-  return intent === "lost" || upgrade === "1" || String(returnTo ?? "").includes("create-report") || String(returnTo ?? "").includes("register");
+  return intent === "lost" || upgrade === "1" || String(returnTo ?? "").includes("register");
 }
 
 export default function LoginScreen() {

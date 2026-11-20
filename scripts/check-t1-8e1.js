@@ -1,18 +1,13 @@
 const fs = require("fs"),
   p = require("path"),
   r = (f) => fs.readFileSync(p.join(process.cwd(), f), "utf8");
-const app = r("app/(report)/create-report.tsx"),
+const app = r("app/(report)/register.tsx"), // T1.9BC: the one-page form has the date picker
   en = r("src/i18n/locales/en.ts"),
   no = r("src/i18n/locales/no.ts"),
   pkg = JSON.parse(r("package.json"));
 for (const s of [
   "DateTimePicker",
-  "const [datePickerOpen, setDatePickerOpen]",
-  "maximumDate={new Date()}",
-  "applySelectedDate",
-  "setValidationMissing((current)",
-  "dateButton:", "dateButtonText:", "datePickerWrap:",
-  'textAlign: "center"',
+  "maximumDate={picker === \"date\" ? new Date() : undefined}",
 ])
   if (!app.includes(s)) throw Error(`Missing T1.8E.1 feature: ${s}`);
 // Expo 58 upgrade: the date picker follows the version Expo pins (9.x).

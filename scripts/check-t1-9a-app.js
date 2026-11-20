@@ -39,8 +39,9 @@ check(/await rememberGuestForClaim\(\);\s*\n\s*const res[^=]*= (\(await withTime
 const claim = read("src/lib/guestClaim.ts");
 check(claim.includes("/account/claim-guest-reports"), "CLAIM_ENDPOINT_MISSING");
 
-const create = read("app/(report)/create-report.tsx");
-check(/pathname: "\/found-receipt"/.test(create) && (create.match(/await showSaved\(\);/g) || []).length === 2, "GUEST_RECEIPT_NOT_USED");
+// T1.9BC: the one-page form sends guests to the receipt.
+const create = read("app/(report)/register.tsx");
+check(/pathname: "\/found-receipt"/.test(create) && /isAnonymousUser\(data\.session\?\.user as any\)/.test(create), "GUEST_RECEIPT_NOT_USED");
 check(fs.existsSync(path.join(root, "app/found-receipt.tsx")), "RECEIPT_SCREEN_MISSING");
 
 const tabs = read("app/(tabs)/_layout.tsx");

@@ -68,9 +68,10 @@ ok(!/if\s*\(\s*!t\s*\)\s*return/.test(read("app/observation-chat/[id].tsx")), "c
 // 5. New registration for everyone; the old screen only edits.
 ok(/pathname: "\/\(report\)\/register"/.test(read("src/lib/newRegistration.ts")) && !/create-report"/.test(read("src/lib/newRegistration.ts").replace(/\/\/.*$/gm, "")), "register route always the new screen");
 ok(!/newRegistration|Prøv ny registrering|register\.tryNew/.test(read("app/(tabs)/profile.tsx")), "no registration switch in profile");
-const edit = read("app/(report)/create-report.tsx");
+// T1.9BC: editing uses the one-page form; its type comes from the stored case.
+const edit = read("app/(report)/register.tsx");
 ok(/report\.create\.edit\.found\.report/.test(edit), "edit title for a found case");
-ok(/\{!isEditMode && \(/.test(edit), "type cannot change while editing");
+ok(/if \(draftLoading \|\| isEdit\) return;/.test(edit) && /type: r\.type === "FOUND" \? "FOUND" : "LOST"/.test(read("src/lib/registerForm.ts")), "type cannot change while editing");
 for (const f of ["app/(tabs)/index.tsx", "app/start.tsx", "src/ui/RegisterChoice.tsx"])
   ok(!/pathname: "\/\(report\)\/create-report"/.test(read(f)), `${f}: new reports never open the old screen`);
 

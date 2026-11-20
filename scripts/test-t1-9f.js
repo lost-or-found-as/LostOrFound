@@ -46,8 +46,9 @@ ok(/with check \(user_id = auth\.uid\(\) and public\.is_conversation_participant
 ok(/alter publication supabase_realtime add table public\.conversation_reads/.test(migration), "read receipts are live");
 
 // 4. App wiring.
-const create = read("app/(report)/create-report.tsx");
-ok(/secondary_color: secondary/.test(create) && !/report\.create\.secondary\.color"\)\}: /.test(create), "app sends secondary_color instead of a description line");
+// T1.9BC: the one-page form builds the body (registerForm).
+const create = read("src/lib/registerForm.ts");
+ok(/secondary_color: secondary,/.test(create) && /for \(const key of \["description", "secondary_color", "brand", "location_label"\]\)/.test(create), "app sends secondary_color (cleared with null when editing)");
 ok(/usePushLanguageSync\(language, user\?\.id, isGuest\)/.test(read("app/_layout.tsx")), "app keeps push language in sync");
 const chat = read("app/chat/[matchId].tsx");
 ok(/from\("conversation_reads"\)/.test(chat) && /setLastSeen\(matchId\)/.test(chat), "chat records reads");
