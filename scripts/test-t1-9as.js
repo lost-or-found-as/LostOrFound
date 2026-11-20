@@ -79,15 +79,19 @@ const users = { kari: { id: "kari", is_anonymous: false }, ola: { id: "ola", is_
   eq((await b.award({ userId: "kari", event: "MATCH_CONFIRMED", sourceId: "m1", counterpartUserId: "ola" }, d)).points, 3, "match confirmed 3");
   eq((await b.award({ userId: "kari", event: "RETURN_CONFIRMED", sourceId: "m1", counterpartUserId: "ola", caseReportId: "lost1" }, d)).points, 15, "return 15");
   let s = await b.bonusSummary({ supa: db, userId: "kari", now });
-  eq([s.balance, s.pending, s.returns, s.level], [18, 1, 1, "HELPER"], "balance excludes pending find");
+  // T1.9AY: a return also waits (7 days), so only the match counts at once.
+  eq([s.balance, s.pending, s.returns, s.level], [3, 16, 0, null], "balance excludes waiting find and return");
   ok(s.history.every((h) => !("counterpart_user_id" in h) && !("report_id" in h)), "history shows no other people or cases");
-  eq((await b.award({ userId: "kari", event: "RETURN_CONFIRMED", sourceId: "m1", counterpartUserId: "ola", caseReportId: "lost1" }, d)).reason, "PAIR_RECENT", "same pair blocked for 90 days");
+  eq((await b.award({ userId: "kari", event: "RETURN_CONFIRMED", sourceId: "m1", counterpartUserId: "ola", caseReportId: "lost1" }, d)).reason, "PAIR_RECENT", "same pair only once (T1.9AY: ever)");
 
   // Pending find becomes valid after 24 h.
   db.tables.reports.push({ id: "found1", deleted_at: null });
   eq(await b.activatePending({ supa: db, now: now + 25 * 3600e3, log: quiet }), { activated: 1, revoked: 0 }, "find activated");
   s = await b.bonusSummary({ supa: db, userId: "kari", now: now + 25 * 3600e3 });
-  eq(s.balance, 19, "Kari has 19");
+  eq(s.balance, 4, "find active after 24 h, return still waiting");
+  eq(await b.activatePending({ supa: db, now: now + 8 * 24 * 3600e3, log: quiet }), { activated: 1, revoked: 0 }, "return activated after 7 days");
+  s = await b.bonusSummary({ supa: db, userId: "kari", now: now + 8 * 24 * 3600e3 });
+  eq([s.balance, s.returns, s.level], [19, 1, "HELPER"], "Kari has 19 and is a Helper");
 
   // A find whose case is deleted is revoked.
   const db2 = fakeDb({ users, now, tables: { reports: [{ id: "f9", deleted_at: new Date(now).toISOString() }] } });

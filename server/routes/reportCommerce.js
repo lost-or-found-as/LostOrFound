@@ -1,5 +1,6 @@
 "use strict";
 const express = require("express");
+const { checkPublicText, isVerifiedUser } = require("../lib/contentSafety");
 const crypto = require("crypto");
 const router = express.Router();
 
@@ -370,6 +371,15 @@ router.post("/orders", requireUser, async (req, res) => {
       return res
         .status(400)
         .json({ error: "PAID_PRODUCTS_REQUIRE_LOST_REPORT" });
+
+    // T1.9AY: an area alert or «Synlig i nærheten» reaches strangers: the account must be
+    // confirmed, the case must not be hidden, and its public text must pass the checks.
+    if (productCode === "GEO_ALERT" || productCode === VISIBILITY_REQUEST_CODE) {
+      if (!isVerifiedUser(req.user)) return res.status(403).json({ error: "EMAIL_NOT_VERIFIED" });
+      if (report.hidden_at) return res.status(403).json({ error: "REPORT_HIDDEN" });
+      const text = await checkPublicText(report);
+      if (!text.ok) return res.status(422).json({ error: "PUBLIC_TEXT_NOT_ALLOWED", reasons: text.reasons });
+    }
 
     let priceSnapshot = {};
     let geoQuote = null;

@@ -435,6 +435,15 @@ function Screen() {
           <InlineNotice tone="warning" icon="alert-circle-outline" title={t("caseDetail.actionFailed")} body={actionError} style={s.notice} />
         )}
 
+        {/* T1.9AY: hidden after reports from several people. */}
+        {!!r.hidden_at && (
+          <InlineNotice tone="warning" icon="eye-off-outline" title={t("caseDetail.hiddenTitle")} body={t("caseDetail.hiddenBody")} style={s.notice} />
+        )}
+        {/* T1.9AZ: a photo held by the check is shown to the owner only. */}
+        {(data?.images || []).some((x: any) => x?.moderation_status === "HELD") && (
+          <InlineNotice tone="info" icon="image-outline" title={t("caseDetail.imageHeldTitle")} body={t("caseDetail.imageHeldBody")} style={s.notice} />
+        )}
+
         {/* Neste steg */}
         <View style={[s.step, step.tone === "dark" ? s.stepDark : s.stepPlain]}>
           <Text style={[s.stepEyebrow, step.tone === "dark" && s.onDarkMuted]}>{t(stepEyebrowKey(step))}</Text>

@@ -4,6 +4,7 @@
 const { Router } = require("express");
 const { randomUUID } = require("crypto");
 const { supaAdmin } = require("../supabaseClient");
+const { heldPathsForOthers } = require("../lib/imageModeration");
 const { requireUser, requireUserOrGuest } = require("../mw/auth");
 
 const router = Router();
@@ -91,6 +92,8 @@ router.get("/signed-download", requireUser, async (req, res) => {
     if (!parsed) return res.status(400).json({ error: "INVALID_IMAGE_PATH" });
     const allowed = await viewableReportIds(req.user.id, [parsed.reportId]);
     if (!allowed.has(parsed.reportId)) return res.status(403).json({ error: "IMAGE_NOT_ALLOWED" });
+    // T1.9AZ: a held photo is for its owner only.
+    if ((await heldPathsForOthers(supaAdmin, req.user.id, [String(req.query.path)])).size) return res.status(403).json({ error: "IMAGE_HELD" });
 
     const { data, error } = await supaAdmin.storage.from(BUCKET).createSignedUrl(parsed.objectPath, 60 * 15);
     if (error) return res.status(400).json({ error: error.message });
@@ -136,6 +139,7 @@ router.post("/signed-download-batch", requireUser, async (req, res) => {
       Array.from(parsedByPath.values()).filter(Boolean).map((x) => x.reportId),
     );
 
+    const held = await heldPathsForOthers(supaAdmin, req.user.id, uniq);
     await Promise.all(
       uniq.map(async (p) => {
         try {
@@ -146,6 +150,10 @@ router.post("/signed-download-batch", requireUser, async (req, res) => {
           }
           if (!allowed.has(parsed.reportId)) {
             errors[p] = "IMAGE_NOT_ALLOWED";
+            return;
+          }
+          if (held.has(p)) {
+            errors[p] = "IMAGE_HELD";
             return;
           }
 

@@ -22,6 +22,7 @@ const { normalizeIdentifier, saveIdentifier, loadIdentifier } = require("../lib/
 const { normalizeCustody, normalizeOccurredPrecision } = require("../lib/reportCustody");
 const { normalizePet } = require("../lib/reportPet");
 const { normalizeItemSize } = require("../lib/reportItemSize");
+const { checkPublicText } = require("../lib/contentSafety");
 const { checkLimit, limitResponse } = require("../lib/rateLimits");
 const { isSuspended } = require("../lib/chatSafetyStore");
 
@@ -767,6 +768,12 @@ router.patch("/:id", requireUser, async (req, res) => {
         .json({ error: "category, title and occurred_at are required" });
     }
 
+    // T1.9AY: a shared case keeps its public text clean when it is edited.
+    if (existing.share_token && ["description", "location_label", "pet_name", "subcategory_custom"].some((k) => k in patch)) {
+      const text = await checkPublicText(next);
+      if (!text.ok) return res.status(422).json({ error: "PUBLIC_TEXT_NOT_ALLOWED", reasons: text.reasons });
+    }
+
     const editInfo = detectCriticalChanges(existing, patch);
     const isCritical = editInfo.isCritical;
     const inGracePeriod = minutesSince(existing.created_at) <= 15;
@@ -1226,13 +1233,17 @@ router.post("/:id/share", requireUser, async (req, res) => {
   try {
     const { data: report, error } = await supaAdmin
       .from("reports")
-      .select("id, type, status, share_token, deleted_at")
+      .select("id, type, status, share_token, deleted_at, hidden_at, description, location_label, pet_name, subcategory_custom")
       .eq("id", req.params.id)
       .eq("user_id", req.user.id)
       .maybeSingle();
     if (error) throw error;
     if (!report || report.deleted_at) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
     if (report.type !== "LOST" || report.status !== "ACTIVE") return res.status(409).json({ error: "SHARE_NOT_ALLOWED" });
+    // T1.9AY: a hidden case cannot be shared, and the public text must pass the checks.
+    if (report.hidden_at) return res.status(403).json({ error: "REPORT_HIDDEN" });
+    const text = await checkPublicText(report);
+    if (!text.ok) return res.status(422).json({ error: "PUBLIC_TEXT_NOT_ALLOWED", reasons: text.reasons });
     if (report.share_token) return res.json({ token: report.share_token });
     const token = require("crypto").randomBytes(15).toString("base64url");
     const { error: updateError } = await supaAdmin
@@ -1293,7 +1304,8 @@ router.get("/:id", requireUser, async (req, res) => {
     ] = await Promise.all([
       supaAdmin
         .from("report_images")
-        .select("id, path, sort_order")
+        // T1.9AZ: the owner sees whether a photo is held from others.
+        .select("id, path, sort_order, moderation_status, moderation_reason")
         .eq("report_id", reportId)
         .order("sort_order", { ascending: true }),
       supaAdmin

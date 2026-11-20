@@ -44,6 +44,11 @@ const EXACT: Record<string, TranslationKey> = {
   WATCH_AREA_LIMIT_REACHED: "errors.watchAreaLimit",
   QUERY_TOO_SHORT: "errors.queryTooShort",
   IMAGE_UPLOAD_FAILED: "errors.imageUpload",
+  // T1.9AY: protection of public content.
+  EMAIL_NOT_VERIFIED: "errors.emailNotVerified",
+  PUBLIC_TEXT_NOT_ALLOWED: "errors.publicText",
+  REPORT_HIDDEN: "errors.reportHidden",
+  CANNOT_REPORT_OWN_CASE: "errors.cannotReportOwn",
   // T1.9AE: store purchases
   STORE_NOT_READY: "purchases.storeNotReady",
   STORE_PRODUCT_NOT_FOUND: "purchase.productMissingBody",

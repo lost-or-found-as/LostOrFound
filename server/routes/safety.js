@@ -9,6 +9,13 @@
 //   GET    /safety/admin/reports?status=open|handled
 //   POST   /safety/admin/reports/:id/resolve   { action: "NO_ACTION" | "SUSPEND" }
 //   POST   /safety/admin/users/:userId/restore lift a suspension; open reports become NO_ACTION
+// T1.9AY: reporting a case (area alert, «I nærheten», share page) and bonus checks.
+//   POST   /safety/content/:reportId/report       { reason, comment? }  (signed in)
+//   GET    /safety/admin/content                  reported and hidden cases
+//   POST   /safety/admin/content/:reportId/restore
+//   POST   /safety/admin/content/:reportId/hide
+//   GET    /safety/admin/bonus-flags              accounts whose bonus looks arranged
+//   POST   /safety/admin/bonus/:ledgerId/revoke
 const express = require("express");
 const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
@@ -16,7 +23,9 @@ const { logAdminAccess } = require("../lib/adminAudit");
 const { requireUser } = require("../mw/auth");
 const { isAdmin, normalizeReport, snapshotMessages, shouldAutoSuspend, AUTO_SUSPEND_WINDOW_DAYS } = require("../lib/chatSafety");
 const { chatParties, otherParty, loadChatState, chatMessages, activeSuspensions } = require("../lib/chatSafetyStore");
-const { notifyAdmins } = require("../lib/adminAlert");
+const { notifyAdmins, notifyAdminsContent, notifyOwnerHidden } = require("../lib/adminAlert");
+const contentReports = require("../lib/contentReports");
+const { bonusFlags, revokeBonus } = require("../lib/helperBonus");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const fail = (res, e, code) => res.status(500).json({ error: e?.message || code });
@@ -243,6 +252,81 @@ router.post("/admin/users/:userId/restore", requireUser, requireAdmin, async (re
     return res.json({ ok: true });
   } catch (e) {
     return fail(res, e, "ADMIN_RESTORE_FAILED");
+  }
+});
+
+// T1.9AY: report a case. Hidden after reports from several people; admin is told.
+router.post("/content/:reportId/report", requireUser, async (req, res) => {
+  try {
+    const input = contentReports.normalizeContentReport(req.body);
+    if (!input.ok) return res.status(400).json({ error: input.error });
+    const result = await contentReports.recordContentReport({
+      supa: supaAdmin,
+      reportId: String(req.params.reportId || ""),
+      reporterKey: `user:${req.user.id}`,
+      reporterUserId: req.user.id,
+      source: "APP",
+      reason: input.reason,
+      comment: input.comment,
+      notify: { owner: notifyOwnerHidden, admins: notifyAdminsContent },
+    });
+    if (result.notFound) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
+    if (result.own) return res.status(400).json({ error: "CANNOT_REPORT_OWN_CASE" });
+    return res.json({ ok: true, already: !!result.already });
+  } catch (e) {
+    return fail(res, e, "CONTENT_REPORT_FAILED");
+  }
+});
+
+router.get("/admin/content", requireUser, requireAdmin, async (req, res) => {
+  try {
+    void logAdminAccess({ adminUserId: req.user.id, action: "VIEW_CONTENT_REPORTS", entityType: "report", entityId: null });
+    return res.json({ ok: true, items: await contentReports.listReported(supaAdmin) });
+  } catch (e) {
+    return fail(res, e, "CONTENT_LIST_FAILED");
+  }
+});
+
+router.post("/admin/content/:reportId/restore", requireUser, requireAdmin, async (req, res) => {
+  try {
+    await contentReports.restoreReport(supaAdmin, req.params.reportId);
+    void logAdminAccess({ adminUserId: req.user.id, action: "RESTORE_REPORT", entityType: "report", entityId: req.params.reportId });
+    return res.json({ ok: true });
+  } catch (e) {
+    return fail(res, e, "CONTENT_RESTORE_FAILED");
+  }
+});
+
+router.post("/admin/content/:reportId/hide", requireUser, requireAdmin, async (req, res) => {
+  try {
+    const row = await contentReports.hideReport(supaAdmin, req.params.reportId, "ADMIN");
+    if (row) {
+      await contentReports.revokePendingBonus(supaAdmin, req.params.reportId).catch(() => {});
+      await notifyOwnerHidden(row).catch(() => {});
+    }
+    void logAdminAccess({ adminUserId: req.user.id, action: "HIDE_REPORT", entityType: "report", entityId: req.params.reportId });
+    return res.json({ ok: true, hidden: !!row });
+  } catch (e) {
+    return fail(res, e, "CONTENT_HIDE_FAILED");
+  }
+});
+
+router.get("/admin/bonus-flags", requireUser, requireAdmin, async (req, res) => {
+  try {
+    void logAdminAccess({ adminUserId: req.user.id, action: "VIEW_BONUS_FLAGS", entityType: "bonus", entityId: null });
+    return res.json({ ok: true, flags: await bonusFlags({ supa: supaAdmin }) });
+  } catch (e) {
+    return fail(res, e, "BONUS_FLAGS_FAILED");
+  }
+});
+
+router.post("/admin/bonus/:ledgerId/revoke", requireUser, requireAdmin, async (req, res) => {
+  try {
+    const ok = await revokeBonus({ supa: supaAdmin, ledgerId: req.params.ledgerId, reason: "ADMIN" });
+    void logAdminAccess({ adminUserId: req.user.id, action: "REVOKE_BONUS", entityType: "bonus", entityId: req.params.ledgerId });
+    return res.json({ ok: true, revoked: ok });
+  } catch (e) {
+    return fail(res, e, "BONUS_REVOKE_FAILED");
   }
 });
 

@@ -3,6 +3,8 @@ const { Router } = require("express");
 const { supaAdmin } = require("../supabaseClient");
 const { requireUserOrGuest } = require("../mw/auth");
 const { stripJpegMetadata } = require("../lib/jpegMetadata");
+const { moderateImageRow } = require("../lib/imageModeration");
+const { notifyImageHeld } = require("../lib/adminAlert");
 const router = Router();
 
 async function stripStoredImageMetadata(dbPath, reportId) {
@@ -36,6 +38,8 @@ router.post("/:id/images", requireUserOrGuest, async (req, res) => {
     await stripStoredImageMetadata(path, reportId);
     const {data,error}=await supaAdmin.from("report_images").insert({report_id:reportId,path,sort_order:Number(sort_order)||0,created_by:user.id}).select().single();
     if (error) return res.status(400).json({error:error.message});
+    // T1.9AZ: check the photo before strangers can see it (in the background; the hourly job retries).
+    void moderateImageRow(data, { supa: supaAdmin, notifyHeld: notifyImageHeld }).catch((e) => console.warn("[image-moderation] failed", e?.message || e));
     return res.json({image:data});
   } catch(e) { return res.status(500).json({error:e?.message ?? "Server error"}); }
 });

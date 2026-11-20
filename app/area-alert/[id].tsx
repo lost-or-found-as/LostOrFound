@@ -15,6 +15,7 @@ import { userErrorMessage } from "../../src/lib/userError";
 import { formatDistance, formatLocalizedDateTime } from "../../src/i18n/formatters";
 import { Button, EmptyState, InfoButton, ScreenHeader } from "../../src/ui/kit";
 import { InlineNotice } from "../../src/ui/InlineNotice";
+import { ContentReportButton } from "../../src/ui/ContentReportButton";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOT_STARTED = new Set(["DRAFT", "PENDING_PAYMENT", "SCHEDULED"]);
@@ -161,6 +162,8 @@ function AreaAlertDetails() {
                 style={styles.noticeFirst}
               />
             )}
+            {/* T1.9AY: anyone who got the alert can report its content. */}
+            {!!report?.id && <ContentReportButton reportId={String(report.id)} />}
           </ScrollView>
         )}
       </View>

@@ -74,10 +74,11 @@ async function main() {
   ok(/3/.test(sent[0].titles.en), "English text too");
   const r2 = await bonus.award({ userId: "u1", event: "FOUND_REGISTERED", reportId: "r1", sourceId: "r1" }, { supa, env, notify, log: quiet });
   ok(r2.awarded && r2.reason === "PENDING", "a find waits 24 hours");
-  eq(sent.length, 1, "no notice while it waits");
+  // T1.9AY: told at once, with when it can be used.
+  eq(sent.length, 2, "notice at once");
+  ok(/registrert funn/i.test(sent[1].bodies.no) && /1 dag/.test(sent[1].bodies.no), "find text says it waits a day");
   await bonus.activatePending({ supa, now: Date.now() + 2 * 24 * 3600 * 1000, notify, log: quiet });
-  eq(sent.length, 2, "notice when the find turns active");
-  ok(/registrert funn/i.test(sent[1].bodies.no), "find text");
+  eq(sent.length, 2, "no second notice when it turns active");
   const before = sent.length;
   await bonus.award({ userId: "u1", event: "MATCH_CONFIRMED", counterpartUserId: "u3" }, { supa, env: {}, notify, log: quiet });
   eq(sent.length, before, "no notice while the bonus is off");

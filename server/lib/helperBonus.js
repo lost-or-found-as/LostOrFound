@@ -15,10 +15,22 @@ const POINTS = Object.freeze({
 const MONTHLY_CAP = 30;
 const EVENT_MONTHLY_CAPS = Object.freeze({ FOUND_REGISTERED: 3, SIGHTING_USEFUL: 3 });
 const PAIR_EVENTS = new Set(["MATCH_CONFIRMED", "SIGHTING_USEFUL", "SIGHTING_RESOLVED", "RETURN_CONFIRMED"]);
-const PAIR_DAYS = 90;
+// T1.9AY: the same two accounts get bonus for each kind of help only once, ever (was 90 days).
+const PAIR_DAYS = null;
 const CASE_MIN_AGE_MS = 2 * 60 * 60 * 1000;
 const CASE_AGE_EVENTS = new Set(["SIGHTING_RESOLVED", "RETURN_CONFIRMED"]);
 const FOUND_HOLD_MS = DAY;
+// T1.9AY: how long bonus waits before it can be used. A return or a solving sighting waits a week,
+// so admin can withdraw it, and it is withdrawn automatically when the case is hidden.
+const HOLD_MS = Object.freeze({ FOUND_REGISTERED: FOUND_HOLD_MS, RETURN_CONFIRMED: 7 * DAY, SIGHTING_RESOLVED: 7 * DAY });
+// T1.9AY: bonus can pay for extensions and «Synlig i nærheten», never for an area alert (no
+// free mass sending with earned bonus).
+const BONUS_SPENDABLE = Object.freeze(["REPORT_REACTIVATION", "AREA_VISIBILITY"]);
+function canSpendBonusOn(productCode) {
+  const code = String(productCode || "").toUpperCase();
+  if (code.startsWith("GEO_ALERT")) return false;
+  return BONUS_SPENDABLE.some((p) => code === p || code.startsWith(`${p}_`));
+}
 const VALID_MONTHS = 12;
 const REDEEM_MIN_ACCOUNT_DAYS = 14;
 const LEVELS = Object.freeze([
@@ -56,7 +68,7 @@ function nextStep(returns) {
 }
 
 /** T1.9AX: in-app notice (never push) when bonus is earned. Never throws. */
-async function notifyAwarded({ userId, event, points, ledgerId, notify, log = console }) {
+async function notifyAwarded({ userId, event, points, ledgerId, holdDays = 0, notify, log = console }) {
   try {
     const send = notify || require("./userNotify").notifyUser;
     const { localizedPair } = require("./messages");
@@ -66,7 +78,12 @@ async function notifyAwarded({ userId, event, points, ledgerId, notify, log = co
       entityType: "bonus",
       entityId: ledgerId || userId,
       titles: localizedPair("bonus.awarded.title", { points }),
-      bodies: localizedPair(`bonus.awarded.body.${event}`),
+      bodies: Object.fromEntries(
+        Object.entries(localizedPair(`bonus.awarded.body.${event}`)).map(([lang, text]) => [
+          lang,
+          holdDays > 0 ? `${text} ${localizedPair("bonus.awarded.pendingDays", { days: holdDays })[lang]}` : text,
+        ]),
+      ),
       push: false,
     });
   } catch (e) {
@@ -126,10 +143,11 @@ async function award(input, { supa, now = Date.now(), env = process.env, log = c
   if (counterpartUserId && (await sharedDevice(supa, userId, counterpartUserId))) return done(false, 0, "SHARED_DEVICE");
 
   if (counterpartUserId && PAIR_EVENTS.has(event)) {
-    const since = new Date(now - PAIR_DAYS * DAY).toISOString();
-    const { data, error } = await supa.from("helper_bonus_ledger").select("id")
+    let q = supa.from("helper_bonus_ledger").select("id")
       .eq("user_id", userId).eq("counterpart_user_id", counterpartUserId).eq("event_type", event)
-      .neq("status", "REVOKED").gte("created_at", since).limit(1);
+      .neq("status", "REVOKED");
+    if (PAIR_DAYS) q = q.gte("created_at", new Date(now - PAIR_DAYS * DAY).toISOString());
+    const { data, error } = await q.limit(1);
     if (error) throw error;
     if ((data || []).length) return done(false, 0, "PAIR_RECENT");
   }
@@ -150,8 +168,9 @@ async function award(input, { supa, now = Date.now(), env = process.env, log = c
   const points = Math.min(POINTS[event], MONTHLY_CAP - used);
   if (points <= 0) return done(false, 0, "MONTHLY_CAP");
 
-  const pending = event === "FOUND_REGISTERED";
-  const validFrom = pending ? now + FOUND_HOLD_MS : now;
+  const hold = HOLD_MS[event] || 0;
+  const pending = hold > 0;
+  const validFrom = now + hold;
   const { data: inserted, error } = await supa.from("helper_bonus_ledger").insert({
     user_id: userId,
     event_type: event,
@@ -169,8 +188,8 @@ async function award(input, { supa, now = Date.now(), env = process.env, log = c
     if (error.code === "23505") return done(false, 0, "ALREADY_AWARDED");
     throw error;
   }
-  // T1.9AX: tell the helper now; a pending find is told when it turns active (activatePending).
-  if (!pending) await notifyAwarded({ userId, event, points, ledgerId: inserted?.id, notify, log });
+  // T1.9AX/AY: tell the helper now; waiting bonus says when it can be used.
+  await notifyAwarded({ userId, event, points, ledgerId: inserted?.id, holdDays: Math.round(hold / DAY), notify, log });
   return done(true, points, pending ? "PENDING" : "ACTIVE");
 }
 
@@ -195,21 +214,70 @@ async function activatePending({ supa, now = Date.now(), log = console, notify }
     let ok = true;
     let reason = null;
     if (row.report_id) {
-      const r = await supa.from("reports").select("id,deleted_at").eq("id", row.report_id).maybeSingle();
+      const r = await supa.from("reports").select("id,deleted_at,hidden_at").eq("id", row.report_id).maybeSingle();
       if (r.error) throw r.error;
-      if (!r.data || r.data.deleted_at) { ok = false; reason = "REPORT_DELETED"; }
+      // A finder may delete the found case after the return; only a find needs the case to stay.
+      if (!r.data || (row.event_type === "FOUND_REGISTERED" && r.data.deleted_at)) { ok = false; reason = "REPORT_DELETED"; }
+      else if (r.data.hidden_at) { ok = false; reason = "REPORT_HIDDEN"; }
     }
     if (ok && (await isSuspended(supa, row.user_id))) { ok = false; reason = "SUSPENDED"; }
     const patch = ok ? { status: "ACTIVE", updated_at: new Date(now).toISOString() } : { status: "REVOKED", remaining: 0, reason, updated_at: new Date(now).toISOString() };
     const u = await supa.from("helper_bonus_ledger").update(patch).eq("id", row.id).eq("status", "PENDING");
     if (u.error) throw u.error;
-    if (ok) {
-      activated += 1;
-      await notifyAwarded({ userId: row.user_id, event: row.event_type, points: row.points, ledgerId: row.id, notify, log });
-    } else revoked += 1;
+    if (ok) activated += 1; else revoked += 1;
   }
   if (activated || revoked) log.log?.(`[bonus] pending: ${activated} activated, ${revoked} revoked`);
   return { activated, revoked };
+}
+
+/** T1.9AY: admin withdraws one bonus row (waiting or active). Returns true when changed. */
+async function revokeBonus({ supa, ledgerId, reason = "ADMIN", now = Date.now() }) {
+  const { data, error } = await supa.from("helper_bonus_ledger")
+    .update({ status: "REVOKED", remaining: 0, reason, updated_at: new Date(now).toISOString() })
+    .eq("id", ledgerId).neq("status", "REVOKED").select("id").maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
+/**
+ * T1.9AY: accounts whose bonus looks arranged, for admin to check (nothing is changed here).
+ *   RECIPROCAL  two accounts have given each other bonus (friends taking turns)
+ *   CLUSTER     most of an account's bonus comes from two or fewer other accounts (at least 3 rows)
+ *   MANY_RETURNS more than 3 confirmed returns in 30 days
+ */
+async function bonusFlags({ supa, now = Date.now(), days = 90 }) {
+  const { data, error } = await supa.from("helper_bonus_ledger")
+    .select("id,user_id,counterpart_user_id,event_type,points,status,created_at")
+    .not("counterpart_user_id", "is", null).neq("status", "REVOKED")
+    .gte("created_at", new Date(now - days * DAY).toISOString()).limit(5000);
+  if (error) throw error;
+  const rows = data || [];
+  const pairs = new Set(rows.map((r) => `${r.user_id}>${r.counterpart_user_id}`));
+  const byUser = new Map();
+  for (const r of rows) {
+    const list = byUser.get(r.user_id) || [];
+    list.push(r);
+    byUser.set(r.user_id, list);
+  }
+  const flags = [];
+  for (const [userId, list] of byUser) {
+    const reasons = [];
+    const partners = [...new Set(list.map((r) => r.counterpart_user_id))];
+    if (partners.some((p) => pairs.has(`${p}>${userId}`))) reasons.push("RECIPROCAL");
+    if (list.length >= 3 && partners.length <= 2) reasons.push("CLUSTER");
+    const recentReturns = list.filter((r) => r.event_type === "RETURN_CONFIRMED" && now - Date.parse(r.created_at) <= 30 * DAY).length;
+    if (recentReturns > 3) reasons.push("MANY_RETURNS");
+    if (reasons.length) {
+      flags.push({
+        userId,
+        reasons,
+        points: list.reduce((sum, r) => sum + r.points, 0),
+        partners: partners.length,
+        rows: list.map((r) => ({ id: r.id, event: r.event_type, points: r.points, status: r.status, at: r.created_at, counterpart: r.counterpart_user_id })),
+      });
+    }
+  }
+  return flags.sort((a, b) => b.points - a.points);
 }
 
 /** What the user sees about their own bonus. Never includes other people or their cases. */
@@ -259,6 +327,7 @@ function scheduleBonusMaintenance({ supa, log = console, everyMs = 60 * 60 * 100
 
 module.exports = {
   POINTS, MONTHLY_CAP, EVENT_MONTHLY_CAPS, PAIR_DAYS, VALID_MONTHS, REDEEM_MIN_ACCOUNT_DAYS,
+  HOLD_MS, BONUS_SPENDABLE, canSpendBonusOn, revokeBonus, bonusFlags,
   bonusEnabled, helperLevel, helperStars, nextStep, award, awardSafely, activatePending, bonusSummary, helperStatus,
   canRedeem, sharedDevice, scheduleBonusMaintenance,
 };

@@ -72,14 +72,15 @@ h1{margin:0;font-size:30px;line-height:1.15;letter-spacing:-.02em}.sub{margin:0;
 .warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn-text);border-radius:14px;padding:12px 14px;font-weight:700}
 .btn{display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:14px;background:var(--ink);color:var(--ink-text);font-weight:900;text-decoration:none}
 .btn2{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:14px;border:1px solid var(--border);color:var(--text);font-weight:800;text-decoration:none;background:var(--card)}
-h2{margin:0;font-size:20px}p{margin:0}`;
+h2{margin:0;font-size:20px}p{margin:0}
+.opt{display:block;padding:8px 0}textarea{width:100%;margin:8px 0 12px;padding:10px;border:1px solid var(--border);border-radius:10px;font:inherit;background:var(--card);color:var(--text)}.report-link{text-align:center}.report-link a{color:var(--muted)}`;
 
 function shell(lang, title, body, { noindex = true } = {}) {
   return `<!doctype html><html lang="${lang === "no" ? "nb" : esc(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${noindex ? '<meta name="robots" content="noindex">' : ""}<title>${esc(title)}</title><style>${STYLE}</style></head><body>${body}</body></html>`;
 }
 
 /** The public page. photoUrl may be null. */
-function renderSharePage({ report, lang, photoUrl, posterUrl }) {
+function renderSharePage({ report, lang, photoUrl, posterUrl, reportUrl }) {
   const c = pageContent(report, lang);
   const body = `<main>
 <span class="brand">Lost or Found</span>
@@ -100,6 +101,7 @@ ${c.temperament ? `<div class="warn">${esc(c.temperament)}</div>` : ""}
 <a class="btn2" href="https://lostorfound.app">${esc(message(lang, "share.getApp"))}</a>
 </section>
 ${posterUrl ? `<a class="btn2" href="${esc(posterUrl)}">${esc(message(lang, "share.posterPrint"))}</a>` : ""}
+${reportUrl ? `<p class="meta report-link"><a href="${esc(reportUrl)}" rel="nofollow">${esc(message(lang, "share.report.link"))}</a></p>` : ""}
 </main>`;
   return shell(lang, `${c.kicker}: ${c.heading}`, body);
 }
@@ -107,6 +109,28 @@ ${posterUrl ? `<a class="btn2" href="${esc(posterUrl)}">${esc(message(lang, "sha
 function renderClosedPage({ lang }) {
   const body = `<main><span class="brand">Lost or Found</span><section class="card"><h1>${esc(message(lang, "share.closedTitle"))}</h1><p>${esc(message(lang, "share.closedBody"))}</p><a class="btn2" href="https://lostorfound.app">Lost or Found</a></section></main>`;
   return shell(lang, message(lang, "share.closedTitle"), body);
+}
+
+// T1.9AY: anyone who opens a share page can report it (no sign-in). One report per visitor per day.
+const REPORT_REASONS = ["PERSON", "HARASSMENT", "PERSONAL_INFO", "SPAM", "OTHER"];
+function renderReportForm({ lang, action, backUrl }) {
+  const options = REPORT_REASONS.map(
+    (r, i) => `<label class="opt"><input type="radio" name="reason" value="${r}"${i === 0 ? " checked" : ""}> ${esc(message(lang, `content.reason.${r}`))}</label>`,
+  ).join("\n");
+  const body = `<main><span class="brand">Lost or Found</span><section class="card"><h1>${esc(message(lang, "share.report.title"))}</h1>
+<p>${esc(message(lang, "share.report.intro"))}</p>
+<form method="post" action="${esc(action)}">
+${options}
+<textarea name="comment" maxlength="300" rows="3"></textarea>
+<button class="btn" type="submit">${esc(message(lang, "share.report.send"))}</button>
+</form>
+<a class="btn2" href="${esc(backUrl)}">${esc(message(lang, "share.report.back"))}</a></section></main>`;
+  return shell(lang, message(lang, "share.report.title"), body);
+}
+
+function renderReportThanks({ lang }) {
+  const body = `<main><span class="brand">Lost or Found</span><section class="card"><h1>${esc(message(lang, "share.report.thanks"))}</h1><a class="btn2" href="https://lostorfound.app">Lost or Found</a></section></main>`;
+  return shell(lang, message(lang, "share.report.thanks"), body);
 }
 
 /** A4 poster: big kicker, photo, name, details, QR code (an SVG string, or null) and the link. */
@@ -143,4 +167,4 @@ ${c.temperament ? `<div class="warn">${esc(c.temperament)}</div>` : ""}
   return `<!doctype html><html lang="${lang === "no" ? "nb" : esc(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(`${c.kicker}: ${c.heading}`)}</title><style>${style}</style></head><body>${body}</body></html>`;
 }
 
-module.exports = { esc, areaName, pageContent, renderSharePage, renderClosedPage, renderPoster };
+module.exports = { esc, areaName, pageContent, renderSharePage, renderClosedPage, renderPoster, renderReportForm, renderReportThanks, REPORT_REASONS };

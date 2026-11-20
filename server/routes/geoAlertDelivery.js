@@ -50,7 +50,7 @@ router.get("/:campaignId/view", requireUser, async (req, res) => {
 
     const { data: campaign, error } = await supaAdmin
       .from("geo_alert_campaigns")
-      .select("id,status,radius_m,starts_at,ends_at,report_id,reports(id,title,category,subcategory_key,color,brand,description,location_label,status,lat,lng)")
+      .select("id,status,radius_m,starts_at,ends_at,report_id,reports(id,title,category,subcategory_key,color,brand,description,location_label,status,lat,lng,hidden_at)")
       .eq("id", campaignId)
       .maybeSingle();
     if (error) throw error;
@@ -58,6 +58,9 @@ router.get("/:campaignId/view", requireUser, async (req, res) => {
     // T1.9AC: the observation map starts in the alert area. Only a rounded point (about 1 km)
     // leaves the server; the exact place of the lost case stays private.
     const report = campaign.reports || null;
+    // T1.9AY: a hidden case is not shown to people who got the alert.
+    if (report?.hidden_at) return res.status(404).json({ error: "AREA_ALERT_NOT_AVAILABLE" });
+    if (report) delete report.hidden_at;
     const mapCenter = roundedPoint(report?.lat, report?.lng);
     if (report) {
       delete report.lat;

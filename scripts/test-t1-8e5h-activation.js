@@ -158,7 +158,7 @@ async function call(handler, { body = {}, params = {} } = {}) {
     status(c) { this.statusCode = c; return this; },
     json(b) { this.body = b; return this; },
   };
-  await handler({ body, params, user: { id: USER }, header: () => "" }, res);
+  await handler({ body, params, user: { id: USER, email_confirmed_at: "2026-01-01T00:00:00Z" }, header: () => "" }, res);
   return res;
 }
 

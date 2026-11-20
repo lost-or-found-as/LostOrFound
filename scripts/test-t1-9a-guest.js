@@ -138,7 +138,7 @@ const GUEST_ALLOWED = new Set([
 // T1.9R: public pages (privacy policy and terms) need no sign-in at all.
 // T1.9AE: the RevenueCat webhook is server-to-server and checks its own Authorization secret.
 // T1.9AK: a shared lost report and its poster are public pages (random link, no personal data).
-const PUBLIC = new Set(["legal.js GET /:doc", "authPages.js GET /confirmed", "revenueCatWebhook.js POST /webhook", "share.js GET /:token", "share.js GET /:token/poster"]);
+const PUBLIC = new Set(["legal.js GET /:doc", "authPages.js GET /confirmed", "revenueCatWebhook.js POST /webhook", "share.js GET /:token", "share.js GET /:token/poster", "share.js GET /:token/report", "share.js POST /:token/report"]);
 
 async function call(file, method, p, token, { body = {}, query = {}, params = {} } = {}) {
   const route = routes.find((r) => r.file === file && r.method === method && r.path === p);

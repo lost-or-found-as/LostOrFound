@@ -1,4 +1,5 @@
 const { awardSafely, bonusEnabled, helperStatus } = require("../lib/helperBonus");
+const { dropHeldImages } = require("../lib/imageModeration");
 // server/routes/matches.js
 // Matches API:
 // - GET /matches?reportId=... retrieves matches for a report.
@@ -57,7 +58,7 @@ const MATCH_SELECT = `
        radius_m, search_radius_m, area_radius_m, location_radius_m,
        status, visible_until, closed_at, archived_at,
        reward_ore, custody, custody_place,
-       report_images ( id, path, sort_order, created_at )
+       report_images ( id, path, sort_order, created_at, moderation_status )
      ),
      found:found_id (
        id, user_id, type, category, subcategory_key, title, description, color, secondary_color, brand, item_size,
@@ -65,7 +66,7 @@ const MATCH_SELECT = `
        radius_m, search_radius_m, area_radius_m, location_radius_m,
        status, visible_until, closed_at, archived_at,
        reward_ore, custody, custody_place,
-       report_images ( id, path, sort_order, created_at )
+       report_images ( id, path, sort_order, created_at, moderation_status )
      )
     `;
 
@@ -263,7 +264,9 @@ async function loadReportMatches(reportId, userId) {
     .map(enrichMatchAreaInfo)
     .map(enrichMatchColorInfo)
     // T1.9K: the hand-in place is shown only after the owner has confirmed the match.
-    .map((m) => redactCustodyForViewer(m, userId));
+    .map((m) => redactCustodyForViewer(m, userId))
+    // T1.9AZ: a photo held by the check is shown to its owner only.
+    .map((m) => dropHeldImages(m, userId));
   return { report, matches: filtered };
 }
 
@@ -322,7 +325,7 @@ router.get("/:id", requireUser, async (req, res) => {
     }
 
     return res.json({
-      match: redactCustodyForViewer(enrichMatchColorInfo(enrichMatchAreaInfo(match)), user.id),
+      match: dropHeldImages(redactCustodyForViewer(enrichMatchColorInfo(enrichMatchAreaInfo(match)), user.id), user.id),
       counterpart_helper: counterpartHelper,
     });
   } catch (e) {

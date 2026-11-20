@@ -264,6 +264,11 @@ app.listen(PORT, () => {
   const { scheduleBonusMaintenance, bonusEnabled } = require("./lib/helperBonus");
   scheduleBonusMaintenance({ supa: supaAdmin, log: console });
   console.log(`[BOOT] helperBonus=${bonusEnabled() ? "on" : "off"}`);
+  // T1.9AZ: photos are checked before strangers see them (after upload, and hourly for the rest).
+  const { scheduleImageModeration, moderationEnabled } = require("./lib/imageModeration");
+  const { notifyImageHeld } = require("./lib/adminAlert");
+  scheduleImageModeration({ supa: supaAdmin, log: console, notifyHeld: notifyImageHeld });
+  console.log(`[BOOT] imageModeration=${moderationEnabled() ? "on" : "off"}`);
   console.log(`[BOOT] cwd=${process.cwd()}`);
   console.log(`[BOOT] serverDir=${__dirname}`);
 });
