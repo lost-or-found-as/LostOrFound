@@ -106,7 +106,13 @@ async function main() {
   const profile = read("app/(tabs)/profile.tsx");
   ok(/\.\.\.\(bonus\?\.enabled/.test(profile) && /router\.push\("\/bonus"\)/.test(profile), "profile row only while on");
   const chat = read("app/chat/[matchId].tsx");
-  ok(/setHelper\(toHelperStatus\(j\?\.counterpart_helper\)\)/.test(chat) && /\{helper && \(/.test(chat), "chat shows the other party's level");
+  ok(/setHelper\(toHelperStatus\(j\?\.counterpart_helper\)\)/.test(chat) && /<HelperBadge helper=\{helper\} \/>/.test(chat), "match chat shows the other party's level");
+  const obsChat = read("app/observation-chat/[id].tsx");
+  ok(/setHelper\(toHelperStatus\(j\?\.counterpart_helper\)\)/.test(obsChat) && /<HelperBadge helper=\{helper\} \/>/.test(obsChat), "observation chat too");
+  const obsRoute = read("server/routes/observationChat.js");
+  ok(/if \(!bonusEnabled\(\)\) return null;/.test(obsRoute) && /o\.observer_user_id === userId \? o\.report_owner_user_id : o\.observer_user_id/.test(obsRoute), "observation chat: the other party, only while on");
+  ok(/counterpart_helper: await counterpartHelper\(o, userId\)/.test(obsRoute), "sent with the messages");
+  ok(!/\.balance|balanceValue/.test(read("src/ui/HelperBadge.tsx")), "badge never shows the balance");
   ok(/notificationType === "BONUS_AWARDED"\) \{\s*router\.push\("\/bonus"\);/.test(read("app/notifications.tsx")), "notice opens «Din bonus»");
   const helper = read("src/lib/helperBonus.ts");
   ok(/RETURN_CONFIRMED: 15/.test(helper) && /FOUND_REGISTERED: 1/.test(helper), "points shown match the server");

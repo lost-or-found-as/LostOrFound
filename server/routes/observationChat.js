@@ -6,6 +6,21 @@ const { requireUser } = require("../mw/auth");
 const { notifyUser } = require("../lib/userNotify");
 const { localizedPair } = require("../lib/messages");
 const { isChatClosed } = require("../lib/chatSafetyStore");
+const { bonusEnabled, helperStatus } = require("../lib/helperBonus");
+
+/** T1.9AX: the other party's helper level (level, stars and returns only), while the bonus is on. */
+async function counterpartHelper(o, userId) {
+  if (!bonusEnabled()) return null;
+  const otherId = o.observer_user_id === userId ? o.report_owner_user_id : o.observer_user_id;
+  if (!otherId) return null;
+  try {
+    const st = await helperStatus({ supa: supaAdmin, userId: otherId });
+    return st?.level ? st : null;
+  } catch (e) {
+    console.warn("[bonus] helper status failed", e?.message ?? e);
+    return null;
+  }
+}
 
 async function getObservation(id) {
   const { data, error } = await supaAdmin.from("area_alert_observations")
@@ -53,7 +68,7 @@ router.get("/:observationId/messages", requireUser, async (req, res) => {
       .select("id,conversation_id,sender_id,body,created_at")
       .eq("conversation_id", conversation.id).order("created_at", { ascending: true }).limit(500);
     if (error) throw error;
-    return res.json({ ok: true, conversation, messages: data || [] });
+    return res.json({ ok: true, conversation, messages: data || [], counterpart_helper: await counterpartHelper(o, userId) });
   } catch (e) { return res.status(500).json({ error: e?.message || "OBSERVATION_CHAT_LOAD_FAILED" }); }
 });
 router.post("/:observationId/messages", requireUser, async (req, res) => {

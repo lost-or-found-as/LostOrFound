@@ -17,6 +17,8 @@ import { ChatClosedBar, ChatSafetyMenu, useChatSafety } from "../../src/ui/ChatS
 import { unblockChatPartner } from "../../src/lib/chatSafety";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { ScreenHeader } from "../../src/ui/kit";
+import { HelperBadge } from "../../src/ui/HelperBadge";
+import { toHelperStatus, type HelperStatus } from "../../src/lib/helperBonus";
 import { useObservationResolution } from "../../src/lib/observationResolution";
 import { ObservationResolution } from "../../src/ui/ObservationResolution";
 
@@ -41,6 +43,7 @@ function Screen() {
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [helper, setHelper] = useState<HelperStatus | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<FlatList<Msg>>(null);
@@ -72,6 +75,8 @@ function Screen() {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw Object.assign(codedError(String(j?.error || "OBSERVATION_CHAT_LOAD_FAILED")), { status: r.status });
       setMessages(j.messages || []);
+      // T1.9AX: the other party's helper level (only sent while the bonus is on).
+      setHelper(toHelperStatus(j?.counterpart_helper));
       setLoadError(null);
     } catch (e: any) {
       console.warn("[observation-chat] load failed", e?.message || String(e));
@@ -148,6 +153,7 @@ function Screen() {
           ) : null
         }
       >
+        <HelperBadge helper={helper} />
         <ObservationResolution controller={resolution} variant="bar" canPropose={!safety.state.closed} />
       </ScreenHeader>
       <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === "ios" ? "padding" : undefined}>
