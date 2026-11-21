@@ -64,8 +64,14 @@ router.post("/", requireUserOrGuest, async (req, res) => {
     return res.json({ status, suggestion: rest });
   } catch (e) {
     const code = e?.code || "ANALYSIS_UNAVAILABLE";
-    console.warn("[image-analysis] failed", { code, providerStatus: e?.providerStatus });
+    console.warn("[image-analysis] failed", { code, providerStatus: e?.providerStatus, stopReason: e?.stopReason, snippet: e?.snippet });
     await record({ user_id: userId, is_guest: isGuest, status: "FAILED", error_code: String(code).slice(0, 60), duration_ms: Date.now() - started });
+    // T1.9BD: an answer without usable JSON (the model wrote prose, or refused) is not a server
+    // fault: the app gets «no suggestion» and the user picks the item as usual. Logged, not alerted.
+    if (code === "ANALYSIS_UNREADABLE") {
+      const { status: _ignored, ...empty } = analysis.validateSuggestion({});
+      return res.json({ status: "NO_ITEM", suggestion: empty });
+    }
     return res.status(code === "ANALYSIS_TIMEOUT" ? 504 : 502).json({ error: code });
   }
 });

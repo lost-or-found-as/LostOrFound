@@ -43,11 +43,15 @@ function routePath(req) {
 
 // Reports every response with status 500 or higher. Route handlers catch their own errors
 // and answer with res.status(500).json(...), so this is where server failures become visible.
+// T1.9BD: states that are switched off on purpose are not errors (no alert e-mail).
+const EXPECTED_CODES = new Set(["IMAGE_ANALYSIS_DISABLED"]);
+
 function sentryResponseMonitor(req, res, next) {
   if (!Sentry) return next();
   const originalJson = res.json.bind(res);
   res.json = (body) => {
-    if (res.statusCode >= 500) {
+    const expected = typeof body?.error === "string" && EXPECTED_CODES.has(body.error);
+    if (res.statusCode >= 500 && !expected) {
       const code = typeof body?.error === "string" ? body.error.slice(0, 120) : "UNKNOWN";
       const path = routePath(req);
       Sentry.withScope((scope) => {

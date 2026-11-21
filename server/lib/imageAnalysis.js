@@ -210,8 +210,17 @@ async function askModel(imageBase64, { env = process.env, fetchImpl = fetch } = 
   const json = await response.json().catch(() => null);
   if (!response.ok) throw analysisError("ANALYSIS_UNAVAILABLE", { providerStatus: response.status });
   const text = (json?.content || []).filter((b) => b?.type === "text").map((b) => b.text).join("\n");
+  let raw;
+  try {
+    raw = parseModelJson(text);
+  } catch (e) {
+    // T1.9BD: keep a short, non-personal hint for the log (why the answer had no JSON).
+    e.stopReason = json?.stop_reason || null;
+    e.snippet = String(text || "").replace(/\s+/g, " ").slice(0, 160);
+    throw e;
+  }
   return {
-    raw: parseModelJson(text),
+    raw,
     model,
     inputTokens: Number(json?.usage?.input_tokens || 0) + Number(json?.usage?.cache_read_input_tokens || 0) + Number(json?.usage?.cache_creation_input_tokens || 0),
     outputTokens: Number(json?.usage?.output_tokens || 0),
