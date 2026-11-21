@@ -112,6 +112,7 @@ export default function BonusScreen() {
                   <Text style={[s.body, s.useText]}>{t(`bonus.use.${use}` as TranslationKey)}</Text>
                 </View>
               ))}
+              <Text style={s.body}>{t("bonus.useWhole")}</Text>
               <Text style={s.mutedSmall}>{t("bonus.useNot")}</Text>
               <Text style={s.mutedSmall}>{t("bonus.useSoon")}</Text>
             </View>

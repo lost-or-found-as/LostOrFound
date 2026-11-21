@@ -17,9 +17,13 @@ import { formatDistance } from "../../src/i18n/formatters";
 import { Button, IconButton, InfoButton } from "../../src/ui/kit";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { theme } from "../../src/ui/theme";
+import { getAlertPlaces, setAlertPlaces } from "../../src/lib/alertPlacesStore";
 
 const MAX_SEARCH_AREAS = 3;
 const RADIUS_OPTIONS = [100, 250, 500, 1000, 2000, 5000];
+// T1.9BG: an area alert reaches further than a search area; a route is at most 2 km each side.
+const ALERT_CIRCLE_OPTIONS = [250, 500, 1000, 1500, 3000, 5000];
+const ALERT_ROUTE_OPTIONS = [100, 250, 500, 1000, 2000];
 type Mode = "CIRCLE" | "ROUTE" | "POLYGON";
 type Point = { latitude: number; longitude: number };
 type Notice = { tone: "warning" | "info" | "error"; title: string; body?: string };
@@ -27,20 +31,23 @@ const uid = () => `area_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
 export default function MapPickerScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ reportType?: ReportType }>();
+  const params = useLocalSearchParams<{ reportType?: ReportType; purpose?: string }>();
+  // T1.9BG: the same picker chooses the places of an area alert; the case is not changed.
+  const isAlert = params.purpose === "alert";
+  const alertStart = isAlert ? getAlertPlaces() || [] : [];
   const insets = useSafeAreaInsets();
   const { language, t } = useI18n();
   const { draft, setLocation, setField } = useReportDraft();
   const mapRef = useRef<MapView>(null);
 
-  const reportType: ReportType = params.reportType === "FOUND" || params.reportType === "LOST"
+  const reportType: ReportType = isAlert ? "LOST" : params.reportType === "FOUND" || params.reportType === "LOST"
     ? params.reportType
     : draft.type === "FOUND" ? "FOUND" : "LOST";
   const isFound = reportType === "FOUND";
 
   const [mode, setMode] = useState<Mode>("CIRCLE");
-  const [radius, setRadius] = useState(draft.location?.radiusMeters ?? 500);
-  const [areas, setAreas] = useState<SearchArea[]>((draft.searchAreas || []).slice(0, MAX_SEARCH_AREAS));
+  const [radius, setRadius] = useState(isAlert ? 1000 : draft.location?.radiusMeters ?? 500);
+  const [areas, setAreas] = useState<SearchArea[]>((isAlert ? alertStart : draft.searchAreas || []).slice(0, MAX_SEARCH_AREAS));
   const [workingPoints, setWorkingPoints] = useState<Point[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [foundPin, setFoundPin] = useState<Point>({
@@ -64,8 +71,8 @@ export default function MapPickerScreen() {
   const distance = (meters: number | null | undefined) => formatDistance(meters, language, t);
 
   const initialRegion = useMemo<Region>(() => ({
-    latitude: isFound ? foundPin.latitude : draft.location?.latitude ?? areas[0]?.points[0]?.latitude ?? 59.9139,
-    longitude: isFound ? foundPin.longitude : draft.location?.longitude ?? areas[0]?.points[0]?.longitude ?? 10.7522,
+    latitude: isFound ? foundPin.latitude : (isAlert ? areas[0]?.points[0]?.latitude : draft.location?.latitude) ?? areas[0]?.points[0]?.latitude ?? 59.9139,
+    longitude: isFound ? foundPin.longitude : (isAlert ? areas[0]?.points[0]?.longitude : draft.location?.longitude) ?? areas[0]?.points[0]?.longitude ?? 10.7522,
     latitudeDelta: 0.08,
     longitudeDelta: 0.08,
   }), []);
@@ -297,6 +304,11 @@ export default function MapPickerScreen() {
       setNotice({ tone: "warning", title: t("report.map.no.search.area"), body: t("report.map.add.at.least.one.area") });
       return;
     }
+    if (isAlert) {
+      setAlertPlaces(areas);
+      router.back();
+      return;
+    }
     const primary = areas[0].points[0];
     setField("searchAreas" as any, areas);
     setLocation({ latitude: primary.latitude, longitude: primary.longitude, radiusMeters: areas[0].radiusMeters ?? radius, confirmed: true });
@@ -334,7 +346,7 @@ export default function MapPickerScreen() {
         <IconButton icon="arrow-back" label={t("common.back")} onPress={() => router.back()} />
         <View style={styles.headerText}>
           <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
-            {isFound ? t("report.map.found.location") : t("report.map.search.areas")}
+            {isFound ? t("report.map.found.location") : isAlert ? t("report.map.alertTitle") : t("report.map.search.areas")}
           </Text>
           <Text style={styles.subtitle} numberOfLines={1}>
             {isFound ? t("report.map.place.one.pin.where.the.item") : t("report.map.p0.of.p1.areas", { p0: areas.length, p1: MAX_SEARCH_AREAS })}
@@ -499,7 +511,10 @@ export default function MapPickerScreen() {
         {(editableRadius || (!selectedArea && mode !== "POLYGON")) && (
           <>
             <View style={styles.radiusRow}>
-              {RADIUS_OPTIONS.map((m) => {
+              {(isAlert
+                ? selectedArea?.kind === "ROUTE" || (!selectedArea && mode === "ROUTE") ? ALERT_ROUTE_OPTIONS : ALERT_CIRCLE_OPTIONS
+                : RADIUS_OPTIONS
+              ).map((m) => {
                 const active = displayedRadius === m;
                 return (
                   <Pressable

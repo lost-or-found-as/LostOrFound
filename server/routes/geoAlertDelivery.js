@@ -50,7 +50,7 @@ router.get("/:campaignId/view", requireUser, async (req, res) => {
 
     const { data: campaign, error } = await supaAdmin
       .from("geo_alert_campaigns")
-      .select("id,status,radius_m,starts_at,ends_at,report_id,reports(id,title,category,subcategory_key,color,brand,description,location_label,status,lat,lng,hidden_at)")
+      .select("id,status,radius_m,area_sq_km,starts_at,ends_at,report_id,reports(id,title,category,subcategory_key,color,brand,description,location_label,status,lat,lng,hidden_at)")
       .eq("id", campaignId)
       .maybeSingle();
     if (error) throw error;

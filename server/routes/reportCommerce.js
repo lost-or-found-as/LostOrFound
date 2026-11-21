@@ -14,6 +14,7 @@ const supaAdmin =
 const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const { calculateGeoAlertQuote } = require("../lib/geoAlertPricing");
+const { normalizeAlertPlaces, MAX_TOTAL_AREA_SQ_KM } = require("../lib/alertPlaces");
 const { dispatchAreaAlertCampaign, dispatchAreaVisibilityCampaign } = require("../lib/geoAlertDispatch");
 const {
   VISIBILITY_REQUEST_CODE,
@@ -384,7 +385,38 @@ router.post("/orders", requireUser, async (req, res) => {
     let priceSnapshot = {};
     let geoQuote = null;
     let normalizedGeoAlert = null;
-    if (productCode === "GEO_ALERT") {
+    if (productCode === "GEO_ALERT" && Array.isArray(req.body?.geoAlert?.places)) {
+      // T1.9BG: up to three places (place, route, area). The tier follows the joined area.
+      let places;
+      try {
+        places = normalizeAlertPlaces(req.body.geoAlert.places);
+      } catch (e) {
+        return res.status(400).json({ error: e?.code || "INVALID_PLACES" });
+      }
+      const { data: previewRows, error: previewError } = await supaAdmin.rpc("preview_geo_alert_places", {
+        p_report_id: reportId,
+        p_user_id: userId,
+        p_places: places,
+      });
+      if (previewError) throw previewError;
+      const preview = Array.isArray(previewRows) ? previewRows[0] : previewRows;
+      if (!preview) return res.status(404).json({ error: "LOST_REPORT_WITH_LOCATION_NOT_FOUND" });
+      const areaSqKm = Number(preview.area_sq_km || 0);
+      if (areaSqKm > MAX_TOTAL_AREA_SQ_KM) return res.status(400).json({ error: "ALERT_AREA_TOO_LARGE" });
+      normalizedGeoAlert = {
+        places,
+        radiusM: null,
+        areaSqKm,
+        populationDensityBand: "LOW",
+        estimatedEligibleUsers: Number(preview.eligible_users || 0),
+        estimatedEligibleInstallations: Number(preview.eligible_installations || 0),
+        durationHours: GEO_ALERT_DURATION_HOURS,
+        reminderCount: GEO_ALERT_REMINDER_COUNT,
+      };
+      geoQuote = calculateGeoAlertQuote(normalizedGeoAlert);
+      productCode = geoQuote.productCode;
+      priceSnapshot = geoQuote.priceSnapshot;
+    } else if (productCode === "GEO_ALERT") {
       const requested = req.body?.geoAlert || {};
       const radiusM = Number(requested.radiusM);
       if (!VALID_GEO_ALERT_RADII.has(radiusM))
@@ -977,7 +1009,20 @@ async function activateOrder({ order, userId, provider, providerTransactionId, m
         " " +
         Number(report.lat) +
         ")";
-      const { data: createdCampaign, error: campaignError } = await supaAdmin
+      // T1.9BG: an alert with places stores their joined shape; radius_m stays empty and the
+      // recipient functions match on the shape itself.
+      const places = !visibilityOrder && Array.isArray(g.places) && g.places.length ? g.places : null;
+      let placesShape = null;
+      let shapeFailure = null;
+      if (places) {
+        const { data: ewkt, error: shapeError } = await supaAdmin.rpc("geo_alert_places_ewkt", { p_places: places });
+        if (shapeError || !ewkt) shapeFailure = shapeError || { message: "PLACES_SHAPE_EMPTY" };
+        else placesShape = String(ewkt);
+      }
+      // A shape that could not be made goes through the same compensation as a failed insert.
+      const { data: createdCampaign, error: campaignError } = shapeFailure
+        ? { data: null, error: shapeFailure }
+        : await supaAdmin
         .from("geo_alert_campaigns")
         .insert({
           user_id: userId,
@@ -985,9 +1030,10 @@ async function activateOrder({ order, userId, provider, providerTransactionId, m
           order_id: order.id,
           status: "ACTIVE",
           kind: visibilityOrder ? "VISIBILITY" : "ALERT",
-          geometry_type: "CIRCLE",
-          geometry: campaignPoint,
-          radius_m: Number(g.radiusM || 1500),
+          geometry_type: places ? "POLYGON" : "CIRCLE",
+          geometry: places ? placesShape : campaignPoint,
+          places,
+          radius_m: places ? null : Number(g.radiusM || 1500),
           area_sq_km: Number(g.areaSqKm || 0.01),
           population_density_band: String(
             g.populationDensityBand || "LOW",

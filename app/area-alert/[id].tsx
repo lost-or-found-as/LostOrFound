@@ -12,7 +12,7 @@ import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
 import { categoryLabel, colorLabel, itemLabel, reportSummary } from "../../src/lib/localizedReport";
 import { userErrorMessage } from "../../src/lib/userError";
-import { formatDistance, formatLocalizedDateTime } from "../../src/i18n/formatters";
+import { formatArea, formatDistance, formatLocalizedDateTime } from "../../src/i18n/formatters";
 import { Button, EmptyState, InfoButton, ScreenHeader } from "../../src/ui/kit";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { ContentReportButton } from "../../src/ui/ContentReportButton";
@@ -89,7 +89,10 @@ function AreaAlertDetails() {
     { label: t("areaAlert.object"), value: itemLabel(report.subcategory_key, language, report.category) || "–" },
     { label: t("areaAlert.color"), value: colorLabel(report.color, language) || "–" },
     { label: t("areaAlert.brand"), value: report.brand || "–" },
-    { label: t("areaAlert.area.radius"), value: campaign?.radius_m ? formatDistance(campaign.radius_m, language, t) : "–" },
+    // T1.9BG: an alert drawn as places has no radius; its size is shown instead.
+    campaign?.radius_m
+      ? { label: t("areaAlert.area.radius"), value: formatDistance(campaign.radius_m, language, t) }
+      : { label: t("areaAlert.area.size"), value: campaign?.area_sq_km ? formatArea(Number(campaign.area_sq_km) * 1_000_000, language, t) : "–" },
     { label: t("areaAlert.active.until"), value: campaign?.ends_at ? formatLocalizedDateTime(campaign.ends_at, language) : "–" },
   ] : [];
 

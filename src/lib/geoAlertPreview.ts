@@ -3,7 +3,9 @@ import { supabase } from "./supabase";
 
 export type GeoAlertPreviewInput = {
   reportId: string;
-  radiusM: number;
+  // T1.9BG: an area alert sends places (place, route, area); «Synlig i nærheten» a radius.
+  radiusM?: number;
+  places?: Array<{ kind: string; radiusMeters: number | null; points: Array<{ latitude: number; longitude: number }> }>;
   durationHours: 24 | 72 | 168;
   reminderCount: 0 | 1 | 2;
   populationDensityBand?: "VERY_LOW" | "LOW" | "MEDIUM" | "HIGH" | "VERY_HIGH";
@@ -17,7 +19,7 @@ export type GeoAlertPreviewResult = {
     reportId: string;
     latitude: number;
     longitude: number;
-    radiusM: number;
+    radiusM: number | null;
     areaSqKm: number;
     categoryKey: string;
     durationHours: number;

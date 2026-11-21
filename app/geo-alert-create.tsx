@@ -12,10 +12,23 @@ import {
 import MapView, {
   Circle,
   Marker,
+  Polygon,
+  Polyline,
   PROVIDER_GOOGLE,
   Region,
 } from "react-native-maps";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { supabase } from "../src/lib/supabase";
+import { API_BASE_URL } from "../src/lib/config";
+import type { SearchArea } from "../src/contexts/ReportDraftContext";
+import {
+  alertPlacesPayload,
+  alertPlacesVersion,
+  getAlertPlaces,
+  MAX_ALERT_PLACES,
+  setAlertPlaces,
+  startPlaces,
+} from "../src/lib/alertPlacesStore";
 import { InfoButton, ScreenHeader } from "../src/ui/kit";
 import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
@@ -51,7 +64,7 @@ function tr(language: Lang, key: TranslationKey): string {
   return translate(language, key);
 }
 
-const RADII = [250, 500, 1000, 1500, 3000, 5000, 10000];
+const PLACE_COLORS = ["#2563EB", "#16A34A", "#7C3AED"];
 const DURATION_HOURS = 168;
 const REMINDER_COUNT = 0;
 // T1.8E.5I: errors are shown in the screen (InlineNotice), never as native dialogs.
@@ -79,7 +92,10 @@ function GeoAlertCreateScreen() {
   const reportId = String(params.reportId || "").trim();
   const latitude = Number(params.lat);
   const longitude = Number(params.lng);
-  const [radiusM, setRadiusM] = useState(1500);
+  // T1.9BG: up to three places (place, route, area), first from the case's own search areas.
+  const [places, setPlaces] = useState<SearchArea[]>([]);
+  const [placesReady, setPlacesReady] = useState(false);
+  const seenVersion = useRef(alertPlacesVersion());
   const [busy, setBusy] = useState(false);
   const [activating, setActivating] = useState(false);
   // T1.9R: consent that the alert starts at once (right of withdrawal lapses).
@@ -90,10 +106,6 @@ function GeoAlertCreateScreen() {
   const [statusLoading, setStatusLoading] = useState(true);
   const [notice, setNotice] = useState<AreaAlertNotice | null>(null);
   const validLocation = Number.isFinite(latitude) && Number.isFinite(longitude);
-  const center = useMemo(
-    () => ({ latitude, longitude }),
-    [latitude, longitude],
-  );
   const region = useMemo<Region>(
     () => ({ latitude, longitude, latitudeDelta: 0.09, longitudeDelta: 0.09 }),
     [latitude, longitude],
@@ -120,28 +132,85 @@ function GeoAlertCreateScreen() {
 
   const view = useMemo(() => deriveAreaAlertView(status), [status]);
 
+  // The case's search areas are the starting places.
+  useEffect(() => {
+    if (!reportId) return;
+    let live = true;
+    (async () => {
+      let searchAreas: unknown = null;
+      try {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (token) {
+          const r = await fetch(`${API_BASE_URL}/reports/${encodeURIComponent(reportId)}`, { headers: { Authorization: `Bearer ${token}` } });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok) searchAreas = j?.report?.search_areas;
+        }
+      } catch {
+        // Falls back to one place at the case location.
+      }
+      if (!live) return;
+      setPlaces(startPlaces(searchAreas, latitude, longitude));
+      setPlacesReady(true);
+    })();
+    return () => {
+      live = false;
+    };
+  }, [reportId, latitude, longitude]);
+
+  // Back from the map picker with new places.
+  useFocusEffect(
+    useCallback(() => {
+      const v = alertPlacesVersion();
+      if (v !== seenVersion.current) {
+        seenVersion.current = v;
+        const next = getAlertPlaces();
+        if (next && next.length) setPlaces(next);
+      }
+    }, []),
+  );
+
+  const fitPlaces = useCallback(() => {
+    const coords = places.flatMap((p) => p.points);
+    if (!coords.length) return;
+    const pad = Math.max(...places.map((p) => (p.kind === "POLYGON" ? 0 : Number(p.radiusMeters || 500))));
+    requestAnimationFrame(() => {
+      if (coords.length === 1) {
+        const delta = Math.max(0.015, Math.min(1.2, (pad * 2.6) / 111000));
+        mapRef.current?.animateToRegion({ ...coords[0], latitudeDelta: delta, longitudeDelta: delta }, 200);
+      } else {
+        const edge = 40 + Math.min(120, pad / 40);
+        mapRef.current?.fitToCoordinates(coords, { edgePadding: { top: edge, right: edge, bottom: edge, left: edge }, animated: true });
+      }
+    });
+  }, [places]);
+
   useEffect(() => {
     setResult(null);
     setActivatedUntil(null);
     setNotice(null);
     requestIdRef.current = null;
-    if (validLocation) {
-      const delta = Math.max(0.015, Math.min(1.2, radiusM / 18000));
-      mapRef.current?.animateToRegion(
-        { ...center, latitudeDelta: delta, longitudeDelta: delta },
-        200,
-      );
-    }
-  }, [radiusM, validLocation, center]);
+    fitPlaces();
+  }, [places, fitPlaces]);
+
+  const editPlaces = () => {
+    setAlertPlaces(places);
+    seenVersion.current = alertPlacesVersion();
+    router.push({ pathname: "/(report)/map", params: { purpose: "alert" } });
+  };
+
+  const removePlace = (id: string) => {
+    if (places.length <= 1) return;
+    setPlaces((current) => current.filter((p) => p.id !== id));
+  };
 
   const calculate = async () => {
-    if (!reportId || !validLocation) return;
+    if (!reportId || !validLocation || !places.length) return;
     try {
       setBusy(true);
       setNotice(null);
       const next = await previewGeoAlert({
         reportId,
-        radiusM,
+        places: alertPlacesPayload(places),
         durationHours: DURATION_HOURS,
         reminderCount: REMINDER_COUNT,
         populationDensityBand: "LOW",
@@ -176,7 +245,7 @@ function GeoAlertCreateScreen() {
               : "WEB",
         provider: "TEST",
         geoAlert: {
-          radiusM: result.preview.radiusM,
+          places: alertPlacesPayload(places),
           areaSqKm: result.preview.areaSqKm,
           populationDensityBand: result.preview.populationDensityBand,
           durationHours: DURATION_HOURS,
@@ -358,40 +427,72 @@ function GeoAlertCreateScreen() {
               provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
               style={styles.map}
               initialRegion={region}
+              onMapReady={fitPlaces}
               scrollEnabled
               zoomEnabled
             >
-              <Marker coordinate={center} />
-              <Circle
-                center={center}
-                radius={radiusM}
-                strokeColor="#2563EB"
-                strokeWidth={3}
-                fillColor="rgba(37,99,235,.16)"
-              />
+              {places.map((p, index) => {
+                const color = PLACE_COLORS[index] ?? PLACE_COLORS[0];
+                if (p.kind === "CIRCLE")
+                  return (
+                    <React.Fragment key={p.id}>
+                      <Marker coordinate={p.points[0]} pinColor={color} />
+                      <Circle center={p.points[0]} radius={Number(p.radiusMeters || 500)} strokeColor={color} strokeWidth={3} fillColor={`${color}29`} />
+                    </React.Fragment>
+                  );
+                if (p.kind === "ROUTE")
+                  return <Polyline key={p.id} coordinates={p.points} strokeColor={color} strokeWidth={8} />;
+                return <Polygon key={p.id} coordinates={p.points} strokeColor={color} strokeWidth={3} fillColor={`${color}29`} />;
+              })}
             </MapView>
           </View>
 
+          {/* T1.9BG: the places the alert covers, as on the map at registration. */}
           <View style={styles.card}>
             <Text style={styles.h2}>
-              {tr(language, "areaAlertCreate.coverage")}
+              {t("areaAlertCreate.places.title", { count: places.length, max: MAX_ALERT_PLACES })}
             </Text>
-            <View style={styles.chips}>
-              {RADII.map((v) => (
-                <Chip
-                  key={v}
-                  active={radiusM === v}
-                  label={formatDistance(v, language, t)}
-                  onPress={() => setRadiusM(v)}
-                />
-              ))}
-            </View>
-            <Text style={styles.help}>
-              {tr(
-                language,
-                "areaAlertCreate.the.blue.circle.is.centered.on.the.report.locati",
-              )}
-            </Text>
+            {!placesReady ? (
+              <ActivityIndicator color={theme.colors.primary} />
+            ) : (
+              places.map((p, index) => (
+                <View key={p.id} style={styles.placeRow}>
+                  <View style={[styles.placeNumber, { backgroundColor: PLACE_COLORS[index] ?? PLACE_COLORS[0] }]}>
+                    <Text style={styles.placeNumberText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.placeText}>
+                    <Text style={styles.placeTitle}>
+                      {p.kind === "CIRCLE" ? t("report.map.place") : p.kind === "ROUTE" ? t("report.map.route") : t("report.map.area")}
+                    </Text>
+                    <Text style={styles.help}>
+                      {p.kind === "CIRCLE"
+                        ? t("areaAlertCreate.places.radius", { distance: formatDistance(Number(p.radiusMeters || 500), language, t) })
+                        : p.kind === "ROUTE"
+                          ? t("areaAlertCreate.places.routeWidth", { distance: formatDistance(Number(p.radiusMeters || 500), language, t) })
+                          : t("areaAlertCreate.places.drawn")}
+                    </Text>
+                  </View>
+                  {places.length > 1 && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("areaAlertCreate.places.remove")}
+                      onPress={() => removePlace(p.id)}
+                      hitSlop={8}
+                      style={styles.placeRemove}
+                    >
+                      <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+                    </Pressable>
+                  )}
+                </View>
+              ))
+            )}
+            <Pressable accessibilityRole="button" onPress={editPlaces} style={styles.placeEdit} disabled={!placesReady}>
+              <Ionicons name={places.length < MAX_ALERT_PLACES ? "add-circle-outline" : "create-outline"} size={20} color={theme.colors.primary} />
+              <Text style={styles.placeEditText}>
+                {places.length < MAX_ALERT_PLACES ? t("areaAlertCreate.places.addOrChange") : t("areaAlertCreate.places.change")}
+              </Text>
+            </Pressable>
+            <Text style={styles.help}>{t("areaAlertCreate.places.help")}</Text>
           </View>
 
           <View style={styles.card}>
@@ -519,6 +620,9 @@ type Translate = (key: TranslationKey, params?: Record<string, string | number |
 
 function noticeContent(notice: AreaAlertNotice, t: Translate) {
   const nothing = notice.nothingOrdered ? ` ${t("areaAlertCreate.nothingOrdered")}` : "";
+  // T1.9BG: the places together are larger than an alert can cover.
+  if (String(notice.info.code || "").toUpperCase().includes("ALERT_AREA_TOO_LARGE"))
+    return { tone: "info" as const, icon: "resize-outline" as const, title: t("areaAlertCreate.tooLargeTitle"), body: t("areaAlertCreate.tooLargeBody") };
   switch (notice.info.kind) {
     case "network":
       return { tone: "warning" as const, icon: "wifi-outline" as const, title: t("errors.networkTitle"), body: t("errors.networkBody") + nothing };
@@ -537,26 +641,6 @@ function noticeContent(notice: AreaAlertNotice, t: Translate) {
   }
 }
 
-function Chip({
-  active,
-  label,
-  onPress,
-}: {
-  active: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.chip, active && styles.chipActive]}
-    >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
 
 const styles = StyleSheet.create({
   recipients: { fontSize: 15, fontWeight: "800", color: theme.colors.text, marginTop: 6 },
@@ -564,6 +648,14 @@ const styles = StyleSheet.create({
   rules: { fontSize: 13, lineHeight: 19, fontWeight: "600", color: theme.colors.textSecondary, marginTop: 6 },
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   content: { padding: 14, paddingBottom: 40 },
+  placeRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
+  placeNumber: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  placeNumberText: { color: "#FFFFFF", fontWeight: "800", fontSize: 13 },
+  placeText: { flex: 1 },
+  placeTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  placeRemove: { minWidth: 40, minHeight: 40, alignItems: "center", justifyContent: "center" },
+  placeEdit: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44, marginTop: 4 },
+  placeEditText: { fontSize: 15, fontWeight: "800", color: theme.colors.primary },
   center: {
     flex: 1,
     alignItems: "center",

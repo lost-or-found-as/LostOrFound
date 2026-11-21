@@ -57,9 +57,26 @@ function recipientBand(count) {
   return { kind: "ABOUT", value: Math.round(n / 10) * 10, min, max };
 }
 
+// T1.9BG: with places (place, route or area, up to three) the tier follows the joined area,
+// with the same limits as the circles: up to 1 km radius (about 3.1 km²) and up to 3 km
+// (about 28.3 km²). One store product per tier, so one purchase covers all places.
+const TIER_MAX_AREA_SQ_KM = Object.freeze({
+  1: (Math.PI * TIER_MAX_RADIUS_M[1] * TIER_MAX_RADIUS_M[1]) / 1_000_000,
+  2: (Math.PI * TIER_MAX_RADIUS_M[2] * TIER_MAX_RADIUS_M[2]) / 1_000_000,
+});
+
+function tierForArea(areaSqKm) {
+  const a = Math.max(0, finite(areaSqKm, 0));
+  if (a <= TIER_MAX_AREA_SQ_KM[1] + 0.0001) return 1;
+  if (a <= TIER_MAX_AREA_SQ_KM[2] + 0.0001) return 2;
+  return MAX_TIER;
+}
+
 function calculateGeoAlertQuote(input, env = process.env) {
-  const radiusM = radiusOf(input);
-  const tier = tierForRadius(radiusM);
+  const byPlaces = Array.isArray(input?.places) && input.places.length > 0;
+  const radiusM = byPlaces ? null : radiusOf(input);
+  const areaSqKm = Math.max(0, finite(input?.areaSqKm, 0));
+  const tier = byPlaces ? tierForArea(areaSqKm) : tierForRadius(radiusM);
   const pilotFree = isPilotFree(env);
   const pushRecipients = Math.max(0, Math.round(finite(input?.estimatedEligibleInstallations ?? input?.pushRecipients)));
   return {
@@ -72,8 +89,9 @@ function calculateGeoAlertQuote(input, env = process.env) {
     validForMinutes: 15,
     recipients: recipientBand(pushRecipients),
     priceSnapshot: {
-      version: 2,
-      radius_m: Math.round(radiusM),
+      version: byPlaces ? 3 : 2,
+      radius_m: byPlaces ? null : Math.round(radiusM),
+      ...(byPlaces ? { area_sq_km: Math.round(areaSqKm * 100) / 100, places: input.places.length } : {}),
       tier,
       list_price_ore: TIER_PRICES_ORE[tier],
       pilot_free: pilotFree,
@@ -82,4 +100,4 @@ function calculateGeoAlertQuote(input, env = process.env) {
   };
 }
 
-module.exports = { calculateGeoAlertQuote, recipientBand, isPilotFree, tierForRadius, TIER_PRICES_ORE };
+module.exports = { calculateGeoAlertQuote, recipientBand, isPilotFree, tierForRadius, tierForArea, TIER_PRICES_ORE };
