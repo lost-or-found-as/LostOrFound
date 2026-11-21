@@ -24,6 +24,7 @@ const {
   calculateVisibilityQuote,
   visibilityBlockReason,
   visibilityStatus,
+  pauseVisibilityForAlert,
 } = require("../lib/areaVisibility");
 const {
   isGeoAlertProduct,
@@ -1067,6 +1068,14 @@ async function activateOrder({ order, userId, provider, providerTransactionId, m
         return reply(400, { error: "GEO_ALERT_CAMPAIGN_CREATE_FAILED" });
       }
       order.created_campaign_id = createdCampaign.id;
+      // T1.9BI: a running «Synlig i nærheten» waits until the alert is over, then goes on.
+      if (!visibilityOrder) {
+        try {
+          await pauseVisibilityForAlert(supaAdmin, order.report_id, periodEnd.toISOString(), now.getTime());
+        } catch (e) {
+          console.warn("[geo-alert][visibility-pause-failed]", e?.message || e);
+        }
+      }
     }
 
     const { data: updatedOrder, error: uErr } = await supaAdmin

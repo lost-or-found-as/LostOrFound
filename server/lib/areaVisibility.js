@@ -69,6 +69,48 @@ function visibilityBlockReason(campaigns, now = Date.now()) {
   return { error: AREA_VISIBILITY_ALREADY_ACTIVE, activeUntil: until };
 }
 
+/**
+ * T1.9BI: an area alert bought while «Synlig i nærheten» is running includes the same
+ * visibility, so the visibility is paused while the alert runs and resumes afterwards with the
+ * time that was left. Returns the new end time (ms), or null when there is nothing to move.
+ */
+function pausedVisibilityEnd(visibilityEndMs, alertEndMs, nowMs = Date.now()) {
+  const left = Number(visibilityEndMs) - Number(nowMs);
+  if (!Number.isFinite(left) || left <= 0 || !Number.isFinite(Number(alertEndMs))) return null;
+  return Number(alertEndMs) + left;
+}
+
+/** Moves the end of every live visibility period of the case to after the alert. Best effort. */
+async function pauseVisibilityForAlert(supa, reportId, alertEndIso, nowMs = Date.now()) {
+  const alertEndMs = Date.parse(alertEndIso || "");
+  const { data, error } = await supa
+    .from("geo_alert_campaigns")
+    .select("id,order_id,ends_at")
+    .eq("report_id", reportId)
+    .eq("kind", "VISIBILITY")
+    .eq("status", "ACTIVE");
+  if (error) throw error;
+  const moved = [];
+  for (const c of data || []) {
+    const next = pausedVisibilityEnd(Date.parse(c.ends_at || ""), alertEndMs, nowMs);
+    if (next === null) continue;
+    const endsAt = new Date(next).toISOString();
+    const nowIso = new Date(nowMs).toISOString();
+    const { error: cErr } = await supa.from("geo_alert_campaigns").update({ ends_at: endsAt, updated_at: nowIso }).eq("id", c.id);
+    if (cErr) throw cErr;
+    if (c.order_id) {
+      const { error: eErr } = await supa
+        .from("report_entitlements")
+        .update({ current_period_end: endsAt, updated_at: nowIso })
+        .eq("order_id", c.order_id)
+        .eq("status", "ACTIVE");
+      if (eErr) throw eErr;
+    }
+    moved.push({ campaignId: c.id, endsAt });
+  }
+  return moved;
+}
+
 /** The case's visibility for the app: until when, and whether it comes from an area alert. */
 function visibilityStatus(campaigns, now = Date.now()) {
   const live = (campaigns || [])
@@ -82,6 +124,8 @@ function visibilityStatus(campaigns, now = Date.now()) {
 }
 
 module.exports = {
+  pausedVisibilityEnd,
+  pauseVisibilityForAlert,
   VISIBILITY_PRODUCT_PREFIX,
   VISIBILITY_REQUEST_CODE,
   VISIBILITY_DURATION_HOURS,

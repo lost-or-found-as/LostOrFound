@@ -22,6 +22,7 @@ const { normalizeIdentifier, saveIdentifier, loadIdentifier } = require("../lib/
 const { normalizeCustody, normalizeOccurredPrecision } = require("../lib/reportCustody");
 const { normalizePet } = require("../lib/reportPet");
 const { normalizeItemSize } = require("../lib/reportItemSize");
+const { lowersLockedReward, hasContact } = require("../lib/rewardLock");
 const { checkPublicText } = require("../lib/contentSafety");
 const { checkLimit, limitResponse } = require("../lib/rateLimits");
 const { isSuspended } = require("../lib/chatSafetyStore");
@@ -774,6 +775,14 @@ router.patch("/:id", requireUser, async (req, res) => {
       if (!text.ok) return res.status(422).json({ error: "PUBLIC_TEXT_NOT_ALLOWED", reasons: text.reasons });
     }
 
+    // T1.9BI: after someone has been in touch, the reward can go up but not down.
+    if ("reward_ore" in patch && Number(patch.reward_ore || 0) < Number(existing.reward_ore || 0)) {
+      const locked = await hasContact(supaAdmin, reportId);
+      if (lowersLockedReward(existing.reward_ore, patch.reward_ore, locked)) {
+        return res.status(409).json({ error: "REWARD_LOCKED", reward_ore: Number(existing.reward_ore || 0) });
+      }
+    }
+
     const editInfo = detectCriticalChanges(existing, patch);
     const isCritical = editInfo.isCritical;
     const inGracePeriod = minutesSince(existing.created_at) <= 15;
@@ -1407,6 +1416,8 @@ router.get("/:id", requireUser, async (req, res) => {
       confirmed_matches: confirmedMatches,
       last_messages: lastMessages,
       observations: observationsResult.data || [],
+      // T1.9BI: someone has been in touch, so the reward can only be raised.
+      reward_locked: confirmedMatches.length > 0 || (observationsResult.data || []).length > 0,
       // T1.9V: the owner's own identifier (this route only answers the owner).
       identifier: await loadIdentifier(supaAdmin, reportId),
     });

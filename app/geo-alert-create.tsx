@@ -131,6 +131,13 @@ function GeoAlertCreateScreen() {
   }, [loadStatus]);
 
   const view = useMemo(() => deriveAreaAlertView(status), [status]);
+  // Days left of a running «Synlig i nærheten» (not one that comes from an area alert).
+  const visibilityDaysLeft = useMemo(() => {
+    const v = status?.visibility;
+    if (!v?.activeUntil || v.viaAreaAlert) return 0;
+    const ms = Date.parse(v.activeUntil) - Date.now();
+    return ms > 0 ? Math.max(1, Math.ceil(ms / 86400000)) : 0;
+  }, [status]);
 
   // The case's search areas are the starting places.
   useEffect(() => {
@@ -511,6 +518,15 @@ function GeoAlertCreateScreen() {
                 "areaAlertCreate.the.notification.is.sent.once.recipients.can.fin",
               )}
             </Text>
+            {/* T1.9BI: a running «Synlig i nærheten» is paused, not lost. */}
+            {visibilityDaysLeft > 0 && (
+              <InlineNotice
+                tone="info"
+                icon="pause-circle-outline"
+                title={t("areaAlertCreate.visibilityPauseTitle")}
+                body={t("areaAlertCreate.visibilityPauseBody", { count: visibilityDaysLeft })}
+              />
+            )}
           </View>
 
           <Pressable

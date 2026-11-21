@@ -25,7 +25,8 @@ import { useAuth } from "../../src/contexts/AuthContext";
 import { theme } from "../../src/ui/theme";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { codedError, userErrorMessage } from "../../src/lib/userError";
-import { formatDateTimeCustom, formatTime, type Translate } from "../../src/i18n/formatters";
+import { formatDateTimeCustom, formatMoney, formatTime, type Translate } from "../../src/i18n/formatters";
+import { STORED_MONEY_CURRENCY } from "../../src/lib/market";
 import { setLastSeen } from "../../src/lib/unread";
 import { caseTitle } from "../../src/lib/caseDisplay";
 import { InlineNotice } from "../../src/ui/InlineNotice";
@@ -375,6 +376,12 @@ function ChatScreen() {
         }
       >
         <HelperBadge helper={helper} />
+        {/* T1.9BI: the finder sees the reward the owner has promised (it can only go up now). */}
+        {!youOwnLost && Number(match?.lost?.reward_ore || 0) > 0 && (
+          <Text style={styles.rewardLine}>
+            {t("chat.rewardLine", { amount: formatMoney(Number(match?.lost?.reward_ore || 0) / 100, STORED_MONEY_CURRENCY, language) })}
+          </Text>
+        )}
         {resolutionBar}
       </ScreenHeader>
       <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -480,6 +487,7 @@ function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
+  rewardLine: { fontSize: 13, fontWeight: "700", color: theme.colors.textSecondary, marginTop: 2 },
   screen: { flex: 1, backgroundColor: theme.colors.bg },
   flex1: { flex: 1 },
   pad: { padding: 16 },

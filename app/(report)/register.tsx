@@ -164,6 +164,8 @@ export default function RegisterScreen() {
   const [storedImages, setStoredImages] = useState<{ path: string; url: string | null; held: boolean }[]>([]);
   const [editLoading, setEditLoading] = useState(isEdit);
   const [editError, setEditError] = useState<string | null>(null);
+  // T1.9BI: after someone has been in touch, the stored reward is the lowest allowed (in NOK).
+  const [rewardFloor, setRewardFloor] = useState<number | null>(null);
   const editSavedRef = useRef(false);
   const editPointRef = useRef<string | null>(null);
   const maxNewImages = Math.max(0, MAX_IMAGES - storedImages.length);
@@ -197,6 +199,7 @@ export default function RegisterScreen() {
         if (!live) return;
         await reset();
         const fields = draftFromReport(j.report, j.identifier);
+        setRewardFloor(j.reward_locked === true ? Math.round(Number(j.report?.reward_ore || 0) / 100) : null);
         if (fields.location) editPointRef.current = `${fields.location.latitude},${fields.location.longitude}`;
         for (const [key, value] of Object.entries(fields)) setField(key as any, value as any);
         const stored = (Array.isArray(j.images) ? j.images : [])
@@ -1198,12 +1201,14 @@ export default function RegisterScreen() {
               <View style={s.chips}>
                 {REWARD_PRESETS.map((amount) => {
                   const on = !rewardOther && reward === amount;
+                  const below = rewardFloor !== null && amount < rewardFloor;
                   return (
                     <Pressable
                       key={amount}
                       accessibilityRole="radio"
-                      accessibilityState={{ selected: on }}
-                      style={[s.chip, on && s.chipOn]}
+                      accessibilityState={{ selected: on, disabled: below }}
+                      disabled={below}
+                      style={[s.chip, on && s.chipOn, below && s.chipDisabled]}
                       onPress={() => {
                         setRewardOther(false);
                         setField("rewardNOK", String(amount));
@@ -1236,6 +1241,15 @@ export default function RegisterScreen() {
                   autoFocus={rewardOther}
                   keyboardType="number-pad"
                   style={s.input}
+                />
+              )}
+              {rewardFloor !== null && rewardFloor > 0 && (
+                <InlineNotice
+                  tone="info"
+                  icon="lock-closed-outline"
+                  title={t("register.reward.lockedTitle")}
+                  body={t("register.reward.lockedBody", { amount: formatMoney(rewardFloor, "NOK", language, 0) })}
+                  style={s.notice}
                 />
               )}
               <Text style={s.mutedSmall}>{t("register.reward.help")}</Text>
@@ -1485,6 +1499,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   chipOn: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  chipDisabled: { opacity: 0.4 },
   chipText: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
   chipStrong: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
   chipStrongText: { color: "#FFFFFF", fontWeight: "900" },
