@@ -14,6 +14,9 @@ export type HomeSummary = {
   unreadChats: number;
   // The case the button should open: the one with an unread chat, else the only case with matches.
   focusReportId: string | null;
+  // T1.9BH: where a tap on each count goes (missing in counts cached by older builds).
+  unreadReportId?: string | null;
+  matchesReportId?: string | null;
 };
 
 type ActivityResponse = {
@@ -62,6 +65,8 @@ export async function fetchHomeSummary(userId: string): Promise<HomeSummary> {
     openMatches: Object.keys(matchToReport).length,
     unreadChats,
     focusReportId: unreadReportId ?? onlyReportWithMatches,
+    unreadReportId,
+    matchesReportId: onlyReportWithMatches,
   };
 }
 

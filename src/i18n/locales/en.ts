@@ -1291,6 +1291,7 @@ export const en = {
   "caseDetail.next.otherCount_one": "1 possible",
   "caseDetail.detailsTitle": "Details",
   "caseDetail.areaRadius": "Area with a radius of {{radius}}",
+  "caseDetail.areasCount": "{{count}} search areas",
   "caseDetail.notifyNearbyTitle": "Alert people nearby",
   "caseDetail.notifyNearbyBody": "Send an alert to people in the area so more people look out for the item.",
   "caseDetail.notifyNearbyAction": "See price and preview",

@@ -10,6 +10,7 @@ import { shareUrls, startSharing, stopSharing } from "../../src/lib/reportShare"
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, Circle } from "react-native-maps";
+import { areasRegion, SearchAreaShapes, usableAreas } from "../../src/ui/SearchAreaShapes";
 import ImageViewing from "react-native-image-viewing";
 import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
@@ -230,6 +231,9 @@ function Screen() {
         ? t("cases.active.days.left", { count: daysLeft })
         : t("caseDetail.active");
   const radius = Number(r.radius_m || r.search_radius_m || r.area_radius_m || r.location_radius_m || 0);
+  // T1.9BH: a lost case drawn as places, routes or areas shows them, not one circle.
+  const areas = lost ? usableAreas((r as any).search_areas) : [];
+  const areasMapRegion = areas.length ? areasRegion(areas) : null;
   const colors = caseColors(r, language);
   const category = categoryName(r.category, language);
   const description = reportDescriptionText(r.description);
@@ -571,11 +575,11 @@ function Screen() {
             <Text style={s.h2}>{t("caseDetail.area")}</Text>
             <MapView
               style={s.map}
-              initialRegion={{ latitude: Number(r.lat), longitude: Number(r.lng), latitudeDelta: 0.02, longitudeDelta: 0.02 }}
+              initialRegion={areasMapRegion ?? { latitude: Number(r.lat), longitude: Number(r.lng), latitudeDelta: 0.02, longitudeDelta: 0.02 }}
               scrollEnabled={false}
             >
-              <Marker coordinate={{ latitude: Number(r.lat), longitude: Number(r.lng) }} />
-              {radius > 0 && (
+              {areasMapRegion ? <SearchAreaShapes areas={areas} /> : <Marker coordinate={{ latitude: Number(r.lat), longitude: Number(r.lng) }} />}
+              {!areasMapRegion && radius > 0 && (
                 <Circle
                   center={{ latitude: Number(r.lat), longitude: Number(r.lng) }}
                   radius={radius}
@@ -585,7 +589,11 @@ function Screen() {
               )}
             </MapView>
             {!!r.location_label && <Text style={s.place}>{r.location_label}</Text>}
-            {radius > 0 && <Text style={s.muted}>{t("caseDetail.areaRadius", { radius: formatDistance(radius, language, t) })}</Text>}
+            {areasMapRegion ? (
+              <Text style={s.muted}>{t("caseDetail.areasCount", { count: areas.length })}</Text>
+            ) : (
+              radius > 0 && <Text style={s.muted}>{t("caseDetail.areaRadius", { radius: formatDistance(radius, language, t) })}</Text>
+            )}
           </View>
         )}
 

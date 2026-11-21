@@ -1287,6 +1287,7 @@ export const no: TranslationDictionary = {
   "caseDetail.next.otherCount_one": "1 mulig",
   "caseDetail.detailsTitle": "Detaljer",
   "caseDetail.areaRadius": "Område med radius {{radius}}",
+  "caseDetail.areasCount": "{{count}} søkeområder",
   "caseDetail.notifyNearbyTitle": "Varsle folk i nærheten",
   "caseDetail.notifyNearbyBody": "Send et varsel til folk i området, så flere ser etter gjenstanden.",
   "caseDetail.notifyNearbyAction": "Se pris og forhåndsvis",

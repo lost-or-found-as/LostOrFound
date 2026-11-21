@@ -87,6 +87,12 @@ export default function DashboardScreen() {
     router.push(registerRoute(newRegistration, "FOUND"));
   };
 
+  // One case: its matches and chats. Several (or unknown): My cases, where each case shows them.
+  const openReportMatches = (reportId?: string | null) => {
+    if (reportId) router.push({ pathname: "/match", params: { reportId } });
+    else router.push("/my-reports");
+  };
+
   const openSummaryTarget = () => {
     if (summary?.focusReportId) {
       router.push({ pathname: "/match", params: { reportId: summary.focusReportId } });
@@ -197,9 +203,10 @@ export default function DashboardScreen() {
           <View style={styles.summary}>
             <Text style={styles.summaryLabel}>{t("home.summary.title")}</Text>
             <View style={styles.summaryRow}>
-              <SummaryCount value={summary.activeCases} label={t("home.summary.active", { count: summary.activeCases })} />
-              <SummaryCount value={summary.openMatches} label={t("home.summary.matches", { count: summary.openMatches })} />
-              <SummaryCount value={summary.unreadChats} label={t("home.summary.messages", { count: summary.unreadChats })} />
+              {/* T1.9BH: each count opens what it counts. */}
+              <SummaryCount value={summary.activeCases} label={t("home.summary.active", { count: summary.activeCases })} onPress={() => router.push("/my-reports")} />
+              <SummaryCount value={summary.openMatches} label={t("home.summary.matches", { count: summary.openMatches })} onPress={() => openReportMatches(summary.matchesReportId)} />
+              <SummaryCount value={summary.unreadChats} label={t("home.summary.messages", { count: summary.unreadChats })} onPress={() => openReportMatches(summary.unreadReportId)} />
             </View>
             <Pressable
               accessibilityRole="button"
@@ -262,14 +269,20 @@ export default function DashboardScreen() {
   );
 }
 
-function SummaryCount({ value, label }: { value: number; label: string }) {
+function SummaryCount({ value, label, onPress }: { value: number; label: string; onPress: () => void }) {
   return (
-    <View style={styles.summaryCount} accessible accessibilityLabel={`${value} ${label}`}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${value} ${label}`}
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [styles.summaryCount, pressed && styles.pressed]}
+    >
       <Text style={styles.summaryValue}>{value}</Text>
       <Text style={styles.summaryCountLabel} numberOfLines={2}>
         {label}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 

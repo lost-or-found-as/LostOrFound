@@ -28,6 +28,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Circle, Marker } from "react-native-maps";
+import { areasRegion, SearchAreaShapes, usableAreas } from "../../src/ui/SearchAreaShapes";
 import * as Location from "expo-location";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useReportDraft } from "../../src/contexts/ReportDraftContext";
@@ -1139,7 +1140,12 @@ export default function RegisterScreen() {
               onPress={() => router.push({ pathname: "/(report)/map", params: { reportType: type } })}
               style={s.mapBox}
             >
-              {confirmed && lat != null && lng != null ? (
+              {confirmed && lat != null && lng != null && type === "LOST" && usableAreas(draft.searchAreas).length > 0 ? (
+                // T1.9BH: a lost case shows its places, routes and areas, not one circle.
+                <PreviewMap region={areasRegion(usableAreas(draft.searchAreas)) ?? { latitude: lat, longitude: lng, latitudeDelta: 0.02, longitudeDelta: 0.02 }}>
+                  <SearchAreaShapes areas={usableAreas(draft.searchAreas)} />
+                </PreviewMap>
+              ) : confirmed && lat != null && lng != null ? (
                 <PreviewMap region={{ latitude: lat, longitude: lng, latitudeDelta: previewDelta(draft.location?.radiusMeters), longitudeDelta: previewDelta(draft.location?.radiusMeters) }}>
                   <Marker coordinate={{ latitude: lat, longitude: lng }} />
                   {type === "LOST" && !!draft.location?.radiusMeters && (
