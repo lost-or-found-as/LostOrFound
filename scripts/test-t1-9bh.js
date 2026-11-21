@@ -27,7 +27,9 @@ ok(/caseDetail\.areasCount/.test(det), "count instead of radius");
 
 const home = read("app/(tabs)/index.tsx");
 ok(/onPress=\{\(\) => router\.push\("\/my-reports"\)\} \/>/.test(home), "active opens My cases");
-ok(/openReportMatches\(summary\.matchesReportId\)/.test(home) && /openReportMatches\(summary\.unreadReportId\)/.test(home), "matches and messages open the case");
+ok(/openReportMatches\(summary\.matchesReportId\)/.test(home), "matches open the case");
+// T1.9BJ: «new message» opens Meldinger.
+ok(/onPress=\{\(\) => router\.push\("\/messages"\)\} \/>/.test(home), "messages open Meldinger");
 ok(/accessibilityRole="button"\s*accessibilityLabel=\{`\$\{value\} \$\{label\}`\}/.test(home), "counts are buttons");
 const sum = read("src/lib/homeSummary.ts");
 ok(/unreadReportId,\s*matchesReportId: onlyReportWithMatches,/.test(sum), "summary names the cases");

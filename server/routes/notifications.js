@@ -93,6 +93,15 @@ async function resolveNotificationTarget(notification, userId) {
     };
   }
 
+  // T1.9BJ: bonus notices open «Din bonus»; admin notices open the admin screens.
+  if (type === "BONUS_AWARDED" || entityType === "bonus") return { ok: true, kind: "bonus", id: entityId };
+  if (type === "FEEDBACK" || entityType === "feedback") {
+    return isAdmin(userId)
+      ? { ok: true, kind: "feedback", id: entityId }
+      : { ok: false, reason: "TARGET_NOT_FOUND", kind: "feedback", id: entityId };
+  }
+  if (type === "CONTENT_REPORT" && isAdmin(userId)) return { ok: true, kind: "safetyReports", id: entityId };
+
   // T1.9M: chat reports open the admin report list (admins only).
   if (type === "SAFETY_REPORT" || entityType === "safety_report") {
     return isAdmin(userId)

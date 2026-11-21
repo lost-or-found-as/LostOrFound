@@ -12,6 +12,7 @@ import { supabase } from "../../src/lib/supabase";
 import { theme } from "../../src/ui/theme";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { codedError, userErrorMessage } from "../../src/lib/userError";
+import { setLastSeen } from "../../src/lib/unread";
 import { formatDayLabel, formatTime } from "../../src/i18n/formatters";
 import { ChatClosedBar, ChatSafetyMenu, useChatSafety } from "../../src/ui/ChatSafety";
 import { unblockChatPartner } from "../../src/lib/chatSafety";
@@ -75,6 +76,8 @@ function Screen() {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw Object.assign(codedError(String(j?.error || "OBSERVATION_CHAT_LOAD_FAILED")), { status: r.status });
       setMessages(j.messages || []);
+      // T1.9BJ: «Meldinger» shows this conversation as read.
+      void setLastSeen(`obs:${id}`).catch(() => {});
       // T1.9AX: the other party's helper level (only sent while the bonus is on).
       setHelper(toHelperStatus(j?.counterpart_helper));
       setLoadError(null);

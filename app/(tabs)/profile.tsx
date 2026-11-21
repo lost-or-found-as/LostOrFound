@@ -101,6 +101,8 @@ export default function ProfileTab() {
 
   const caseRows: MenuRow[] = [
     { key: "cases", icon: "folder-open-outline", title: t("profile.cases"), onPress: () => router.push("/my-reports") },
+    // T1.9BJ: all conversations in one place.
+    { key: "messages", icon: "chatbubbles-outline", title: t("messages.title"), onPress: () => router.push("/messages") },
     { key: "alertAreas", icon: "map-outline", title: t("profile.alertAreas"), onPress: () => router.push("/alert-areas") },
     {
       key: "push",

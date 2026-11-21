@@ -206,7 +206,7 @@ export default function DashboardScreen() {
               {/* T1.9BH: each count opens what it counts. */}
               <SummaryCount value={summary.activeCases} label={t("home.summary.active", { count: summary.activeCases })} onPress={() => router.push("/my-reports")} />
               <SummaryCount value={summary.openMatches} label={t("home.summary.matches", { count: summary.openMatches })} onPress={() => openReportMatches(summary.matchesReportId)} />
-              <SummaryCount value={summary.unreadChats} label={t("home.summary.messages", { count: summary.unreadChats })} onPress={() => openReportMatches(summary.unreadReportId)} />
+              <SummaryCount value={summary.unreadChats} label={t("home.summary.messages", { count: summary.unreadChats })} onPress={() => router.push("/messages")} />
             </View>
             <Pressable
               accessibilityRole="button"
@@ -240,6 +240,24 @@ export default function DashboardScreen() {
             <View style={styles.nearbyText}>
               <Text style={styles.nearbyTitle}>{t("notifications.nearby")}</Text>
               <Text style={styles.nearbyBody}>{t("home.nearbyBody")}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+          </Pressable>
+        )}
+
+        {/* T1.9BJ: all conversations, also as a helper and after a case is solved. */}
+        {hasAccount && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/messages")}
+            style={({ pressed }) => [styles.nearby, pressed && styles.pressed]}
+          >
+            <View style={styles.nearbyIcon}>
+              <Ionicons name="chatbubbles-outline" size={21} color={theme.tone.info.icon} />
+            </View>
+            <View style={styles.nearbyText}>
+              <Text style={styles.nearbyTitle}>{t("messages.title")}</Text>
+              <Text style={styles.nearbyBody}>{t("home.messagesBody")}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </Pressable>

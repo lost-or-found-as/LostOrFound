@@ -358,6 +358,15 @@ function NotificationsScreen() {
           });
           return;
         }
+        // T1.9BJ: bonus and feedback notices.
+        if (resolved.target_kind === "bonus") {
+          router.push("/bonus");
+          return;
+        }
+        if (resolved.target_kind === "feedback") {
+          router.push("/feedback-admin");
+          return;
+        }
         if (resolved.target_kind === "safetyReports") {
           router.push("/safety-reports");
           return;

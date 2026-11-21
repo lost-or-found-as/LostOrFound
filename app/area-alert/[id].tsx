@@ -20,7 +20,7 @@ import { ContentReportButton } from "../../src/ui/ContentReportButton";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOT_STARTED = new Set(["DRAFT", "PENDING_PAYMENT", "SCHEDULED"]);
 
-type AlertState = "active" | "notStarted" | "ended";
+type AlertState = "active" | "notStarted" | "ended" | "solved";
 
 function alertState(campaign: any, report: any, now = Date.now()): AlertState {
   const status = String(campaign?.status || "").toUpperCase();
@@ -28,6 +28,8 @@ function alertState(campaign: any, report: any, now = Date.now()): AlertState {
   const endsAt = campaign?.ends_at ? new Date(campaign.ends_at).getTime() : null;
   const reportOpen = !report?.status || String(report.status).toUpperCase() === "ACTIVE";
   if (status === "ACTIVE" && reportOpen && (endsAt == null || endsAt > now)) return "active";
+  // T1.9BJ: the owner got it back. Said plainly, with the way to the helper's conversation.
+  if (String(report?.status || "").toUpperCase() === "CLOSED") return "solved";
   return "ended";
 }
 
@@ -72,7 +74,7 @@ function AreaAlertDetails() {
     : null;
   const statusLabel = state === "active"
     ? daysLeft != null ? t("areaAlert.daysLeft", { count: daysLeft }) : t("areaAlert.active")
-    : state === "notStarted" ? t("areaAlert.status.notStarted") : t("areaAlert.status.ended");
+    : state === "notStarted" ? t("areaAlert.status.notStarted") : state === "solved" ? t("messages.solved") : t("areaAlert.status.ended");
 
   // T1.9AC: the observation map opens in the alert area (rounded point from the server).
   const goObservation = (kind: "SEEN" | "FOUND") => {
@@ -156,6 +158,16 @@ function AreaAlertDetails() {
                   {t("areaAlert.your.information.is.shared.with.the.report.owner.it.does.not.close.the")}
                 </Text>
               </View>
+            ) : state === "solved" ? (
+              <InlineNotice
+                tone="success"
+                icon="checkmark-circle-outline"
+                title={t("areaAlert.solvedTitle")}
+                body={t("areaAlert.solvedBody")}
+                actionLabel={t("messages.open")}
+                onAction={() => router.push("/messages")}
+                style={styles.noticeFirst}
+              />
             ) : (
               <InlineNotice
                 tone="info"
