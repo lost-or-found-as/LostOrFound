@@ -15,7 +15,7 @@ import { theme } from "../src/ui/theme";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { formatDistance, formatMoney } from "../src/i18n/formatters";
 import { STORED_MONEY_CURRENCY } from "../src/lib/market";
-import { previewGeoAlert, type GeoAlertPreviewResult } from "../src/lib/geoAlertPreview";
+import { previewGeoAlert, rangeText, type GeoAlertPreviewResult } from "../src/lib/geoAlertPreview";
 import { completeReportOrder, createReportOrder, fetchGeoAlertStatus, storePlatform } from "../src/lib/reportCommerce";
 import { areaAlertDateParts, classifyAreaAlertError } from "../src/lib/areaAlertStatus";
 import { knownErrorKey } from "../src/lib/userError";
@@ -214,7 +214,7 @@ function AreaVisibilityCreateScreen() {
                       ? "0"
                       : quote.recipients.kind === "FEW"
                         ? t("areaVisibility.followersFew")
-                        : t("areaVisibility.followersAbout", { count: quote.recipients.value })}
+                        : rangeText(quote.recipients, t, "areaVisibility.followersRange", "areaVisibility.followersOver")}
                 </Text>
               )}
             </View>

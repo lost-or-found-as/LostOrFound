@@ -19,7 +19,7 @@ const vis = require(path.join(root, "server/lib/areaVisibility.js"));
 eq([0, 1, 499, 500, 2000, 2001, 50000].map(vis.visibilityTier), [1, 1, 1, 2, 2, 3, 3], "tiers: under 500, 500–2000, over 2000");
 const q = vis.calculateVisibilityQuote({ followers: 1234, radiusM: 1000 }, {});
 eq([q.productCode, q.kind, q.durationHours, q.pilotFree], ["AREA_VISIBILITY_TIER_2", "VISIBILITY", 168, false], "quote");
-eq(q.recipients, { kind: "ABOUT", value: 1230 }, "followers shown as a band");
+eq(q.recipients, { kind: "ABOUT", value: 1230, min: 500, max: null }, "followers shown as a band");
 eq(vis.calculateVisibilityQuote({ followers: 4 }, {}).recipients, { kind: "FEW", value: 10 }, "few followers never exact");
 eq(vis.calculateVisibilityQuote({ followers: 10 }, { GEO_ALERT_PILOT_FREE: "true" }).pilotFree, true, "pilot free applies");
 ok(vis.isVisibilityProduct("AREA_VISIBILITY_TIER_3") && !vis.isVisibilityProduct("GEO_ALERT_TIER_1"), "product prefix");

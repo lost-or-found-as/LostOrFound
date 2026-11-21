@@ -31,7 +31,7 @@ export type GeoAlertPreviewResult = {
     // T1.9T: list price, free during the pilot, and the push recipients as a band.
     listPriceOre: number;
     pilotFree: boolean;
-    recipients: { kind: "NONE" | "FEW" | "ABOUT"; value: number };
+    recipients: RecipientBand;
     currency: string;
     validForMinutes: number;
     priceSnapshot: Record<string, unknown>;
@@ -57,4 +57,26 @@ export async function previewGeoAlert(input: GeoAlertPreviewInput): Promise<GeoA
   try { data = text ? JSON.parse(text) : {}; } catch { throw new Error(`HTTP_${response.status}_INVALID_RESPONSE`); }
   if (!response.ok) throw new Error(data?.error || `HTTP_${response.status}`);
   return data as GeoAlertPreviewResult;
+}
+
+// T1.9BF: how many get the alert, as a wide range ("10–50"). Builds the text from min/max, and
+// falls back to the rounded value from servers before T1.9BF.
+export type RecipientBand = { kind: "NONE" | "FEW" | "ABOUT"; value: number; min?: number; max?: number | null };
+
+export function recipientRange(band: RecipientBand | null | undefined): { min: number; max: number | null } | null {
+  if (!band || band.kind !== "ABOUT") return null;
+  if (typeof band.min === "number") return { min: band.min, max: typeof band.max === "number" ? band.max : null };
+  return { min: band.value, max: band.value };
+}
+
+/** Text for a range band: "{{min}}–{{max}} …" or "Over {{min}} …". */
+export function rangeText(
+  band: RecipientBand,
+  t: (key: any, params?: Record<string, string | number>) => string,
+  rangeKey: string,
+  overKey: string,
+): string {
+  const r = recipientRange(band);
+  if (!r) return "";
+  return r.max === null ? t(overKey, { min: r.min }) : t(rangeKey, { min: r.min, max: r.max });
 }

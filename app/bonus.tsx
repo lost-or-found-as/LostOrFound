@@ -101,6 +101,18 @@ export default function BonusScreen() {
                 </View>
               ))}
               <Text style={s.mutedSmall}>{t("bonus.rules")}</Text>
+            </View>
+
+            {/* T1.9BF: what bonus is for, said plainly. */}
+            <View style={[s.card, s.useCard]}>
+              <Text style={s.h2}>{t("bonus.useTitle")}</Text>
+              {(["extend", "reopen", "visibility"] as const).map((use) => (
+                <View key={use} style={s.useRow}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color={theme.colors.primary} />
+                  <Text style={[s.body, s.useText]}>{t(`bonus.use.${use}` as TranslationKey)}</Text>
+                </View>
+              ))}
+              <Text style={s.mutedSmall}>{t("bonus.useNot")}</Text>
               <Text style={s.mutedSmall}>{t("bonus.useSoon")}</Text>
             </View>
 
@@ -135,6 +147,9 @@ const s = StyleSheet.create({
   container: { padding: 16, gap: 12, paddingBottom: 40 },
   loading: { marginTop: 40 },
   card: { backgroundColor: theme.colors.card, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border, padding: 16, gap: 8 },
+  useCard: { borderColor: theme.colors.primary, borderWidth: 2 },
+  useRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  useText: { flex: 1 },
   h2: { fontSize: 17, fontWeight: "900", color: theme.colors.text },
   body: { fontSize: 15, color: theme.colors.text },
   muted: { fontSize: 14, color: theme.colors.textSecondary },

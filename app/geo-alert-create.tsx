@@ -24,6 +24,7 @@ import { translate } from "../src/i18n/translate";
 import type { TranslationKey } from "../src/i18n/locales/en";
 import {
   previewGeoAlert,
+  rangeText,
   type GeoAlertPreviewResult,
 } from "../src/lib/geoAlertPreview";
 import {
@@ -452,7 +453,7 @@ function GeoAlertCreateScreen() {
                   ? t("areaAlertCreate.recipients.none")
                   : result.quote.recipients.kind === "FEW"
                     ? t("areaAlertCreate.recipients.few")
-                    : t("areaAlertCreate.recipients.about", { count: result.quote.recipients.value })}
+                    : rangeText(result.quote.recipients, t, "areaAlertCreate.recipients.range", "areaAlertCreate.recipients.over")}
               </Text>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>{t("areaAlertCreate.priceLabel")}</Text>

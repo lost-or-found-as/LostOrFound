@@ -454,16 +454,17 @@ function NotificationsScreen() {
           onBack={() => router.back()}
           right={
             <View style={styles.headerRight}>
-              {unreadCount ? (
-                <Pressable accessibilityRole="button" onPress={() => void markAllRead()} disabled={busy} style={styles.markAll} hitSlop={6}>
-                  <Text style={styles.markAllText}>{t("notifications.markAllRead")}</Text>
-                </Pressable>
-              ) : null}
               {/* T1.9BA */}
               <InfoButton title={t("notifications.info.title")} body={t("notifications.info.body")} />
             </View>
           }
         >
+          {/* T1.9BF: under the title, so «Varsler» is never cut off. */}
+          {unreadCount ? (
+            <Pressable accessibilityRole="button" onPress={() => void markAllRead()} disabled={busy} style={styles.markAll} hitSlop={6}>
+              <Text style={styles.markAllText}>{t("notifications.markAllRead")}</Text>
+            </Pressable>
+          ) : null}
           <View style={styles.tabs} accessibilityRole="tablist">
             {tab("mine", t("notifications.my.cases"), mineUnread)}
             {tab("nearby", t("notifications.nearby"), nearbyUnread)}
@@ -510,6 +511,9 @@ function NotificationsScreen() {
               />
             }
             renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
+            ListHeaderComponent={
+              selectedTab === "nearby" && sections.length ? <Text style={styles.nearbyHeading}>{t("notifications.nearbyHeading")}</Text> : undefined
+            }
             ListFooterComponent={
               selectedTab === "nearby" ? (
                 <View style={styles.nearbyFooter}>
@@ -525,10 +529,14 @@ function NotificationsScreen() {
               const invalid = item.target_status === "missing";
               const look = notificationIcon(item.type);
               const colors = ICON_TONES[look.tone];
-              const title = notificationTitle(item, language, t);
-              const caseLabel = !["REPORT_EXPIRING", "REPORT_EXPIRED", "REPORT_ARCHIVED"].includes(String(item.type || "").toUpperCase())
+              const fullCaseLabel = !["REPORT_EXPIRING", "REPORT_EXPIRED", "REPORT_ARCHIVED"].includes(String(item.type || "").toUpperCase())
                 ? notificationCaseLabel(item.report_context, language, t)
                 : "";
+              // T1.9BF: in «I nærheten» the item is the heading; «Mistet i nærheten av deg» is said
+              // once above the list instead of on every card.
+              const itemFirst = selectedTab === "nearby" && !!fullCaseLabel;
+              const title = itemFirst ? fullCaseLabel : notificationTitle(item, language, t);
+              const caseLabel = itemFirst ? "" : fullCaseLabel;
               const body = notificationBody(item, language, t);
               return (
                 <Pressable
@@ -603,7 +611,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   muted: { marginTop: 8, color: theme.colors.textSecondary, fontWeight: "700" },
-  markAll: { minHeight: 44, justifyContent: "center", paddingHorizontal: 4 },
+  markAll: { minHeight: 40, justifyContent: "center", alignSelf: "flex-end", paddingHorizontal: 4 },
+  nearbyHeading: { fontSize: 18, fontWeight: "800", color: theme.colors.text, marginTop: 4, marginBottom: 2 },
   markAllText: { fontSize: 14, fontWeight: "800", color: theme.colors.primary },
   tabs: { flexDirection: "row", gap: 6, backgroundColor: "#EEF2F6", borderRadius: 14, padding: 4 },
   tab: { flex: 1, minHeight: 40, borderRadius: 11, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },

@@ -23,7 +23,7 @@ const p = require(path.join(root, "server", "lib", "geoAlertPricing.js"));
 eq(p.TIER_PRICES_ORE, { 1: 14900, 2: 24900, 3: 39900 }, "three push prices");
 eq([250, 1000, 1500, 3000, 5000, 50000].map(p.tierForRadius), [1, 1, 2, 2, 3, 3], "size decides the tier");
 const q = p.calculateGeoAlertQuote({ radiusM: 1500, estimatedEligibleInstallations: 37 }, {});
-eq([q.productCode, q.amountOre, q.pilotFree, q.recipients], ["GEO_ALERT_TIER_2", 24900, false, { kind: "ABOUT", value: 40 }], "normal quote");
+eq([q.productCode, q.amountOre, q.pilotFree, q.recipients], ["GEO_ALERT_TIER_2", 24900, false, { kind: "ABOUT", value: 40, min: 10, max: 50 }], "normal quote");
 const pilot = p.calculateGeoAlertQuote({ radiusM: 500, estimatedEligibleInstallations: 3 }, { GEO_ALERT_PILOT_FREE: "true" });
 eq([pilot.amountOre, pilot.listPriceOre, pilot.pilotFree, pilot.recipients.kind], [0, 14900, true, "FEW"], "free during the pilot");
 eq(p.calculateGeoAlertQuote({ areaSqKm: Math.PI * 9 }, {}).tier, 2, "radius from area");
@@ -74,7 +74,7 @@ ok(/add column if not exists refund_reason/.test(sql), "refund columns");
 
 // 5. App.
 const app = read("app/geo-alert-create.tsx");
-ok(/areaAlertCreate\.pilotFree/.test(app) && /areaAlertCreate\.recipients\.about/.test(app), "price and recipients shown");
+ok(/areaAlertCreate\.pilotFree/.test(app) && /areaAlertCreate\.recipients\.range/.test(app), "price and recipients shown");
 ok(/result\.quote\.recipients\.kind === "NONE"\)/.test(app), "no purchase when nobody follows the area");
 
 console.log(`OK: T1.9T checks passed (${n} assertions).`);

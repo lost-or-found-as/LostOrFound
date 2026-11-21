@@ -37,13 +37,24 @@ function tierForRadius(radiusM) {
 
 /**
  * Push recipients as shown before purchase. Exact small numbers could reveal who lives
- * nearby, so the app gets a band: none, fewer than 10, or rounded to the nearest 10.
+ * nearby, so the app gets a band: none, fewer than 10, or a range.
+ * T1.9BF: wide ranges (10–50, 50–100, 100–250, 250–500, over 500) instead of "about 40".
+ * `value` (rounded to 10) stays for builds from before T1.9BF; newer builds show min/max.
  */
+const RECIPIENT_RANGES = Object.freeze([
+  [10, 50],
+  [50, 100],
+  [100, 250],
+  [250, 500],
+]);
+
 function recipientBand(count) {
   const n = Math.max(0, Math.round(finite(count)));
   if (n === 0) return { kind: "NONE", value: 0 };
   if (n < 10) return { kind: "FEW", value: 10 };
-  return { kind: "ABOUT", value: Math.round(n / 10) * 10 };
+  const range = RECIPIENT_RANGES.find(([, max]) => n < max);
+  const [min, max] = range || [500, null];
+  return { kind: "ABOUT", value: Math.round(n / 10) * 10, min, max };
 }
 
 function calculateGeoAlertQuote(input, env = process.env) {
