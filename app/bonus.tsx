@@ -53,7 +53,13 @@ export default function BonusScreen() {
               <Text style={s.balance} accessibilityLabel={t("bonus.balanceValue", { count: b.balance })}>
                 {t("bonus.balanceValue", { count: b.balance })}
               </Text>
-              {b.pending > 0 && <Text style={s.muted}>{t("bonus.pending", { count: b.pending })}</Text>}
+              {b.pending > 0 && (
+                <Text style={s.muted}>
+                  {b.nextPendingAt
+                    ? t("bonus.pendingFrom", { count: b.pending, date: formatDate(b.nextPendingAt, language) })
+                    : t("bonus.pending", { count: b.pending })}
+                </Text>
+              )}
               {b.nextExpiry && b.nextExpiry.points > 0 && (
                 <Text style={s.mutedSmall}>
                   {t("bonus.expires", { count: b.nextExpiry.points, date: formatDate(b.nextExpiry.at, language) })}
@@ -73,6 +79,7 @@ export default function BonusScreen() {
                     </Text>
                   </View>
                   <Text style={s.muted}>{t("bonus.returns", { count: b.returns })}</Text>
+                  {(b.pendingReturns ?? 0) > 0 && <Text style={s.mutedSmall}>{t("bonus.pendingReturns", { count: b.pendingReturns ?? 0 })}</Text>}
                 </View>
               ) : (
                 <Text style={s.body}>{t("bonus.noLevel")}</Text>

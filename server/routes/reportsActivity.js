@@ -133,6 +133,34 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
       (m) => m?.lost?.user_id !== m?.found?.user_id
     );
 
+    // T1.9BK: a closed case both people confirmed as solved is shown as «Løst».
+    {
+      const closedIds = new Set(reps.filter((r) => String(r.status || "").toUpperCase() === "CLOSED" || r.closed_at).map((r) => r.id));
+      const solved = new Set();
+      if (closedIds.size) {
+        const { data: co, error: coErr } = await supaAdmin
+          .from("area_alert_observations")
+          .select("report_id")
+          .in("report_id", [...closedIds])
+          .eq("status", "CONFIRMED");
+        if (coErr) console.warn("[reports] solved observations failed", coErr.message);
+        for (const o of co || []) solved.add(o.report_id);
+        const closedMatches = ownedMatches.filter((m) => closedIds.has(m.lost_id) || closedIds.has(m.found_id));
+        if (closedMatches.length) {
+          const { data: ap, error: apErr } = await supaAdmin
+            .from("resolution_proposals")
+            .select("context_id")
+            .eq("context_type", "MATCH")
+            .eq("status", "ACCEPTED")
+            .in("context_id", closedMatches.map((m) => m.id));
+          if (apErr) console.warn("[reports] solved matches failed", apErr.message);
+          const accepted = new Set((ap || []).map((x) => x.context_id));
+          for (const m of closedMatches) if (accepted.has(m.id)) { solved.add(m.lost_id); solved.add(m.found_id); }
+        }
+      }
+      for (const rep of reps) rep.resolved = solved.has(rep.id);
+    }
+
     const activeMatches = ownedMatches.filter(
       (m) => isActiveReport(m?.lost) && isActiveReport(m?.found)
     );

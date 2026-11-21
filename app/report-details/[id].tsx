@@ -782,6 +782,20 @@ function Screen() {
             <Text style={s.createdLinkText}>{t("caseDetail.created.areaAlert")}</Text>
           </Pressable>
         )}
+        {/* T1.9BK: the cheaper choice too – seen in «I nærheten», without push. */}
+        {activity.summary.possibleMatches === 0 && showAreaAlert && offer.visibility && (
+          <Pressable
+            accessibilityRole="button"
+            style={s.createdLink}
+            onPress={() => {
+              setCreatedOpen(false);
+              router.setParams({ created: undefined });
+              openVisibility();
+            }}
+          >
+            <Text style={s.createdLinkMuted}>{t("caseDetail.created.visibilityOnly")}</Text>
+          </Pressable>
+        )}
       </BottomSheet>
 
       <LongTermSheet
@@ -936,6 +950,7 @@ const s = StyleSheet.create({
   createdTitle: { fontSize: 22, fontWeight: "900", color: theme.colors.text },
   createdNotice: { marginTop: 0, marginBottom: 0 },
   createdLink: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
+  createdLinkMuted: { fontSize: 14, fontWeight: "700", color: theme.colors.textSecondary, textAlign: "center", textDecorationLine: "underline" },
   createdLinkText: { fontSize: 15, fontWeight: "800", color: theme.colors.text, textDecorationLine: "underline" },
 });
 

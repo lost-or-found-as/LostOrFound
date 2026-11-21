@@ -12,6 +12,9 @@ export type MyBonus = {
   enabled: boolean;
   balance: number;
   pending: number;
+  // T1.9BK: when waiting bonus can first be used, and returns that are waiting.
+  nextPendingAt?: string | null;
+  pendingReturns?: number;
   returns: number;
   level: HelperLevel | null;
   stars: number;

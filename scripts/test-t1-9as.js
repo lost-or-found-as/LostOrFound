@@ -133,7 +133,8 @@ const users = { kari: { id: "kari", is_anonymous: false }, ola: { id: "ola", is_
   ok(/event: "MATCH_CONFIRMED"/.test(read("server/routes/matches.js")), "hook: match confirmed");
   ok(/event:"SIGHTING_USEFUL"/.test(read("server/routes/observations.js")), "hook: useful sighting");
   const res = read("server/routes/resolutions.js");
-  ok(/event:"RETURN_CONFIRMED"/.test(res) && /event:"SIGHTING_RESOLVED"/.test(res), "hooks: both confirmed");
+  // T1.9BK: a find from an area alert that is given back is a return, so the event is chosen there.
+  ok(/event:"RETURN_CONFIRMED"/.test(res) && /"SIGHTING_RESOLVED"/.test(res), "hooks: both confirmed");
   ok(/app\.use\("\/bonus",bonusRoutes\)/.test(read("server/index.js")) && /scheduleBonusMaintenance/.test(read("server/index.js")), "route and hourly check mounted");
   ok(/\["helper_bonus_ledger", "user_id", \["counterpart_user_id"/.test(read("server/lib/privacyExport.js")), "bonus in access export without other people");
 

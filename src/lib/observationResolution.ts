@@ -4,6 +4,7 @@
 // Same API as before: GET /resolutions/context/OBSERVATION/:id, POST /resolutions/propose,
 // POST /resolutions/:proposalId/respond.
 import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import { useI18n } from "../i18n/I18nProvider";
 import { API_BASE_URL } from "./config";
 import { supabase } from "./supabase";
@@ -52,6 +53,13 @@ export function useObservationResolution(observationId: string | undefined) {
     void reload();
   }, [reload]);
 
+  // T1.9BK: the other screen (chat or detail) may have confirmed in the meantime.
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
+
   const propose = useCallback(async (): Promise<boolean> => {
     if (!observationId) return false;
     setBusy(true);
@@ -93,7 +101,12 @@ export function useObservationResolution(observationId: string | undefined) {
         await failIfNotOk(r, "RESOLUTION_RESPOND_FAILED");
         setNotice(accept ? "closed" : "rejected");
         await reload();
-      } catch (e) {
+      } catch (e: any) {
+        // T1.9BK: already answered (for example in the chat): show the current state instead.
+        if (String(e?.code || e?.message || "").includes("PROPOSAL_NOT_FOUND")) {
+          await reload();
+          return;
+        }
         setError(userErrorMessage(e, t, "errors.generic", "resolution"));
       } finally {
         setBusy(false);

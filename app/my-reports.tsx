@@ -79,6 +79,8 @@ type Report = {
   lng?: number | null;
   location_label?: string | null;
   status?: "ACTIVE" | "CLOSED" | "EXPIRED" | "ARCHIVED" | string | null;
+  // T1.9BK: both people confirmed the case as solved.
+  resolved?: boolean;
   visible_until?: string | null;
   closed_at?: string | null;
   archived_at?: string | null;
@@ -179,10 +181,13 @@ function reportStatus(r: Report, language: Lang, t: Translate) {
   const expired = isReportExpired(r);
   const daysLeft = reportDaysLeft(r);
   const longTermUntil = lost && !closed ? r.long_term_until || null : null;
+  const solved = closed && r.resolved === true;
   const label = closed
     ? r.archived_at || String(r.status || "").toUpperCase() === "ARCHIVED"
       ? t("cases.archived")
-      : t("cases.closed")
+      : solved
+        ? t("cases.resolved")
+        : t("cases.closed")
     : longTermUntil
       ? t("caseDetail.historicUntil", { date: formatDate(longTermUntil, language) })
       : expired
@@ -190,7 +195,7 @@ function reportStatus(r: Report, language: Lang, t: Translate) {
         : daysLeft != null
           ? t("cases.active.days.left", { count: daysLeft })
           : t("caseDetail.active");
-  const tone: "historic" | "muted" | "active" = longTermUntil ? "historic" : closed || expired ? "muted" : "active";
+  const tone: "historic" | "muted" | "active" = longTermUntil ? "historic" : solved ? "active" : closed || expired ? "muted" : "active";
   return { label, tone, closed, expired, longTermUntil };
 }
 

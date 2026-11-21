@@ -43,6 +43,14 @@ function bonusEnabled(env = process.env) {
   return String(env.HELPER_BONUS_ENABLED || "").toLowerCase() === "true";
 }
 
+// T1.9BK: test accounts (HELPER_BONUS_TEST_USER_IDS, comma separated). When both people are test
+// accounts, the anti-abuse rules that stop one person testing with two accounts are skipped:
+// same phone, same pair before, and a case younger than two hours. Caps and holds still apply.
+function bonusTestPair(a, b, env = process.env) {
+  const ids = new Set(String(env.HELPER_BONUS_TEST_USER_IDS || "").split(",").map((x) => x.trim()).filter(Boolean));
+  return !!a && !!b && ids.has(a) && ids.has(b);
+}
+
 /** Helper status shown to others: by confirmed returns only, never by bonus. */
 function helperLevel(returns) {
   const n = Number(returns) || 0;
@@ -140,9 +148,10 @@ async function award(input, { supa, now = Date.now(), env = process.env, log = c
   if (auErr) throw auErr;
   if (!au?.user || au.user.is_anonymous) return done(false, 0, "NO_ACCOUNT");
   if (await isSuspended(supa, userId)) return done(false, 0, "SUSPENDED");
-  if (counterpartUserId && (await sharedDevice(supa, userId, counterpartUserId))) return done(false, 0, "SHARED_DEVICE");
+  const testPair = bonusTestPair(userId, counterpartUserId, env);
+  if (counterpartUserId && !testPair && (await sharedDevice(supa, userId, counterpartUserId))) return done(false, 0, "SHARED_DEVICE");
 
-  if (counterpartUserId && PAIR_EVENTS.has(event)) {
+  if (counterpartUserId && !testPair && PAIR_EVENTS.has(event)) {
     let q = supa.from("helper_bonus_ledger").select("id")
       .eq("user_id", userId).eq("counterpart_user_id", counterpartUserId).eq("event_type", event)
       .neq("status", "REVOKED");
@@ -152,7 +161,7 @@ async function award(input, { supa, now = Date.now(), env = process.env, log = c
     if ((data || []).length) return done(false, 0, "PAIR_RECENT");
   }
 
-  if (caseReportId && CASE_AGE_EVENTS.has(event)) {
+  if (caseReportId && !testPair && CASE_AGE_EVENTS.has(event)) {
     const { data, error } = await supa.from("reports").select("created_at").eq("id", caseReportId).maybeSingle();
     if (error) throw error;
     if (data?.created_at && now - Date.parse(data.created_at) < CASE_MIN_AGE_MS) return done(false, 0, "CASE_TOO_NEW");
@@ -289,13 +298,19 @@ async function bonusSummary({ supa, userId, now = Date.now() }) {
   const rows = data || [];
   const live = (r) => r.status === "ACTIVE" && r.points > 0 && Date.parse(r.valid_from) <= now && (!r.expires_at || Date.parse(r.expires_at) > now);
   const balance = rows.filter(live).reduce((s, r) => s + r.remaining, 0);
-  const pending = rows.filter((r) => r.status === "PENDING").reduce((s, r) => s + r.points, 0);
+  const pendingRows = rows.filter((r) => r.status === "PENDING");
+  const pending = pendingRows.reduce((s, r) => s + r.points, 0);
+  // T1.9BK: when waiting bonus can first be used, and returns that wait (shown on the level card).
+  const nextPendingAt = pendingRows.map((r) => r.valid_from).filter(Boolean).sort()[0] || null;
+  const pendingReturns = pendingRows.filter((r) => r.event_type === "RETURN_CONFIRMED").length;
   const returns = rows.filter((r) => r.event_type === "RETURN_CONFIRMED" && r.status === "ACTIVE").length;
   const soon = rows.filter((r) => live(r) && r.remaining > 0).sort((a, b) => Date.parse(a.expires_at) - Date.parse(b.expires_at))[0];
   return {
     enabled: bonusEnabled(),
     balance,
     pending,
+    nextPendingAt,
+    pendingReturns,
     returns,
     level: helperLevel(returns),
     stars: helperStars(returns),
@@ -327,7 +342,7 @@ function scheduleBonusMaintenance({ supa, log = console, everyMs = 60 * 60 * 100
 
 module.exports = {
   POINTS, MONTHLY_CAP, EVENT_MONTHLY_CAPS, PAIR_DAYS, VALID_MONTHS, REDEEM_MIN_ACCOUNT_DAYS,
-  HOLD_MS, BONUS_SPENDABLE, canSpendBonusOn, revokeBonus, bonusFlags,
+  HOLD_MS, BONUS_SPENDABLE, canSpendBonusOn, revokeBonus, bonusFlags, bonusTestPair,
   bonusEnabled, helperLevel, helperStars, nextStep, award, awardSafely, activatePending, bonusSummary, helperStatus,
   canRedeem, sharedDevice, scheduleBonusMaintenance,
 };

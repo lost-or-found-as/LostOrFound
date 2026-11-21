@@ -5,7 +5,7 @@ import { requireAccount } from "../../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { theme } from "../../src/ui/theme";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { API_BASE_URL } from "../../src/lib/config";
@@ -46,8 +46,8 @@ function Screen() {
   const [placeLabel, setPlaceLabel] = useState<string | null>(null);
   const resolution = useObservationResolution(observationId);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setLoadError(null);
     try {
       const token = await authToken();
@@ -63,6 +63,18 @@ function Screen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // T1.9BK: back from the chat, where the case may have been confirmed solved.
+  const firstFocus = React.useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      void load(true);
+    }, [load]),
+  );
 
   const o = data?.observation;
   const lat = Number(o?.latitude);
@@ -185,7 +197,7 @@ function Screen() {
               title={t("observation.detail.loadError")}
               body={loadError ?? t("observation.detail.unavailable")}
               actionLabel={t("errors.retry")}
-              onAction={() => void load()}
+              onAction={() => void load(false)}
               busy={loading}
               style={s.noMargin}
             />
@@ -198,7 +210,7 @@ function Screen() {
                 title={t("observation.detail.loadError")}
                 body={loadError}
                 actionLabel={t("errors.retry")}
-                onAction={() => void load()}
+                onAction={() => void load(false)}
                 busy={loading}
                 style={s.noMargin}
               />
