@@ -46,10 +46,33 @@ function routePath(req) {
 // T1.9BD: states that are switched off on purpose are not errors (no alert e-mail).
 const EXPECTED_CODES = new Set(["IMAGE_ANALYSIS_DISABLED"]);
 
+// T1.9BE: many routes still answer a database failure with 400 and the raw database text.
+// Such an answer is a server fault (for example a column the code expects but the database
+// lacks), so it is logged and reported like a 500. Ordinary 400s (bad input) are left alone.
+const DB_FAULT = /does not exist|schema cache|could not find the .* column|relation .* does not|syntax error|permission denied for/i;
+
+function isDatabaseFault(status, body) {
+  return status >= 400 && status < 500 && typeof body?.error === "string" && DB_FAULT.test(body.error);
+}
+
 function sentryResponseMonitor(req, res, next) {
-  if (!Sentry) return next();
   const originalJson = res.json.bind(res);
   res.json = (body) => {
+    if (isDatabaseFault(res.statusCode, body)) {
+      const path = routePath(req);
+      console.error(`[db-fault] ${req.method} ${path} ${res.statusCode}: ${String(body.error).slice(0, 200)}`);
+      if (Sentry) {
+        Sentry.withScope((scope) => {
+          scope.setTag("http.method", req.method);
+          scope.setTag("http.route", path);
+          scope.setTag("http.status", String(res.statusCode));
+          scope.setFingerprint([req.method, path, "DB_FAULT"]);
+          Sentry.captureMessage(`DB fault ${req.method} ${path}: ${String(body.error).slice(0, 120)}`, "error");
+        });
+      }
+      return originalJson(body);
+    }
+    if (!Sentry) return originalJson(body);
     const expected = typeof body?.error === "string" && EXPECTED_CODES.has(body.error);
     if (res.statusCode >= 500 && !expected) {
       const code = typeof body?.error === "string" ? body.error.slice(0, 120) : "UNKNOWN";
@@ -75,4 +98,4 @@ function captureServerException(error, tags = {}) {
   });
 }
 
-module.exports = { initSentry, sentryResponseMonitor, captureServerException };
+module.exports = { initSentry, sentryResponseMonitor, captureServerException, isDatabaseFault };

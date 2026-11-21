@@ -142,14 +142,16 @@ export function userErrorMessage(
   return withTestCode(t(fallbackKey), code);
 }
 
-// T1.9L: test builds (staging) show the technical code under the message, so a failure can be
-// traced without guessing. Users of the store build never see it.
-const SHOW_ERROR_CODES = process.env.EXPO_PUBLIC_APP_ENV === "staging";
+// T1.9L: the technical code is shown in small text under the message, so a failure can be
+// traced without guessing. T1.9BE: shown in every build (TestFlight runs the production build);
+// only clean codes such as REPORT_LOAD_FAILED pass, never raw server text.
+const SHOW_ERROR_CODES = true;
 
 export function withTestCode(text: string, code: string | undefined, show = SHOW_ERROR_CODES): string {
   if (!show || !code) return text;
   const clean = code.trim().slice(0, 80);
-  if (!/^[A-Za-z0-9_.:-]+$/.test(clean)) return text;
+  // Only constant-style codes (REPORT_LOAD_FAILED, HTTP_500); never words or raw server text.
+  if (!/^[A-Z][A-Z0-9_.:-]*$/.test(clean)) return text;
   return `${text}\n(${clean})`;
 }
 

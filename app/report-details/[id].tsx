@@ -32,7 +32,7 @@ import { WithdrawalConsent } from "../../src/ui/WithdrawalConsent";
 import { STORED_MONEY_CURRENCY } from "../../src/lib/market";
 import { reportDescriptionText } from "../../src/lib/reportDescription";
 import { caseColors, caseTitle } from "../../src/lib/caseDisplay";
-import { userErrorMessage } from "../../src/lib/userError";
+import { userErrorMessage, withTestCode } from "../../src/lib/userError";
 import {
   canBuyLongTerm,
   canExtendFound,
@@ -192,7 +192,10 @@ function Screen() {
               title={
                 loadError.kind === "network" ? t("errors.networkTitle") : loadError.kind === "auth" ? t("errors.authTitle") : t("errors.serviceTitle")
               }
-              body={loadError.kind === "network" ? t("errors.networkBody") : loadError.kind === "auth" ? t("errors.authBody") : t("errors.serviceBody")}
+              body={withTestCode(
+                loadError.kind === "network" ? t("errors.networkBody") : loadError.kind === "auth" ? t("errors.authBody") : t("errors.serviceBody"),
+                loadError.code,
+              )}
               actionLabel={loadError.retryable ? t("errors.retry") : undefined}
               onAction={() => void load()}
             />
@@ -201,7 +204,7 @@ function Screen() {
               tone="info"
               icon="document-text-outline"
               title={t("caseDetail.case.unavailable")}
-              body={t("caseDetail.could.not.load.case")}
+              body={withTestCode(t("caseDetail.could.not.load.case"), loadError?.code)}
               actionLabel={t("errors.retry")}
               onAction={() => void load()}
             />

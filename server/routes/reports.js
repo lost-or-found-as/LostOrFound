@@ -1274,6 +1274,12 @@ router.delete("/:id/share", requireUser, async (req, res) => {
   }
 });
 
+// T1.9BE: one place for "the case could not be read from the database".
+function loadFailed(res, step, error) {
+  console.error(`[reports/get] ${step} failed:`, error?.message || error);
+  return res.status(500).json({ error: "REPORT_LOAD_FAILED", step });
+}
+
 /**
  * GET /reports/:id
  * Owner-only report details with images, paid additions and confirmed chat history.
@@ -1291,7 +1297,9 @@ router.get("/:id", requireUser, async (req, res) => {
       .is("deleted_at", null)
       .maybeSingle();
 
-    if (rErr) return res.status(400).json({ error: rErr.message });
+    // T1.9BE: a database failure is a server fault. It is logged with its real message and
+    // answered with a stable code, so it shows in Render and Sentry instead of a silent 400.
+    if (rErr) return loadFailed(res, "report", rErr);
     if (!report) return res.status(404).json({ error: "Report not found" });
 
     const [
@@ -1341,16 +1349,16 @@ router.get("/:id", requireUser, async (req, res) => {
         .order("created_at", { ascending: false }),
     ]);
 
-    for (const result of [
-      imagesResult,
-      entitlementsResult,
-      campaignsResult,
-      lostMatchesResult,
-      foundMatchesResult,
-      observationsResult,
-    ]) {
-      if (result.error)
-        return res.status(400).json({ error: result.error.message });
+    const steps = {
+      images: imagesResult,
+      entitlements: entitlementsResult,
+      campaigns: campaignsResult,
+      lost_matches: lostMatchesResult,
+      found_matches: foundMatchesResult,
+      observations: observationsResult,
+    };
+    for (const [step, result] of Object.entries(steps)) {
+      if (result.error) return loadFailed(res, step, result.error);
     }
 
     const images = [];
