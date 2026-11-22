@@ -95,7 +95,7 @@ ok(/<ChatSafetyMenu[\s\S]*kind="match"/.test(chat) && /safety\.state\.closed \? 
 ok(/const state = await safety\.reload\(\);/.test(chat), "match chat explains a refused message");
 const obs = read("app/observation-chat/[id].tsx");
 ok(/<ChatSafetyMenu\s+kind="observation"/.test(obs) && /safety\.state\.closed \? \(\s*<ChatClosedBar/.test(obs), "observation chat: menu and closed bar");
-ok(/router\.push\("\/safety-reports"\)/.test(read("app/(tabs)/profile.tsx")) && /isAdmin/.test(read("app/(tabs)/profile.tsx")), "admin entry in Profile");
+ok(/openAdmin\("\/safety-reports"\)/.test(read("app/(tabs)/profile.tsx")) && /isAdmin/.test(read("app/(tabs)/profile.tsx")), "admin entry in Profile");
 ok(/safetyReports/.test(read("app/notifications.tsx")) && /safety_report/.test(read("src/lib/pushNotifications.ts")), "admin notices open the list");
 const ue = requireTs(path.join(root, "src/lib/userError.ts"), { "./sentry": { reportHandledError: () => {} } });
 for (const code of ["CHAT_CLOSED", "ACCOUNT_SUSPENDED", "REPORT_ALREADY_OPEN"]) ok(ue.knownErrorKey({ code }) != null, `text for ${code}`);

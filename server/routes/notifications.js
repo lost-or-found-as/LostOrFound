@@ -16,6 +16,7 @@ const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const { getAreaAlertAccess } = require("../lib/areaAlertAccess");
 const { isAdmin } = require("../lib/chatSafety");
+const { loadClosedNearbyIds } = require("../lib/nearbyClosed");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -279,8 +280,16 @@ router.get("/", requireUser, async (req, res) => {
 
     if (error) return res.status(400).json({ error: error.message });
 
+    // T1.9BN: nearby notices about solved or deleted cases are not listed.
+    let hidden = new Set();
+    try {
+      hidden = await loadClosedNearbyIds(supaAdmin, data || []);
+    } catch (e) {
+      console.warn("[notifications] closed nearby check failed", e?.message ?? e);
+    }
+
     const notifications = await Promise.all(
-      (data || []).map(async (n) => {
+      (data || []).filter((n) => !hidden.has(n.id)).map(async (n) => {
         try {
           const target = await resolveNotificationTarget(n, userId);
           const reportContext = await getReportContext(n, userId);
@@ -319,7 +328,22 @@ router.get("/unread-count", requireUser, async (req, res) => {
       .is("read_at", null);
 
     if (error) return res.status(400).json({ error: error.message });
-    return res.json({ count: count || 0 });
+
+    // T1.9BN: unread nearby notices about solved or deleted cases do not count.
+    let hiddenCount = 0;
+    try {
+      const unreadNearby = await supaAdmin
+        .from("notifications")
+        .select("id,type,entity_type,entity_id")
+        .eq("user_id", userId)
+        .is("read_at", null)
+        .or("type.in.(AREA_ALERT,GEO_ALERT),entity_type.eq.area_alert_campaign")
+        .limit(200);
+      if (!unreadNearby.error) hiddenCount = (await loadClosedNearbyIds(supaAdmin, unreadNearby.data || [])).size;
+    } catch (e) {
+      console.warn("[notifications] closed nearby count failed", e?.message ?? e);
+    }
+    return res.json({ count: Math.max(0, (count || 0) - hiddenCount) });
   } catch (e) {
     return res.status(500).json({ error: e?.message ?? "Server error" });
   }

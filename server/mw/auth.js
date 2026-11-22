@@ -2,6 +2,7 @@
 "use strict";
 
 const { supaAdmin } = require("../supabaseClient");
+const { tokenAal } = require("./admin");
 
 // T1.9A: a guest is an anonymous Supabase session. Guests may only submit a found report.
 function isAnonymousUser(user) {
@@ -32,6 +33,8 @@ function authenticate({ allowGuest }) {
 
       req.user = data.user;
       req.isGuest = guest;
+      // T1.9BN: sign-in level (aal1, or aal2 after the second step); admin routes read it.
+      req.authAal = tokenAal(token);
       next();
     } catch {
       return res.status(401).json({ error: "Unauthorized" });

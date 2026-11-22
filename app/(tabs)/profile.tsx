@@ -13,7 +13,7 @@ import { isAnonymousUser } from "../../src/lib/authGate";
 import { theme } from "../../src/ui/theme";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { sendSentryTestEvent } from "../../src/lib/sentry";
-import { fetchIsAdmin } from "../../src/lib/chatSafety";
+import { adminRoute, fetchAdminStatus, type AdminStatus } from "../../src/lib/chatSafety";
 import { deleteAccountRequest } from "../../src/lib/accountDeletion";
 import { openLegal } from "../../src/lib/legal";
 import { userErrorMessage } from "../../src/lib/userError";
@@ -38,11 +38,14 @@ export default function ProfileTab() {
   const isGuest = isAnonymousUser(user as any);
   const email = session?.user?.email;
   // T1.9M: admins (server list) get the chat report list.
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminStatus, setAdminStatus] = useState<AdminStatus>({ isAdmin: false, mfaRequired: false, mfaVerified: false });
+  const isAdmin = adminStatus.isAdmin;
+  // T1.9BN: admin screens go through the 2FA step when the server requires it.
+  const openAdmin = (target: string) => router.push(adminRoute(adminStatus, target) as any);
   useEffect(() => {
     if (!user || isGuest) return;
     let live = true;
-    void fetchIsAdmin().then((value) => live && setIsAdmin(value));
+    void fetchAdminStatus().then((value) => live && setAdminStatus(value));
     return () => {
       live = false;
     };
@@ -167,13 +170,19 @@ export default function ProfileTab() {
             key: "admin",
             icon: "shield-checkmark-outline" as const,
             title: t("profile.safetyReports"),
-            onPress: () => router.push("/safety-reports"),
+            onPress: () => openAdmin("/safety-reports"),
           },
           {
             key: "adminFeedback",
             icon: "chatbubbles-outline" as const,
             title: t("profile.adminFeedback"),
-            onPress: () => router.push("/feedback-admin"),
+            onPress: () => openAdmin("/feedback-admin"),
+          },
+          {
+            key: "adminMfa",
+            icon: "key-outline" as const,
+            title: t("adminMfa.profileRow"),
+            onPress: () => router.push("/admin-mfa"),
           },
         ]
       : []),

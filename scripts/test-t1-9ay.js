@@ -93,7 +93,7 @@ async function main() {
   const share = read("server/routes/share.js");
   ok(/!r\.closed_at && !r\.hidden_at;/.test(share), "hidden case: closed share page and poster");
   ok(/router\.post\("\/:token\/report", express\.urlencoded/.test(share) && /source: "SHARE_PAGE"/.test(share), "share page can be reported without sign-in");
-  ok(/x-forwarded-for/.test(share), "visitor counted by the client address (hashed)");
+  ok(/visitorKey\(clientIp\(req\)\)/.test(share), "visitor counted by the client address (hashed; T1.9BN: address that cannot be faked)");
   ok(/if \(report\?\.hidden_at\) return res\.status\(404\)/.test(read("server/routes/geoAlertDelivery.js")), "hidden case: area-alert view gone");
   const safety = read("server/routes/safety.js");
   for (const r of ['"/content/:reportId/report", requireUser', '"/admin/content", requireUser, requireAdmin', '"/admin/content/:reportId/restore", requireUser, requireAdmin', '"/admin/content/:reportId/hide", requireUser, requireAdmin', '"/admin/bonus-flags", requireUser, requireAdmin', '"/admin/bonus/:ledgerId/revoke", requireUser, requireAdmin'])

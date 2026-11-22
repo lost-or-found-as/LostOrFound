@@ -9,6 +9,7 @@ const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
 const { requireUser, requireUserOrGuest } = require("../mw/auth");
 const { isAdmin, adminUserIds } = require("../lib/chatSafety");
+const { requireAdmin } = require("../mw/admin");
 const { notifyUser } = require("../lib/userNotify");
 const { localizedPair } = require("../lib/messages");
 const { normalizeFeedback, feedbackEmailRequest, DAILY_LIMIT } = require("../lib/feedback");
@@ -66,10 +67,7 @@ router.post("/", requireUserOrGuest, async (req, res) => {
   }
 });
 
-function requireAdmin(req, res, next) {
-  if (!isAdmin(req.user?.id)) return res.status(403).json({ error: "NOT_ADMIN" });
-  return next();
-}
+// T1.9BN: requireAdmin (with 2FA) comes from mw/admin.js.
 
 router.get("/admin", requireUser, requireAdmin, async (req, res) => {
   try {

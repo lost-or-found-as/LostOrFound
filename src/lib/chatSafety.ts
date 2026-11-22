@@ -67,11 +67,23 @@ export type AdminReport = {
 };
 
 export async function fetchIsAdmin() {
+  return (await fetchAdminStatus()).isAdmin;
+}
+
+// T1.9BN: whether admin screens need the second step (2FA) and whether it is done this session.
+export type AdminStatus = { isAdmin: boolean; mfaRequired: boolean; mfaVerified: boolean };
+export async function fetchAdminStatus(): Promise<AdminStatus> {
   try {
-    return !!(await request<{ isAdmin: boolean }>("/admin/me")).isAdmin;
+    const r = await request<Partial<AdminStatus>>("/admin/me");
+    return { isAdmin: !!r.isAdmin, mfaRequired: !!r.mfaRequired, mfaVerified: !!r.mfaVerified };
   } catch {
-    return false;
+    return { isAdmin: false, mfaRequired: false, mfaVerified: false };
   }
+}
+
+/** Where an admin row should go: the 2FA step first when the server asks for it. */
+export function adminRoute(status: AdminStatus, target: string): { pathname: string; params?: Record<string, string> } {
+  return status.mfaRequired && !status.mfaVerified ? { pathname: "/admin-mfa", params: { next: target } } : { pathname: target };
 }
 export async function fetchAdminReports(status: "open" | "handled") {
   return (await request<{ reports: AdminReport[] }>(`/admin/reports?status=${status}`)).reports;

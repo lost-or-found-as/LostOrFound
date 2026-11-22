@@ -23,6 +23,7 @@ const { supaAdmin } = require("../supabaseClient");
 const { logAdminAccess } = require("../lib/adminAudit");
 const { requireUser } = require("../mw/auth");
 const { isAdmin, normalizeReport, snapshotMessages, shouldAutoSuspend, AUTO_SUSPEND_WINDOW_DAYS } = require("../lib/chatSafety");
+const { requireAdmin, adminMfaRequired } = require("../mw/admin");
 const { chatParties, otherParty, loadChatState, chatMessages, activeSuspensions } = require("../lib/chatSafetyStore");
 const { notifyAdmins, notifyAdminsContent, notifyOwnerHidden } = require("../lib/adminAlert");
 const contentReports = require("../lib/contentReports");
@@ -136,12 +137,15 @@ router.post("/report/:kind/:id", requireUser, async (req, res) => {
 
 // ---- Admin -----------------------------------------------------------------
 
-function requireAdmin(req, res, next) {
-  if (!isAdmin(req.user?.id)) return res.status(403).json({ error: "NOT_ADMIN" });
-  next();
-}
-
-router.get("/admin/me", requireUser, (req, res) => res.json({ isAdmin: isAdmin(req.user.id) }));
+// T1.9BN: requireAdmin (with 2FA) comes from mw/admin.js. /admin/me also says whether the
+// second step is needed now, so the app can ask for the code before opening admin screens.
+router.get("/admin/me", requireUser, (req, res) =>
+  res.json({
+    isAdmin: isAdmin(req.user.id),
+    mfaRequired: isAdmin(req.user.id) && adminMfaRequired(),
+    mfaVerified: req.authAal === "aal2",
+  }),
+);
 
 router.get("/admin/reports", requireUser, requireAdmin, async (req, res) => {
   try {

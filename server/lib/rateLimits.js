@@ -3,6 +3,8 @@
 // the window), so the limits hold across restarts and server instances.
 "use strict";
 
+const { clientIp } = require("./clientIp");
+
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
@@ -55,8 +57,8 @@ function ipRateLimit({ windowMs = 60 * 1000, max = 300 } = {}) {
       for (const [key, entry] of hits) if (entry.resetAt <= now) hits.delete(key);
       sweepAt = now + windowMs;
     }
-    const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
-    const key = forwarded || req.socket?.remoteAddress || "unknown";
+    // T1.9BN: an address the caller cannot fake (see lib/clientIp.js).
+    const key = clientIp(req) || "unknown";
     const entry = hits.get(key);
     if (!entry || entry.resetAt <= now) {
       hits.set(key, { count: 1, resetAt: now + windowMs });

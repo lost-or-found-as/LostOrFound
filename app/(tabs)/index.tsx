@@ -13,6 +13,7 @@ import { AuthHeaderAction } from "../../src/ui/AuthHeaderAction";
 import { theme } from "../../src/ui/theme";
 import { InfoButton } from "../../src/ui/kit";
 import { registerRoute, useNewRegistration } from "../../src/lib/newRegistration";
+import { greetingKey } from "../../src/lib/greeting";
 import { fetchHomeSummary, readCachedHomeSummary, writeCachedHomeSummary, type HomeSummary } from "../../src/lib/homeSummary";
 
 const HOW_STEPS = [
@@ -70,6 +71,9 @@ export default function DashboardScreen() {
     };
   }, [user?.id, isGuest]);
   useFocusEffect(loadSummary);
+  // T1.9BN: greeting by time of day, refreshed whenever Home comes into view.
+  const [greeting, setGreeting] = useState(() => greetingKey());
+  useFocusEffect(useCallback(() => setGreeting(greetingKey()), []));
 
   const openLost = () => {
     if (!user || isGuest) {
@@ -162,7 +166,7 @@ export default function DashboardScreen() {
           <View style={styles.headerText}>
             <Text style={styles.brand} accessibilityRole="header">Lost or Found</Text>
             <Text style={styles.greeting} numberOfLines={1}>
-              {hasAccount ? t("home.greetingBack") : t("dashboard.greeting")}
+              {hasAccount ? t(greeting) : t("dashboard.greeting")}
             </Text>
           </View>
           {/* Logged-in users log out from Profile (with a confirmation); guests get a sign-in shortcut. */}

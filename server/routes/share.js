@@ -13,6 +13,7 @@ const { renderSharePage, renderClosedPage, renderPoster, renderReportForm, rende
 const contentReports = require("../lib/contentReports");
 const { notifyAdminsContent, notifyOwnerHidden } = require("../lib/adminAlert");
 const { splitImagePath, firstImagePathByReport } = require("../lib/reportThumbnails");
+const { clientIp } = require("../lib/clientIp");
 
 const router = express.Router();
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,40}$/;
@@ -127,7 +128,7 @@ router.post("/:token/report", express.urlencoded({ extended: false, limit: "4kb"
     await contentReports.recordContentReport({
       supa: supaAdmin,
       reportId: report.id,
-      reporterKey: contentReports.visitorKey(String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket?.remoteAddress || ""),
+      reporterKey: contentReports.visitorKey(clientIp(req)),
       source: "SHARE_PAGE",
       reason: input.reason,
       comment: input.comment,

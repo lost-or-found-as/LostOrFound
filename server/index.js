@@ -21,7 +21,23 @@ process.on("unhandledRejection", (reason) => {
 });
 
 const { ipRateLimit } = require("./lib/rateLimits");
+const { securityHeaders, originGuard } = require("./lib/securityHeaders");
+const { clientIpInfo } = require("./lib/clientIp");
 const app = express();
+app.disable("x-powered-by");
+// T1.9BN: security headers, and (when ORIGIN_SHARED_SECRET is set) only traffic through Cloudflare.
+app.use(securityHeaders);
+app.use(originGuard());
+// T1.9BN: say once which header gives the caller's address (never the address itself).
+let ipSourceLogged = false;
+app.use((req, _res, next) => {
+  if (!ipSourceLogged && req.path !== "/") {
+    ipSourceLogged = true;
+    const xffCount = String(req.headers["x-forwarded-for"] || "").split(",").filter((x) => x.trim()).length;
+    console.log(`[client-ip] source=${clientIpInfo(req).source} xff_entries=${xffCount} cf_header=${req.headers["cf-connecting-ip"] ? "yes" : "no"}`);
+  }
+  next();
+});
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 // T1.9L: stop request floods per address (300 per minute); per-user limits live in the routes.
