@@ -14,6 +14,9 @@ export type InboxItem = {
   caseClosed: boolean;
   last: { body: string; at: string; mine: boolean } | null;
   at: string;
+  // T1.9BL: the item's photo and the other person's helper level (only while bonus is on).
+  thumbnail_url?: string | null;
+  counterpart_helper?: { level: string; stars: number; returns: number } | null;
   unread?: boolean;
 };
 
@@ -38,4 +41,13 @@ export async function fetchInbox(): Promise<InboxItem[]> {
     const unread = fromOther && (!seenAt || Date.parse(item.last!.at) > Date.parse(seenAt));
     return { ...item, unread };
   });
+}
+
+// T1.9BL: «Alle», «Mine saker» (I own the case) and «Jeg hjelper» (I found or saw something).
+export type InboxFilter = "ALL" | "MINE" | "HELPING";
+
+export function inboxFilter(items: InboxItem[], filter: InboxFilter) {
+  if (filter === "MINE") return items.filter((i) => i.role === "OWNER");
+  if (filter === "HELPING") return items.filter((i) => i.role !== "OWNER");
+  return items;
 }

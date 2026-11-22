@@ -6,6 +6,8 @@ const express = require("express");
 const router = express.Router();
 const { supaAdmin } = require("../supabaseClient");
 const { requireUser } = require("../mw/auth");
+const { loadThumbnailUrls } = require("../lib/reportThumbnails");
+const { bonusEnabled, helperStatus } = require("../lib/helperBonus");
 
 const REPORT_FIELDS = "id,user_id,type,category,subcategory_key,subcategory_custom,color,brand,status,closed_at,deleted_at";
 const CHAT_MATCH_STATUSES = ["CONFIRMED", "PAID"];
@@ -41,12 +43,15 @@ function buildInbox({ userId, matches, reportsById, matchLast, observations, con
     const found = reportsById.get(m.found_id);
     const mine = lost?.user_id === userId ? lost : found?.user_id === userId ? found : null;
     if (!mine || mine.deleted_at) continue;
+    const theirs = mine === lost ? found : lost;
     const last = matchLast.get(m.id) || null;
     items.push({
       kind: "MATCH",
       id: m.id,
       reportId: mine.id,
       role: mine === lost ? "OWNER" : "FINDER",
+      counterpartId: theirs?.user_id || null,
+      photoReportId: mine.id,
       subject: subject(lost || found),
       caseClosed: closed(lost) || closed(found),
       last: last ? { body: preview(last.body), at: last.created_at, mine: last.sender_id === userId } : null,
@@ -64,6 +69,8 @@ function buildInbox({ userId, matches, reportsById, matchLast, observations, con
       id: o.id,
       reportId: r.id,
       role: o.observer_user_id === userId ? "HELPER" : "OWNER",
+      counterpartId: o.observer_user_id === userId ? o.report_owner_user_id : o.observer_user_id,
+      photoReportId: r.id,
       observationType: o.observation_type,
       hasConversation: !!conv,
       subject: subject(r),
@@ -146,7 +153,27 @@ router.get("/", requireUser, async (req, res) => {
       }
     }
 
-    return res.json({ ok: true, items: buildInbox({ userId, matches, reportsById, matchLast, observations, conversations, observationLast }) });
+    const items = buildInbox({ userId, matches, reportsById, matchLast, observations, conversations, observationLast });
+
+    // T1.9BL: the item's photo (never a held one) and the other person's helper level.
+    const thumbs = await loadThumbnailUrls(supaAdmin, [...new Set(items.map((i) => i.photoReportId).filter(Boolean))], { skipHeld: true });
+    const helpers = new Map();
+    if (bonusEnabled()) {
+      for (const id of [...new Set(items.map((i) => i.counterpartId).filter(Boolean))]) {
+        try {
+          const st = await helperStatus({ supa: supaAdmin, userId: id });
+          if (st?.level) helpers.set(id, st);
+        } catch {
+          // The level is a nicety; the list works without it.
+        }
+      }
+    }
+    const out = items.map(({ counterpartId, photoReportId, ...item }) => ({
+      ...item,
+      thumbnail_url: thumbs.get(photoReportId) || null,
+      counterpart_helper: helpers.get(counterpartId) || null,
+    }));
+    return res.json({ ok: true, items: out });
   } catch (e) {
     console.error("[inbox] load failed", e?.message || e);
     return res.status(500).json({ error: "INBOX_LOAD_FAILED" });

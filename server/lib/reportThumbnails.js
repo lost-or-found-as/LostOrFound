@@ -25,16 +25,18 @@ function firstImagePathByReport(rows) {
 }
 
 /** Map(report_id -> signed URL). A failure only means no thumbnails; the list still loads. */
-async function loadThumbnailUrls(supaAdmin, reportIds) {
+async function loadThumbnailUrls(supaAdmin, reportIds, { skipHeld = false } = {}) {
   const urls = new Map();
   if (!reportIds.length) return urls;
   try {
     const { data, error } = await supaAdmin
       .from("report_images")
-      .select("id, report_id, path, sort_order")
+      .select(skipHeld ? "id, report_id, path, sort_order, moderation_status" : "id, report_id, path, sort_order")
       .in("report_id", reportIds);
     if (error) throw error;
-    const firstPaths = firstImagePathByReport(data);
+    // T1.9BJ: photos held by moderation are never shown to other people.
+    const rows = skipHeld ? (data || []).filter((r) => String(r.moderation_status || "").toUpperCase() !== "HELD") : data;
+    const firstPaths = firstImagePathByReport(rows);
     const byBucket = new Map();
     for (const [reportId, path] of firstPaths) {
       const split = splitImagePath(path);
