@@ -53,6 +53,7 @@ import {
   stepEyebrowKey,
   fetchReportActivity,
   nextStep,
+  reactivationAction,
   type ActivityEvent,
   type ReportActivity,
 } from "../../src/lib/reportActivity";
@@ -77,7 +78,7 @@ type Confirm = "close" | "delete" | "extend" | "reactivate" | null;
 
 function Screen() {
   const router = useRouter();
-  const { id, created, updated } = useLocalSearchParams<{ id: string; created?: string; updated?: string }>();
+  const { id, created, updated, action } = useLocalSearchParams<{ id: string; created?: string; updated?: string; action?: string }>();
   // T1.9BC: a short confirmation after «Lagre endringer».
   const [updatedOpen, setUpdatedOpen] = useState(updated === "1");
   const { language, t } = useI18n();
@@ -144,6 +145,18 @@ function Screen() {
       loadedOnce.current = true;
     }, [load]),
   );
+
+  // T1.9BO: «Ligner» on a match preview lands here with action=activate and opens the way back
+  // to an active case (30 more days, a historic case, or a found case extended).
+  const activateHandled = useRef(false);
+  useEffect(() => {
+    if (action !== "activate" || activateHandled.current || !data?.report || !activityReady) return;
+    activateHandled.current = true;
+    const how = reactivationAction(data.report, activity.summary);
+    if (how === "extendLost") setConfirm("reactivate");
+    else if (how === "extendFound") setConfirm("extend");
+    else if (how === "longTerm") setLongTermOpen(true);
+  }, [action, data, activity, activityReady]);
 
   const geoView = useMemo(() => deriveAreaAlertView(geoStatus), [geoStatus]);
   const imgs = useMemo(

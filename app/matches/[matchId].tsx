@@ -86,6 +86,8 @@ type MatchFull = {
   reasons: Reason[];
   lost: ReportFull;
   found: ReportFull;
+  // T1.9BO: the own case has expired; the other side's text and exact place are left out.
+  preview_only?: boolean;
 };
 type LastMsg = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
 type Mark = "good" | "partial" | "bad" | "unknown";
@@ -498,8 +500,11 @@ function MatchDetailsScreen() {
       })
     : t("matchDetail.noMessagesYet");
 
-  const showOwnerActions = youOwnLost && !confirmed && !dismissed;
+  const preview = !!match.preview_only;
+  const showPreviewActions = preview && !dismissed;
+  const showOwnerActions = youOwnLost && !confirmed && !dismissed && !preview;
   const showChatAction = confirmed;
+  const activateOwnCase = () => router.push({ pathname: "/report-details/[id]", params: { id: own.id, action: "activate" } });
 
   return (
     <View style={styles.screen}>
@@ -608,10 +613,19 @@ function MatchDetailsScreen() {
 
         {level === "low" && <InlineNotice tone="info" icon="information-circle-outline" title={t("matchDetail.lowMatchHidden")} style={styles.noticeTight} />}
 
+        {showPreviewActions && (
+          <InlineNotice
+            tone="warning"
+            icon="information-circle-outline"
+            title={t("matchDetail.preview.title")}
+            body={t("matchDetail.preview.body")}
+            style={styles.noticeTight}
+          />
+        )}
         {showOwnerActions && (
           <InlineNotice tone="info" icon="chatbubble-outline" title={t("matchDetail.ownerHint")} style={styles.noticeTight} />
         )}
-        {!youOwnLost && !confirmed && !dismissed && (
+        {!youOwnLost && !confirmed && !dismissed && !preview && (
           <InlineNotice
             tone="info"
             icon="time-outline"
@@ -633,9 +647,14 @@ function MatchDetailsScreen() {
         )}
       </ScrollView>
 
-      {(showOwnerActions || showChatAction) && (
+      {(showOwnerActions || showChatAction || showPreviewActions) && (
         <View style={[styles.bar, { paddingBottom: Math.max(16, insets.bottom + 6) }]}>
-          {showOwnerActions ? (
+          {showPreviewActions ? (
+            <>
+              <Button label={t("matchDetail.notMine")} variant="neutral" onPress={() => setSheet("dismiss")} style={styles.flex1} />
+              <Button label={t("matchDetail.preview.activate")} onPress={activateOwnCase} style={styles.flex2} />
+            </>
+          ) : showOwnerActions ? (
             <>
               <Button label={t("matchDetail.notMine")} variant="neutral" onPress={() => setSheet("dismiss")} style={styles.flex1} />
               <Button label={t("matchDetail.confirm.match")} onPress={() => void setStatus("CONFIRMED")} busy={busy} style={styles.flex2} />

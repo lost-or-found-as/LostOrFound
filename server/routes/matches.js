@@ -120,6 +120,39 @@ function isActiveReport(rep) {
     return false;
   return true;
 }
+// T1.9BO: an own case that ran out (not closed, archived or deleted) can preview matches.
+function isPreviewOwnReport(rep) {
+  if (!rep || rep.closed_at || rep.archived_at || rep.deleted_at) return false;
+  const status = String(rep.status || "").toUpperCase();
+  if (status === "CLOSED" || status === "ARCHIVED") return false;
+  return !isActiveReport(rep);
+}
+
+/** "full" (both cases active), "preview" (own case expired, other active) or null. */
+function matchAccess(match, userId) {
+  const lost = match?.lost;
+  const found = match?.found;
+  if (!lost || !found) return null;
+  if (isActiveReport(lost) && isActiveReport(found)) return "full";
+  const own = lost.user_id === userId ? lost : found.user_id === userId ? found : null;
+  const other = own === lost ? found : lost;
+  // A match confirmed before the case ran out keeps its full view (the parties already talk).
+  if (own && isPreviewOwnReport(own) && isActiveReport(other)) return String(match.status || "").toUpperCase() === "CONFIRMED" ? "full" : "preview";
+  return null;
+}
+
+/** Preview: no text, exact place or hand-in details from the other side. */
+function previewMatchForViewer(match, userId) {
+  const otherKey = match?.lost?.user_id === userId ? "found" : "lost";
+  const other = match?.[otherKey];
+  if (!other) return match;
+  return {
+    ...match,
+    preview_only: true,
+    [otherKey]: { ...other, title: null, description: null, location_label: null, lat: null, lng: null, custody_place: null },
+  };
+}
+
 function haversineMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -243,7 +276,7 @@ function enrichMatchColorInfo(match) {
 async function loadReportMatches(reportId, userId) {
   const { data: report, error: rErr } = await supaAdmin
     .from("reports")
-    .select("id, type, user_id")
+    .select("id, type, user_id, status, visible_until, closed_at, archived_at, deleted_at")
     .eq("id", reportId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -258,15 +291,19 @@ async function loadReportMatches(reportId, userId) {
     .order("score", { ascending: false });
   if (mErr) throw mErr;
 
+  // T1.9BO: on an expired (not closed) case the owner may look at possible matches for free,
+  // without the other side's text or exact place; contact needs the case to be active again.
+  const preview = isPreviewOwnReport(report);
   const filtered = (matches || [])
-    .filter((m) => isActiveReport(m?.lost) && isActiveReport(m?.found))
+    .filter((m) => matchAccess(m, userId) === "full" || (preview && matchAccess(m, userId) === "preview"))
     .filter((m) => isTimeCompatible(m?.lost, m?.found))
     .map(enrichMatchAreaInfo)
     .map(enrichMatchColorInfo)
     // T1.9K: the hand-in place is shown only after the owner has confirmed the match.
     .map((m) => redactCustodyForViewer(m, userId))
     // T1.9AZ: a photo held by the check is shown to its owner only.
-    .map((m) => dropHeldImages(m, userId));
+    .map((m) => dropHeldImages(m, userId))
+    .map((m) => (matchAccess(m, userId) === "preview" ? previewMatchForViewer(m, userId) : m));
   return { report, matches: filtered };
 }
 
@@ -305,7 +342,9 @@ router.get("/:id", requireUser, async (req, res) => {
     if (!owns) return res.status(403).json({ error: "Not allowed" });
 
     // Hide closed, expired, archived, and chronologically impossible matches.
-    if (!isActiveReport(match?.lost) || !isActiveReport(match?.found)) {
+    // T1.9BO: the owner of an expired case still sees a preview (see previewMatchForViewer).
+    const access = matchAccess(match, user.id);
+    if (!access) {
       return res.status(404).json({ error: "Match not found" });
     }
     if (!isTimeCompatible(match?.lost, match?.found)) {
@@ -324,9 +363,10 @@ router.get("/:id", requireUser, async (req, res) => {
       }
     }
 
+    const shown = dropHeldImages(redactCustodyForViewer(enrichMatchColorInfo(enrichMatchAreaInfo(match)), user.id), user.id);
     return res.json({
-      match: dropHeldImages(redactCustodyForViewer(enrichMatchColorInfo(enrichMatchAreaInfo(match)), user.id), user.id),
-      counterpart_helper: counterpartHelper,
+      match: access === "preview" ? previewMatchForViewer(shown, user.id) : shown,
+      counterpart_helper: access === "preview" ? null : counterpartHelper,
     });
   } catch (e) {
     return res.status(500).json({ error: e?.message ?? "Server error" });
@@ -348,7 +388,7 @@ router.post("/:id/status", requireUser, async (req, res) => {
     const { data: match, error: mErr } = await supaAdmin
       .from("matches")
       .select(
-        `id, status, lost_id, found_id, lost:lost_id ( user_id ), found:found_id ( user_id )`,
+        `id, status, lost_id, found_id, lost:lost_id ( user_id, status, visible_until, closed_at, archived_at, deleted_at ), found:found_id ( user_id, status, visible_until, closed_at, archived_at, deleted_at )`,
       )
       .eq("id", matchId)
       .single();
@@ -360,6 +400,11 @@ router.post("/:id/status", requireUser, async (req, res) => {
     const ownsFound = match.found?.user_id === user.id;
     if (!ownsLost && !ownsFound)
       return res.status(403).json({ error: "Not allowed" });
+
+    // T1.9BO: a preview (own case expired) can be dismissed, but contact needs an active case.
+    if (status === "CONFIRMED" && matchAccess(match, user.id) !== "full") {
+      return res.status(409).json({ error: "MATCH_PREVIEW_ONLY" });
+    }
 
     // 3A: The FOUND side cannot initiate contact. Only the LOST owner can confirm.
     if (status === "CONFIRMED" && !ownsLost) {
@@ -476,3 +521,5 @@ router.post("/:id/messages", requireUser, async (req, res) => {
 });
 module.exports = router;
 module.exports.loadReportMatches = loadReportMatches;
+module.exports.matchAccess = matchAccess;
+module.exports.previewMatchForViewer = previewMatchForViewer;

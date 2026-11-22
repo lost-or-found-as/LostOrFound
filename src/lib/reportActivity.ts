@@ -104,6 +104,16 @@ export type NextStepOptions = {
   petAreaAlert?: boolean;
 };
 
+/** T1.9BO: how an expired case becomes active again (used by «Ligner» on a match preview). */
+export function reactivationAction(report: LifecycleReport, summary: ActivitySummary, now = Date.now()): NextStepAction {
+  if (!isReportExpired(report, now) || isReportClosed(report)) return null;
+  const lost = String(report.type || "").toUpperCase() === "LOST";
+  if (lost && canExtendLost(report, summary, now) && !isHistoricFromStart(report, now)) return "extendLost";
+  if (lost && canBuyLongTerm(report)) return "longTerm";
+  if (!lost && canExtendFound(report, now)) return "extendFound";
+  return null;
+}
+
 /** What the owner should do next with the case, most important first. */
 export function nextStep(report: LifecycleReport, summary: ActivitySummary, now = Date.now(), options: NextStepOptions = {}): NextStep {
   const lost = String(report.type || "").toUpperCase() === "LOST";
@@ -132,6 +142,18 @@ export function nextStep(report: LifecycleReport, summary: ActivitySummary, now 
       lost ? "caseDetail.next.chatBodyLost" : "caseDetail.next.chatBodyFound",
       "openChat",
       "caseDetail.next.openChat",
+    );
+
+  // T1.9BO: an expired case may still show possible matches, as a free preview.
+  if (summary.possibleMatches > 0 && isReportExpired(report, now))
+    return step(
+      "matches",
+      "dark",
+      "caseDetail.next.previewMatchesTitle",
+      "caseDetail.next.previewMatchesBody",
+      "openMatches",
+      "caseDetail.next.openMatches",
+      { count: summary.possibleMatches },
     );
 
   if (summary.possibleMatches > 0)

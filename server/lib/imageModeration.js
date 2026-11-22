@@ -72,13 +72,37 @@ async function judgeImage(base64, { env = process.env, fetchImpl = fetch } = {})
   }
 }
 
+/**
+ * T1.9BN: where a stored photo lives. Paths are "<bucket>/reports/<id>/<file>"; an older path
+ * without the bucket name ("reports/<id>/<file>") lives in the default photo bucket.
+ */
+function storedImageLocation(path, env = process.env) {
+  const defaultBucket = env.BUCKET_REPORT_IMAGES || "report-images";
+  const value = String(path || "").replace(/^\/+/, "");
+  if (value.startsWith(`${defaultBucket}/`)) return { bucket: defaultBucket, objectPath: value.slice(defaultBucket.length + 1) };
+  if (value.startsWith("reports/")) return { bucket: defaultBucket, objectPath: value };
+  const [bucket, ...rest] = value.split("/");
+  return { bucket, objectPath: rest.join("/") };
+}
+
 /** Checks one stored photo and saves the result. Returns the status, or null (try again later). */
 async function moderateImageRow(row, { supa, env = process.env, fetchImpl = fetch, notifyHeld, log = console, now = Date.now() }) {
   if (!moderationEnabled(env) || !row?.path) return null;
-  const [bucket, ...rest] = String(row.path).split("/");
-  const { data: blob, error } = await supa.storage.from(bucket).download(rest.join("/"));
+  const { bucket, objectPath } = storedImageLocation(row.path, env);
+  const { data: blob, error } = await supa.storage.from(bucket).download(objectPath);
   if (error || !blob) {
-    log.warn?.("[image-moderation] download failed", error?.message || "no data");
+    const message = String(error?.message || "no data");
+    // T1.9BN: a photo whose file is gone can never be checked or shown. Keep it off public
+    // pages and stop retrying it every hour.
+    if (/not found/i.test(message)) {
+      log.warn?.(`[image-moderation] file missing, held (${message})`);
+      const u = await supa.from("report_images")
+        .update({ moderation_status: "HELD", moderation_reason: "OTHER", moderation_checked_at: new Date(now).toISOString() })
+        .eq("id", row.id).is("moderation_status", null);
+      if (u.error) throw u.error;
+      return "HELD";
+    }
+    log.warn?.("[image-moderation] download failed", message);
     return null;
   }
   const buffer = Buffer.from(await blob.arrayBuffer());
@@ -150,4 +174,5 @@ function dropHeldImages(match, userId) {
   return match;
 }
 
-module.exports = { moderationEnabled, moderationPrompt, parseVerdict, judgeImage, moderateImageRow, moderatePending, scheduleImageModeration, heldPathsForOthers, dropHeldImages };
+module.exports = {
+  storedImageLocation, moderationEnabled, moderationPrompt, parseVerdict, judgeImage, moderateImageRow, moderatePending, scheduleImageModeration, heldPathsForOthers, dropHeldImages };

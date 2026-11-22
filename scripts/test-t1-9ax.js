@@ -52,13 +52,14 @@ function fakeSupa({ ledger = [], reports = {} } = {}) {
 async function main() {
   // 1. Levels, stars and the next step.
   eq([0, 1, 5, 15, 29].map(bonus.helperStars), [0, 0, 0, 0, 0], "no stars before 30 returns");
-  eq([30, 44, 45, 90, 200].map(bonus.helperStars), [1, 1, 2, 5, 5], "one star per 15 after Mesterhjelper, at most five");
+  // T1.9BO: from 100 returns the level is Legende and the stars stop.
+  eq([30, 44, 45, 90, 99, 200].map(bonus.helperStars), [1, 1, 2, 5, 5, 0], "one star per 15 after Mesterhjelper, at most five");
   eq(bonus.nextStep(0), { kind: "LEVEL", level: "HELPER", at: 1 }, "first return makes a Helper");
   eq(bonus.nextStep(3), { kind: "LEVEL", level: "SUPER_HELPER", at: 5 }, "then Superhjelper at 5");
   eq(bonus.nextStep(14), { kind: "LEVEL", level: "MASTER_HELPER", at: 15 }, "then Mesterhjelper at 15");
   eq(bonus.nextStep(15), { kind: "STAR", stars: 1, at: 30 }, "then the first star at 30");
   eq(bonus.nextStep(46), { kind: "STAR", stars: 3, at: 60 }, "next star");
-  eq(bonus.nextStep(90), null, "nothing after five stars");
+  eq(bonus.nextStep(90), { kind: "LEVEL", level: "LEGEND", at: 100 }, "after five stars: Legende at 100 (T1.9BO)");
 
   // 2. Notices: in the app only, after the award; a pending find is told when it turns active.
   const sent = [];
@@ -94,7 +95,7 @@ async function main() {
 
   // 3. The other party's level in the match chat: level, stars and returns only, only while on.
   const matches = read("server/routes/matches.js");
-  ok(/if \(bonusEnabled\(\)\) \{/.test(matches) && /counterpart_helper: counterpartHelper/.test(matches), "level sent only while the bonus is on");
+  ok(/if \(bonusEnabled\(\)\) \{/.test(matches) && /counterpart_helper: (access === "preview" \? null : )?counterpartHelper/.test(matches), "level sent only while the bonus is on");
   ok(/match\.lost\.user_id === user\.id \? match\.found\.user_id : match\.lost\.user_id/.test(matches), "the other party, both directions");
   const statusSrc = bonus.helperStatus.toString();
   ok(!/balance|remaining/.test(statusSrc) && /stars: helperStars\(returns\)/.test(statusSrc), "never the balance");

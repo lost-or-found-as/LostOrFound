@@ -51,6 +51,7 @@ const EXACT: Record<string, TranslationKey> = {
   REWARD_LOCKED: "register.reward.lockedError",
   // T1.9BM: the case was solved more than 7 days ago.
   CHAT_CLOSED_AFTER_SOLVED: "chat.solvedClosed",
+  MATCH_PREVIEW_ONLY: "match.previewOnly",
   // T1.9AY: protection of public content.
   EMAIL_NOT_VERIFIED: "errors.emailNotVerified",
   PUBLIC_TEXT_NOT_ALLOWED: "errors.publicText",

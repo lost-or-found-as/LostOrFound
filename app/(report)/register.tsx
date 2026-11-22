@@ -25,6 +25,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { keysNudge } from "../../src/lib/easterEggs";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Circle, Marker } from "react-native-maps";
@@ -816,6 +817,8 @@ export default function RegisterScreen() {
                   placeholderTextColor="#64748B"
                   style={s.input}
                 />
+                {/* T1.9BO: a small nudge for lost keys before the results. */}
+                {type === "LOST" && keysNudge(query) && <Text style={s.mutedSmall}>{t("register.egg.keys")}</Text>}
                 {hits.length > 0 && (
                   <View style={s.hits}>
                     {hits.map((hit, i) => (

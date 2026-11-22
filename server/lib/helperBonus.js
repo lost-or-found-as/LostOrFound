@@ -33,11 +33,18 @@ function canSpendBonusOn(productCode) {
 }
 const VALID_MONTHS = 12;
 const REDEEM_MIN_ACCOUNT_DAYS = 14;
+// T1.9BO: three levels on top of the stars (decided 22.11.2026): Legende 100, Mytisk finner 250,
+// Guddommelig finner 500. Highest first.
 const LEVELS = Object.freeze([
+  { level: "DIVINE_FINDER", from: 500 },
+  { level: "MYTHIC_FINDER", from: 250 },
+  { level: "LEGEND", from: 100 },
   { level: "MASTER_HELPER", from: 15 },
   { level: "SUPER_HELPER", from: 5 },
   { level: "HELPER", from: 1 },
 ]);
+const MASTER_FROM = 15;
+const LEGEND_FROM = 100;
 
 function bonusEnabled(env = process.env) {
   return String(env.HELPER_BONUS_ENABLED || "").toLowerCase() === "true";
@@ -62,17 +69,46 @@ const STAR_STEP = 15;
 const MAX_STARS = 5;
 function helperStars(returns) {
   const n = Number(returns) || 0;
-  return Math.max(0, Math.min(MAX_STARS, Math.floor((n - LEVELS[0].from) / STAR_STEP)));
+  // T1.9BO: stars belong to Mesterhjelper; from Legende on the level name says it all.
+  if (n >= LEGEND_FROM) return 0;
+  return Math.max(0, Math.min(MAX_STARS, Math.floor((n - MASTER_FROM) / STAR_STEP)));
 }
 
 /** T1.9AX: the next level (or star) and how many returns it takes, for the progress bar. */
 function nextStep(returns) {
   const n = Number(returns) || 0;
-  const up = [...LEVELS].reverse().find((l) => n < l.from);
-  if (up) return { kind: "LEVEL", level: up.level, at: up.from };
-  const stars = helperStars(n);
-  if (stars >= MAX_STARS) return null;
-  return { kind: "STAR", stars: stars + 1, at: LEVELS[0].from + (stars + 1) * STAR_STEP };
+  const ascending = [...LEVELS].reverse();
+  if (n < MASTER_FROM) {
+    const up = ascending.find((l) => n < l.from);
+    return { kind: "LEVEL", level: up.level, at: up.from };
+  }
+  if (n < LEGEND_FROM) {
+    const stars = helperStars(n);
+    if (stars < MAX_STARS) return { kind: "STAR", stars: stars + 1, at: MASTER_FROM + (stars + 1) * STAR_STEP };
+    return { kind: "LEVEL", level: "LEGEND", at: LEGEND_FROM };
+  }
+  const up = ascending.find((l) => n < l.from);
+  return up ? { kind: "LEVEL", level: up.level, at: up.from } : null;
+}
+
+// T1.9BO: hidden badges, just for fun (no bonus value). Night watch: a return confirmed between
+// 00 and 05 Norwegian time. Dog whisperer: three animals returned. Umbrella hunter: an umbrella.
+const BADGE_ANIMALS = new Set(["DOG", "CAT", "BIRD", "RABBIT", "SMALL_PET", "REPTILE", "HORSE", "OTHER_PET", "CUSTOM"]);
+function osloHour(iso) {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return null;
+  const h = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hour12: false, timeZone: "Europe/Oslo" }).format(d);
+  return Number(h) % 24;
+}
+/** returnsWithReports: [{ created_at, report: { category, subcategory_key } }] */
+function hiddenBadges(returnsWithReports) {
+  const out = [];
+  const list = returnsWithReports || [];
+  if (list.some((r) => { const h = osloHour(r.created_at); return h != null && h < 5; })) out.push("NIGHT_WATCH");
+  const animals = list.filter((r) => String(r.report?.category || "").toUpperCase() === "PETS" && BADGE_ANIMALS.has(String(r.report?.subcategory_key || "").toUpperCase()));
+  if (animals.length >= 3) out.push("DOG_WHISPERER");
+  if (list.some((r) => String(r.report?.subcategory_key || "").toUpperCase() === "UMBRELLA")) out.push("UMBRELLA_HUNTER");
+  return out;
 }
 
 /** T1.9AX: in-app notice (never push) when bonus is earned. Never throws. */
@@ -303,7 +339,22 @@ async function bonusSummary({ supa, userId, now = Date.now() }) {
   // T1.9BK: when waiting bonus can first be used, and returns that wait (shown on the level card).
   const nextPendingAt = pendingRows.map((r) => r.valid_from).filter(Boolean).sort()[0] || null;
   const pendingReturns = pendingRows.filter((r) => r.event_type === "RETURN_CONFIRMED").length;
-  const returns = rows.filter((r) => r.event_type === "RETURN_CONFIRMED" && r.status === "ACTIVE").length;
+  // T1.9BO: returns counted on their own (the list above stops at 500 rows), with their cases
+  // for the hidden badges.
+  const ret = await supa.from("helper_bonus_ledger").select("report_id,created_at")
+    .eq("user_id", userId).eq("event_type", "RETURN_CONFIRMED").eq("status", "ACTIVE").limit(2000);
+  if (ret.error) throw ret.error;
+  const returnRows = ret.data || [];
+  const returns = returnRows.length;
+  let badges = [];
+  try {
+    const ids = [...new Set(returnRows.map((r) => r.report_id).filter(Boolean))];
+    const reps = ids.length ? await supa.from("reports").select("id,category,subcategory_key").in("id", ids.slice(0, 500)) : { data: [] };
+    const byId = new Map((reps.data || []).map((r) => [r.id, r]));
+    badges = hiddenBadges(returnRows.map((r) => ({ created_at: r.created_at, report: byId.get(r.report_id) || null })));
+  } catch {
+    badges = [];
+  }
   const soon = rows.filter((r) => live(r) && r.remaining > 0).sort((a, b) => Date.parse(a.expires_at) - Date.parse(b.expires_at))[0];
   return {
     enabled: bonusEnabled(),
@@ -315,6 +366,7 @@ async function bonusSummary({ supa, userId, now = Date.now() }) {
     level: helperLevel(returns),
     stars: helperStars(returns),
     next: nextStep(returns),
+    badges,
     nextExpiry: soon ? { points: soon.remaining, at: soon.expires_at } : null,
     history: rows.slice(0, 50).map((r) => ({ event: r.event_type, points: r.points, status: r.status, at: r.created_at, validFrom: r.valid_from })),
   };
@@ -341,6 +393,7 @@ function scheduleBonusMaintenance({ supa, log = console, everyMs = 60 * 60 * 100
 }
 
 module.exports = {
+  hiddenBadges,
   POINTS, MONTHLY_CAP, EVENT_MONTHLY_CAPS, PAIR_DAYS, VALID_MONTHS, REDEEM_MIN_ACCOUNT_DAYS,
   HOLD_MS, BONUS_SPENDABLE, canSpendBonusOn, revokeBonus, bonusFlags, bonusTestPair,
   bonusEnabled, helperLevel, helperStars, nextStep, award, awardSafely, activatePending, bonusSummary, helperStatus,

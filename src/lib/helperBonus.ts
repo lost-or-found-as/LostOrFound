@@ -4,8 +4,10 @@
 import { supabase } from "./supabase";
 import { API_BASE_URL } from "./config";
 import type { TranslationKey } from "../i18n/locales/en";
+import { HIDDEN_BADGES, type HiddenBadge } from "./easterEggs";
 
-export type HelperLevel = "HELPER" | "SUPER_HELPER" | "MASTER_HELPER";
+// T1.9BO: Legende (100), Mytisk finner (250) and Guddommelig finner (500) on top.
+export type HelperLevel = "HELPER" | "SUPER_HELPER" | "MASTER_HELPER" | "LEGEND" | "MYTHIC_FINDER" | "DIVINE_FINDER";
 export type BonusEvent = "FOUND_REGISTERED" | "SIGHTING_USEFUL" | "MATCH_CONFIRMED" | "SIGHTING_RESOLVED" | "RETURN_CONFIRMED";
 export type BonusNext = { kind: "LEVEL"; level: HelperLevel; at: number } | { kind: "STAR"; stars: number; at: number } | null;
 export type MyBonus = {
@@ -21,10 +23,30 @@ export type MyBonus = {
   next: BonusNext;
   nextExpiry: { points: number; at: string } | null;
   history: { event: BonusEvent; points: number; status: string; at: string; validFrom: string }[];
+  // T1.9BO: hidden badges the user has earned (for fun only).
+  badges: HiddenBadge[];
 };
 export type HelperStatus = { level: HelperLevel; stars: number; returns: number };
 
-const LEVELS: HelperLevel[] = ["HELPER", "SUPER_HELPER", "MASTER_HELPER"];
+const LEVELS: HelperLevel[] = ["HELPER", "SUPER_HELPER", "MASTER_HELPER", "LEGEND", "MYTHIC_FINDER", "DIVINE_FINDER"];
+/** Where the progress bar starts for each next level (the level or star before it). */
+export const LEVEL_PROGRESS_FROM: Record<HelperLevel, number> = {
+  HELPER: 0,
+  SUPER_HELPER: 1,
+  MASTER_HELPER: 5,
+  LEGEND: 90,
+  MYTHIC_FINDER: 100,
+  DIVINE_FINDER: 250,
+};
+/** T1.9BO: the top levels get their own icon in the badge. */
+export const LEVEL_ICONS: Record<HelperLevel, string> = {
+  HELPER: "ribbon-outline",
+  SUPER_HELPER: "ribbon-outline",
+  MASTER_HELPER: "ribbon-outline",
+  LEGEND: "shield-checkmark-outline",
+  MYTHIC_FINDER: "sparkles-outline",
+  DIVINE_FINDER: "trophy-outline",
+};
 export const BONUS_EVENTS: BonusEvent[] = ["RETURN_CONFIRMED", "SIGHTING_RESOLVED", "MATCH_CONFIRMED", "SIGHTING_USEFUL", "FOUND_REGISTERED"];
 export const BONUS_POINTS: Record<BonusEvent, number> = {
   RETURN_CONFIRMED: 15,
@@ -64,6 +86,7 @@ export function toMyBonus(data: any): MyBonus | null {
         : next?.kind === "STAR"
           ? { kind: "STAR", stars: num(next.stars), at: num(next.at) }
           : null,
+    badges: Array.isArray(b.badges) ? (b.badges.filter((x: any) => (HIDDEN_BADGES as string[]).includes(x)) as HiddenBadge[]) : [],
     nextExpiry: b.nextExpiry && typeof b.nextExpiry.at === "string" ? { points: num(b.nextExpiry.points), at: b.nextExpiry.at } : null,
     history: Array.isArray(b.history)
       ? b.history

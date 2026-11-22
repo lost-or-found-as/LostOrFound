@@ -58,7 +58,7 @@ ok(/\.\.\.\(custodyFields\.custody \? custodyFields : \{\}\),\s*\.\.\.precisionF
 ok(/normalizeCustody\(existing\.type, body\.custody, body\.custody_place\)/.test(reports), "edit uses the stored type");
 const matches = read("server/routes/matches.js");
 ok((matches.match(/reward_ore, custody, custody_place,/g) || []).length === 2, "match select returns custody for both sides");
-ok(/\.map\(\(m\) => redactCustodyForViewer\(m, userId\)\)/.test(matches) && /match: (dropHeldImages\()?redactCustodyForViewer\(/.test(matches), "list and detail hide the place before confirmation");
+ok(/\.map\(\(m\) => redactCustodyForViewer\(m, userId\)\)/.test(matches) && /(match|const shown) ?[:=] (dropHeldImages\()?redactCustodyForViewer\(/.test(matches), "list and detail hide the place before confirmation");
 
 // 3. App rules (real TypeScript).
 const form = requireTs(path.join(root, "src/lib/registerForm.ts"), {

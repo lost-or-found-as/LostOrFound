@@ -87,6 +87,8 @@ type Match = {
   id: string;
   score: number;
   status: "NEW" | "SEEN" | "DISMISSED" | "CONFIRMED";
+  // T1.9BO: preview of a match on an expired own case.
+  preview_only?: boolean;
   reasons: Reason[];
   lost: ReportLite;
   found: ReportLite;
@@ -890,6 +892,15 @@ function MatchScreen() {
                   title={loadError}
                   actionLabel={t("errors.retry")}
                   onAction={() => void fetchMatches()}
+                  style={list.noticeTight}
+                />
+              )}
+              {visibleMatches.some((m) => m.preview_only) && (
+                <InlineNotice
+                  tone="warning"
+                  icon="information-circle-outline"
+                  title={t("matchDetail.preview.title")}
+                  body={t("matchDetail.preview.body")}
                   style={list.noticeTight}
                 />
               )}

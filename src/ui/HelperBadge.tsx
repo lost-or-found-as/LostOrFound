@@ -5,7 +5,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useI18n } from "../i18n/I18nProvider";
-import { levelKey, starText, type HelperStatus } from "../lib/helperBonus";
+import { LEVEL_ICONS, levelKey, starText, type HelperStatus } from "../lib/helperBonus";
 import { theme } from "./theme";
 
 export function HelperBadge({ helper }: { helper: HelperStatus | null }) {
@@ -13,7 +13,7 @@ export function HelperBadge({ helper }: { helper: HelperStatus | null }) {
   if (!helper) return null;
   return (
     <View style={styles.row} accessibilityLabel={t("bonus.helperA11y", { level: t(levelKey(helper.level)), count: helper.returns })}>
-      <Ionicons name="ribbon-outline" size={14} color={theme.tone.info.icon} />
+      <Ionicons name={LEVEL_ICONS[helper.level] as any} size={14} color={theme.tone.info.icon} />
       <Text style={styles.text}>
         {t(levelKey(helper.level))}
         {helper.stars > 0 ? ` ${starText(helper.stars)}` : ""} · {t("bonus.returns", { count: helper.returns })}

@@ -3,6 +3,7 @@
 // Mesterhjelper), the next expiry, how bonus is earned and the history. Only the user's own
 // bonus; others only ever see the level. Shown only while the server has the bonus switched on.
 import React, { useCallback, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,28 +12,46 @@ import { useI18n } from "../src/i18n/I18nProvider";
 import { formatDate } from "../src/i18n/formatters";
 import { ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
-import { BONUS_EVENTS, BONUS_POINTS, fetchMyBonus, levelKey, starText, type MyBonus } from "../src/lib/helperBonus";
+import { BONUS_EVENTS, BONUS_POINTS, LEVEL_ICONS, LEVEL_PROGRESS_FROM, fetchMyBonus, levelKey, starText, type MyBonus } from "../src/lib/helperBonus";
+import { BADGE_ICONS, HIDDEN_BADGES } from "../src/lib/easterEggs";
+import { Confetti } from "../src/ui/Confetti";
+import { useAuth } from "../src/contexts/AuthContext";
 import type { TranslationKey } from "../src/i18n/locales/en";
 
 export default function BonusScreen() {
   const router = useRouter();
   const { language, t } = useI18n();
   const [state, setState] = useState<{ loading: boolean; bonus: MyBonus | null }>({ loading: true, bonus: null });
+  // T1.9BO: confetti the first time «Din bonus» opens after the first return (once per account).
+  const { user } = useAuth();
+  const [confetti, setConfetti] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let live = true;
-      void fetchMyBonus().then((bonus) => live && setState({ loading: false, bonus }));
+      void fetchMyBonus().then(async (bonus) => {
+        if (!live) return;
+        setState({ loading: false, bonus });
+        if (!bonus?.enabled || bonus.returns < 1 || !user?.id) return;
+        const key = `lof.egg.firstReturnConfetti.${user.id}`;
+        try {
+          if (await AsyncStorage.getItem(key)) return;
+          await AsyncStorage.setItem(key, "1");
+          if (live) setConfetti(true);
+        } catch {
+          // Confetti is only for fun; nothing to do when storage fails.
+        }
+      });
       return () => {
         live = false;
       };
-    }, []),
+    }, [user?.id]),
   );
 
   const b = state.bonus;
   const progress = (() => {
     if (!b?.next) return null;
-    const from = b.next.kind === "LEVEL" ? (b.next.level === "HELPER" ? 0 : b.next.level === "SUPER_HELPER" ? 1 : 5) : b.next.at - 15;
+    const from = b.next.kind === "LEVEL" ? LEVEL_PROGRESS_FROM[b.next.level] : b.next.at - 15;
     const span = Math.max(1, b.next.at - from);
     return Math.max(0, Math.min(1, (b.returns - from) / span));
   })();
@@ -72,7 +91,7 @@ export default function BonusScreen() {
               {b.level ? (
                 <View style={s.levelRow}>
                   <View style={s.levelBadge}>
-                    <Ionicons name="ribbon-outline" size={16} color={theme.tone.info.icon} />
+                    <Ionicons name={LEVEL_ICONS[b.level] as any} size={16} color={theme.tone.info.icon} />
                     <Text style={s.levelText}>
                       {t(levelKey(b.level))}
                       {b.stars > 0 ? ` ${starText(b.stars)}` : ""}
@@ -97,6 +116,27 @@ export default function BonusScreen() {
                 </>
               )}
               <Text style={s.mutedSmall}>{t("bonus.levelPrivacy")}</Text>
+            </View>
+
+            {/* T1.9BO: hidden badges. Earned ones show; the rest stay a mystery. */}
+            <View style={s.card}>
+              <Text style={s.h2}>{t("bonus.badgesTitle")}</Text>
+              <View style={s.badgeWrap}>
+                {HIDDEN_BADGES.map((badge) => {
+                  const got = b.badges.includes(badge);
+                  return (
+                    <View
+                      key={badge}
+                      style={[s.badge, !got && s.badgeLocked]}
+                      accessibilityLabel={got ? `${t(`bonus.badge.${badge}` as TranslationKey)}. ${t(`bonus.badgeHow.${badge}` as TranslationKey)}` : t("bonus.badgeLocked")}
+                    >
+                      <Ionicons name={(got ? BADGE_ICONS[badge] : "lock-closed-outline") as any} size={14} color={got ? theme.tone.info.icon : theme.colors.textSecondary} />
+                      <Text style={[s.badgeText, !got && s.badgeTextLocked]}>{got ? t(`bonus.badge.${badge}` as TranslationKey) : t("bonus.badgeHidden")}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+              <Text style={s.mutedSmall}>{t("bonus.badgesNote")}</Text>
             </View>
 
             <View style={s.card}>
@@ -146,6 +186,7 @@ export default function BonusScreen() {
           </>
         )}
       </ScrollView>
+      {confetti && <Confetti onDone={() => setConfetti(false)} />}
     </View>
   );
 }
@@ -182,5 +223,20 @@ const s = StyleSheet.create({
   historyRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 6, borderTopWidth: 1, borderTopColor: theme.colors.divider },
   flex: { flex: 1 },
   points: { fontSize: 15, fontWeight: "900", color: theme.colors.text },
+  badgeWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: theme.tone.info.bg,
+    borderWidth: 1,
+    borderColor: theme.tone.info.border,
+  },
+  badgeLocked: { backgroundColor: theme.colors.bg, borderColor: theme.colors.border },
+  badgeText: { fontSize: 13, fontWeight: "800", color: theme.tone.info.fg },
+  badgeTextLocked: { color: theme.colors.textSecondary },
   pointsRevoked: { color: theme.colors.textSecondary, textDecorationLine: "line-through" },
 });

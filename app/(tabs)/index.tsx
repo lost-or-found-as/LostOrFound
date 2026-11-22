@@ -1,8 +1,8 @@
 ﻿// app/(tabs)/index.tsx
 // T1.9W: Home. Header with an explanation sheet, a summary of the user's cases, two big
 // action tiles (lost / found) and a shortcut to nearby alerts.
-import React, { useCallback, useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +14,7 @@ import { theme } from "../../src/ui/theme";
 import { InfoButton } from "../../src/ui/kit";
 import { registerRoute, useNewRegistration } from "../../src/lib/newRegistration";
 import { greetingKey } from "../../src/lib/greeting";
+import { registerLogoTap, seasonFor } from "../../src/lib/easterEggs";
 import { fetchHomeSummary, readCachedHomeSummary, writeCachedHomeSummary, type HomeSummary } from "../../src/lib/homeSummary";
 
 const HOW_STEPS = [
@@ -71,6 +72,24 @@ export default function DashboardScreen() {
     };
   }, [user?.id, isGuest]);
   useFocusEffect(loadSummary);
+  // T1.9BO: tap the logo seven times quickly and a pin drops (a pumpkin-coloured moon on
+  // 31 October, a gift in December). Only for fun.
+  const logoTaps = useRef<number[]>([]);
+  const pinDrop = useRef(new Animated.Value(0)).current;
+  const [egg, setEgg] = useState<null | "plain" | "halloween" | "christmas">(null);
+  const onLogoPress = () => {
+    const result = registerLogoTap(logoTaps.current);
+    logoTaps.current = result.taps;
+    if (!result.drop) return;
+    setEgg(seasonFor() ?? "plain");
+    pinDrop.setValue(0);
+    Animated.sequence([
+      Animated.timing(pinDrop, { toValue: 1, duration: 700, easing: Easing.bounce, useNativeDriver: true }),
+      Animated.delay(2200),
+      Animated.timing(pinDrop, { toValue: 2, duration: 300, useNativeDriver: true }),
+    ]).start(() => setEgg(null));
+  };
+
   // T1.9BN: greeting by time of day, refreshed whenever Home comes into view.
   const [greeting, setGreeting] = useState(() => greetingKey());
   useFocusEffect(useCallback(() => setGreeting(greetingKey()), []));
@@ -157,12 +176,14 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Image
-            source={require("../../assets/images/icon.png")}
-            style={styles.logo}
-            resizeMode="cover"
-            accessibilityIgnoresInvertColors
-          />
+          <Pressable onPress={onLogoPress} accessible={false}>
+            <Image
+              source={require("../../assets/images/icon.png")}
+              style={styles.logo}
+              resizeMode="cover"
+              accessibilityIgnoresInvertColors
+            />
+          </Pressable>
           <View style={styles.headerText}>
             <Text style={styles.brand} accessibilityRole="header">Lost or Found</Text>
             <Text style={styles.greeting} numberOfLines={1}>
@@ -187,6 +208,25 @@ export default function DashboardScreen() {
             </View>
           </InfoButton>
         </View>
+        {egg && (
+          <Animated.View
+            style={[
+              styles.egg,
+              {
+                opacity: pinDrop.interpolate({ inputRange: [0, 0.2, 1, 2], outputRange: [0, 1, 1, 0] }),
+                transform: [{ translateY: pinDrop.interpolate({ inputRange: [0, 1, 2], outputRange: [-40, 0, 0] }) }],
+              },
+            ]}
+            accessibilityLiveRegion="polite"
+          >
+            <Ionicons
+              name={egg === "halloween" ? "moon" : egg === "christmas" ? "gift" : "location"}
+              size={26}
+              color={egg === "halloween" ? "#EA580C" : egg === "christmas" ? "#B91C1C" : "#DC2626"}
+            />
+            <Text style={styles.eggText}>{t(egg === "halloween" ? "home.egg.halloween" : egg === "christmas" ? "home.egg.christmas" : "home.egg.pin")}</Text>
+          </Animated.View>
+        )}
 
         {hasAccount && !summaryKnown && (
           <View style={[styles.summary, styles.summaryPlaceholder]} accessibilityLabel={t("home.summary.loading")}>
@@ -390,6 +430,19 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.chipBg,
   },
   lockPillText: { color: theme.colors.textSecondary, fontSize: 12, fontWeight: "800" },
+  egg: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    alignSelf: "flex-start",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  eggText: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
   nearby: {
     minHeight: 68,
     flexDirection: "row",
