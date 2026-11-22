@@ -44,7 +44,7 @@ function parseVerdict(text) {
 }
 
 /** Asks the model about one JPEG (base64). Returns { status, reason } or null when it could not answer. */
-async function judgeImage(base64, { env = process.env, fetchImpl = fetch } = {}) {
+async function judgeImage(base64, { env = process.env, fetchImpl = fetch, log = console } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -63,9 +63,16 @@ async function judgeImage(base64, { env = process.env, fetchImpl = fetch } = {})
       }),
     });
     const json = await r.json().catch(() => null);
-    if (!r.ok) return null;
-    return parseVerdict((json?.content || []).filter((b) => b?.type === "text").map((b) => b.text).join("\n"));
-  } catch {
+    // T1.9BO: say why there was no answer (status and error type only, never the photo).
+    if (!r.ok) {
+      log.warn?.(`[image-moderation] no verdict: HTTP ${r.status} ${json?.error?.type || ""}`.trim());
+      return null;
+    }
+    const verdict = parseVerdict((json?.content || []).filter((b) => b?.type === "text").map((b) => b.text).join("\n"));
+    if (!verdict) log.warn?.(`[image-moderation] no verdict: unreadable answer (stop_reason ${json?.stop_reason || "none"})`);
+    return verdict;
+  } catch (e) {
+    log.warn?.(`[image-moderation] no verdict: request failed (${e?.name || "Error"})`);
     return null;
   } finally {
     clearTimeout(timer);
@@ -127,7 +134,7 @@ async function moderateImageRow(row, { supa, env = process.env, fetchImpl = fetc
     if (u.error) throw u.error;
     return "HELD";
   }
-  const verdict = await judgeImage(buffer.toString("base64"), { env, fetchImpl });
+  const verdict = await judgeImage(buffer.toString("base64"), { env, fetchImpl, log });
   if (!verdict) return null;
   const u = await supa.from("report_images")
     .update({ moderation_status: verdict.status, moderation_reason: verdict.reason, moderation_checked_at: new Date(now).toISOString() })
