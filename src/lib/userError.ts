@@ -49,6 +49,8 @@ const EXACT: Record<string, TranslationKey> = {
   CRITICAL_EDIT_LIMIT_REACHED: "report.create.you.can.still.update.the.description",
   // T1.9BI: the reward cannot be lowered after someone has been in touch.
   REWARD_LOCKED: "register.reward.lockedError",
+  // T1.9BM: the case was solved more than 7 days ago.
+  CHAT_CLOSED_AFTER_SOLVED: "chat.solvedClosed",
   // T1.9AY: protection of public content.
   EMAIL_NOT_VERIFIED: "errors.emailNotVerified",
   PUBLIC_TEXT_NOT_ALLOWED: "errors.publicText",

@@ -13,6 +13,7 @@ import { theme } from "../../src/ui/theme";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { codedError, userErrorMessage } from "../../src/lib/userError";
 import { setLastSeen } from "../../src/lib/unread";
+import { SolvedChatBar } from "../../src/ui/SolvedChatBar";
 import { formatDayLabel, formatTime } from "../../src/i18n/formatters";
 import { ChatClosedBar, ChatSafetyMenu, useChatSafety } from "../../src/ui/ChatSafety";
 import { unblockChatPartner } from "../../src/lib/chatSafety";
@@ -44,6 +45,8 @@ function Screen() {
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
+  // T1.9BM: a solved case: open for 7 days, then read-only.
+  const [solved, setSolved] = useState<{ closesAt: string; closed: boolean } | null>(null);
   const [helper, setHelper] = useState<HelperStatus | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +79,7 @@ function Screen() {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw Object.assign(codedError(String(j?.error || "OBSERVATION_CHAT_LOAD_FAILED")), { status: r.status });
       setMessages(j.messages || []);
+      setSolved(j.solved && typeof j.solved.closesAt === "string" ? { closesAt: j.solved.closesAt, closed: j.solved.closed === true } : null);
       // T1.9BJ: «Meldinger» shows this conversation as read.
       void setLastSeen(`obs:${id}`).catch(() => {});
       // T1.9AX: the other party's helper level (only sent while the bonus is on).
@@ -222,9 +226,10 @@ function Screen() {
             }}
           />
         )}
+        {solved && !safety.state.closed && <SolvedChatBar closesAt={solved.closesAt} closed={solved.closed} bottomInset={insets.bottom} />}
         {safety.state.closed ? (
           <ChatClosedBar state={safety.state} partner="other" onUnblock={() => void unblock()} busy={unblocking} bottomInset={insets.bottom} />
-        ) : (
+        ) : solved?.closed ? null : (
           <View style={[s.composer, { paddingBottom: Math.max(12, insets.bottom + 4) }]}>
             <TextInput
               value={text}

@@ -691,7 +691,10 @@ function MyReportsScreen() {
     const title = caseTitle(r, language);
     const attributes = caseAttributes(r, language);
     const meta = [shortPlace(r.location_label), formatCaseDate(r.created_at, language)].filter(Boolean).join(" · ");
-    const hasActions = count > 0 || !!latestChatId;
+    // T1.9BM: a closed case looks for nothing more, so its possible matches are not offered.
+    const caseClosed = String(r.status || "").toUpperCase() === "CLOSED" || !!r.closed_at;
+    const offerMatches = count > 0 && !caseClosed;
+    const hasActions = offerMatches || !!latestChatId;
     return (
       <Pressable
         key={r.id}
@@ -781,7 +784,7 @@ function MyReportsScreen() {
 
         {hasActions && (
           <View style={styles.actions}>
-            {count > 0 && (
+            {offerMatches && (
               <Pressable
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.actionBtn, styles.actionPrimary, pressed && styles.pressed]}

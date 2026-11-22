@@ -769,32 +769,31 @@ function Screen() {
             router.setParams({ created: undefined });
           }}
         />
+        {/* T1.9BK/T1.9BM: both ways to reach people nearby, as plain buttons so neither is missed. */}
         {activity.summary.possibleMatches === 0 && showAreaAlert && (
-          <Pressable
-            accessibilityRole="button"
-            style={s.createdLink}
-            onPress={() => {
-              setCreatedOpen(false);
-              router.setParams({ created: undefined });
-              openAreaAlert();
-            }}
-          >
-            <Text style={s.createdLinkText}>{t("caseDetail.created.areaAlert")}</Text>
-          </Pressable>
-        )}
-        {/* T1.9BK: the cheaper choice too – seen in «I nærheten», without push. */}
-        {activity.summary.possibleMatches === 0 && showAreaAlert && offer.visibility && (
-          <Pressable
-            accessibilityRole="button"
-            style={s.createdLink}
-            onPress={() => {
-              setCreatedOpen(false);
-              router.setParams({ created: undefined });
-              openVisibility();
-            }}
-          >
-            <Text style={s.createdLinkMuted}>{t("caseDetail.created.visibilityOnly")}</Text>
-          </Pressable>
+          <View style={s.createdReach}>
+            <Text style={s.createdReachTitle}>{t("caseDetail.created.reachTitle")}</Text>
+            <Button
+              label={t("caseDetail.created.areaAlert")}
+              variant="secondary"
+              onPress={() => {
+                setCreatedOpen(false);
+                router.setParams({ created: undefined });
+                openAreaAlert();
+              }}
+            />
+            {offer.visibility && (
+              <Button
+                label={t("caseDetail.created.visibilityOnlyButton")}
+                variant="neutral"
+                onPress={() => {
+                  setCreatedOpen(false);
+                  router.setParams({ created: undefined });
+                  openVisibility();
+                }}
+              />
+            )}
+          </View>
         )}
       </BottomSheet>
 
@@ -950,6 +949,8 @@ const s = StyleSheet.create({
   createdTitle: { fontSize: 22, fontWeight: "900", color: theme.colors.text },
   createdNotice: { marginTop: 0, marginBottom: 0 },
   createdLink: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
+  createdReach: { gap: 8, marginTop: 4 },
+  createdReachTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.textSecondary, textAlign: "center" },
   createdLinkMuted: { fontSize: 14, fontWeight: "700", color: theme.colors.textSecondary, textAlign: "center", textDecorationLine: "underline" },
   createdLinkText: { fontSize: 15, fontWeight: "800", color: theme.colors.text, textDecorationLine: "underline" },
 });

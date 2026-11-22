@@ -27,6 +27,8 @@ import { useI18n } from "../../src/i18n/I18nProvider";
 import { codedError, userErrorMessage } from "../../src/lib/userError";
 import { formatDateTimeCustom, formatMoney, formatTime, type Translate } from "../../src/i18n/formatters";
 import { STORED_MONEY_CURRENCY } from "../../src/lib/market";
+import { solvedChatState } from "../../src/lib/chatAfterSolved";
+import { SolvedChatBar } from "../../src/ui/SolvedChatBar";
 import { setLastSeen } from "../../src/lib/unread";
 import { caseTitle } from "../../src/lib/caseDisplay";
 import { InlineNotice } from "../../src/ui/InlineNotice";
@@ -308,6 +310,8 @@ function ChatScreen() {
   }
 
   const youOwnLost = match?.lost?.user_id && match.lost.user_id === user?.id;
+  // T1.9BM: a solved case: the chat stays open for 7 days, then read-only.
+  const solved = match ? solvedChatState([match.lost as any, match.found as any]) : null;
   const itemReport = match?.lost ?? match?.found;
   const title = itemReport ? caseTitle(itemReport, language) : t("chat.title");
   const subtitle = match ? t(youOwnLost ? "chat.subtitleOwner" : "chat.subtitleFinder") : t("chat.subtitle");
@@ -438,6 +442,7 @@ function ChatScreen() {
             }}
           />
         )}
+        {solved && !safety.state.closed && <SolvedChatBar closesAt={solved.closesAt} closed={solved.closed} bottomInset={insets.bottom} />}
         {safety.state.closed ? (
           <ChatClosedBar
             state={safety.state}
@@ -446,7 +451,7 @@ function ChatScreen() {
             busy={unblocking}
             bottomInset={insets.bottom}
           />
-        ) : (
+        ) : solved?.closed ? null : (
         <View style={[styles.composer, { paddingBottom: Math.max(12, insets.bottom + 4) }]}>
           <TextInput
             value={text}
