@@ -85,6 +85,20 @@ function storedImageLocation(path, env = process.env) {
   return { bucket, objectPath: rest.join("/") };
 }
 
+/** True only when the folder can be listed and the file is not in it. */
+async function storedFileMissing(supa, bucket, objectPath) {
+  try {
+    const parts = String(objectPath || "").split("/");
+    const name = parts.pop();
+    if (!name) return false;
+    const { data, error } = await supa.storage.from(bucket).list(parts.join("/"), { search: name, limit: 100 });
+    if (error || !Array.isArray(data)) return false;
+    return !data.some((f) => f?.name === name);
+  } catch {
+    return false;
+  }
+}
+
 /** Checks one stored photo and saves the result. Returns the status, or null (try again later). */
 async function moderateImageRow(row, { supa, env = process.env, fetchImpl = fetch, notifyHeld, log = console, now = Date.now() }) {
   if (!moderationEnabled(env) || !row?.path) return null;
@@ -92,9 +106,10 @@ async function moderateImageRow(row, { supa, env = process.env, fetchImpl = fetc
   const { data: blob, error } = await supa.storage.from(bucket).download(objectPath);
   if (error || !blob) {
     const message = String(error?.message || "no data");
-    // T1.9BN: a photo whose file is gone can never be checked or shown. Keep it off public
-    // pages and stop retrying it every hour.
-    if (/not found/i.test(message)) {
+    // T1.9BO: a photo whose file is gone can never be checked or shown. Keep it off public
+    // pages and stop retrying it every hour. «Gone» is confirmed by listing the folder, so an
+    // access or bucket problem never holds photos by mistake.
+    if (await storedFileMissing(supa, bucket, objectPath)) {
       log.warn?.(`[image-moderation] file missing, held (${message})`);
       const u = await supa.from("report_images")
         .update({ moderation_status: "HELD", moderation_reason: "OTHER", moderation_checked_at: new Date(now).toISOString() })
@@ -175,4 +190,4 @@ function dropHeldImages(match, userId) {
 }
 
 module.exports = {
-  storedImageLocation, moderationEnabled, moderationPrompt, parseVerdict, judgeImage, moderateImageRow, moderatePending, scheduleImageModeration, heldPathsForOthers, dropHeldImages };
+  storedImageLocation, storedFileMissing, moderationEnabled, moderationPrompt, parseVerdict, judgeImage, moderateImageRow, moderatePending, scheduleImageModeration, heldPathsForOthers, dropHeldImages };

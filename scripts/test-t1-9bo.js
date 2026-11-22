@@ -79,9 +79,15 @@ ok(/lof\.egg\.firstReturnConfetti\./.test(bonusScreen) && /<Confetti/.test(bonus
 const im = require(path.join(root, "server/lib/imageModeration.js"));
 eq(im.storedImageLocation("report-images/reports/a/b.jpg", {}), { bucket: "report-images", objectPath: "reports/a/b.jpg" }, "normal path");
 eq(im.storedImageLocation("reports/a/b.jpg", {}), { bucket: "report-images", objectPath: "reports/a/b.jpg" }, "old path without bucket");
-ok(/file missing, held/.test(read("server/lib/imageModeration.js")), "missing file stops the retries");
+ok(/file missing, held/.test(read("server/lib/imageModeration.js")) && /await storedFileMissing\(supa, bucket, objectPath\)/.test(read("server/lib/imageModeration.js")), "missing file (confirmed by listing) stops the retries");
+const listSupa = (files, error = null) => ({ storage: { from: () => ({ list: async () => ({ data: error ? null : files, error }) }) } });
+(async () => {
+  eq(await im.storedFileMissing(listSupa([{ name: "b.jpg" }]), "report-images", "reports/a/b.jpg"), false, "file there");
+  eq(await im.storedFileMissing(listSupa([]), "report-images", "reports/a/b.jpg"), true, "file gone");
+  eq(await im.storedFileMissing(listSupa(null, { message: "Bucket not found" }), "report-images", "reports/a/b.jpg"), false, "access problem never holds photos");
+  console.log(`T1.9BO OK (${n} checks)`);
+})().catch((e) => { console.error(e); process.exit(1); });
 
 for (const f of ["src/i18n/locales/no.ts", "src/i18n/locales/en.ts"])
   for (const k of ["matchDetail.preview.title", "matchDetail.preview.activate", "caseDetail.next.previewMatchesTitle", "match.previewOnly", "bonus.level.LEGEND", "bonus.level.MYTHIC_FINDER", "bonus.level.DIVINE_FINDER", "bonus.badgesTitle", "bonus.badge.NIGHT_WATCH", "bonus.badgeHow.UMBRELLA_HUNTER", "home.egg.pin", "home.egg.christmas", "register.egg.keys"])
     ok(read(f).includes(`"${k}"`), `${k} in ${f}`);
-console.log(`T1.9BO OK (${n} checks)`);
