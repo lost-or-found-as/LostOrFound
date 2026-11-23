@@ -109,5 +109,12 @@
   "push.trustHandedOver.body": "Finneren tastet koden din. Saken er løst.",
   "push.thanksReceived.title": "Du har fått et takkekort",
   "push.thanksReceived.body": "Eieren vil takke deg for hjelpen.",
-  "push.feedbackReply.title": "Svar på tilbakemeldingen din"
+  "push.feedbackReply.title": "Svar på tilbakemeldingen din",
+  "share.foundPet": "Funnet dyr",
+  "share.foundHeading": "Kjenner du dette dyret?",
+  "share.foundOn": "Funnet {{date}}",
+  "share.foundCta": "Er dette ditt dyr?",
+  "share.foundCtaBody": "Registrer det som savnet i Lost or Found-appen og beskriv dyret. Vi sammenligner automatisk, og finneren får beskjed.",
+  "share.foundPosterScan": "Er det ditt? Skann koden",
+  "share.foundPosterFooter": "Beskriv dyret i Lost or Found-appen, så tar finneren kontakt"
 }

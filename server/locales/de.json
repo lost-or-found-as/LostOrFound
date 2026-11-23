@@ -102,5 +102,12 @@
   "push.trustHandedOver.body": "Der Finder hat deinen Code eingegeben. Der Fall ist gelöst.",
   "push.thanksReceived.title": "Du hast eine Dankeskarte bekommen",
   "push.thanksReceived.body": "Der Eigentümer möchte sich für deine Hilfe bedanken.",
-  "push.feedbackReply.title": "Antwort auf dein Feedback"
+  "push.feedbackReply.title": "Antwort auf dein Feedback",
+  "share.foundPet": "Gefundenes Tier",
+  "share.foundHeading": "Kennst du dieses Tier?",
+  "share.foundOn": "Gefunden am {{date}}",
+  "share.foundCta": "Ist das dein Tier?",
+  "share.foundCtaBody": "Melde es in der Lost-or-Found-App als vermisst und beschreibe das Tier. Wir vergleichen automatisch, und der Finder wird benachrichtigt.",
+  "share.foundPosterScan": "Gehört es dir? Scanne den Code",
+  "share.foundPosterFooter": "Beschreibe das Tier in der Lost-or-Found-App, dann meldet sich der Finder"
 }

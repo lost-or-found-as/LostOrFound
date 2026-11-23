@@ -63,6 +63,7 @@ import { BottomSheet, Button, ConfirmSheet, IconButton, InfoButton, SCORE_LABEL_
 import { custodyText } from "../../src/lib/custodyDisplay";
 import { isAnimal } from "../../src/lib/registerForm";
 import { PetSightingsCard } from "../../src/ui/PetSightingsCard";
+import { PetSearchTips } from "../../src/ui/PetSearchTips";
 import { reachOffer } from "../../src/lib/areaVisibility";
 import type { TranslationKey } from "../../src/i18n/locales/en";
 
@@ -272,7 +273,8 @@ function Screen() {
   // T1.9BC: editing uses the same form as a new case.
   const editReport = () => router.push({ pathname: "/(report)/register", params: { editReportId: r.id } });
   // T1.9AK: a lost, open case can be shared as a page and a poster.
-  const canShare = lost && !closed && !expired;
+  // T1.9BR: a found animal too (picture, kind, area and date only).
+  const canShare = (lost || animal) && !closed && !expired;
   const shareCase = async (kind: "link" | "poster") => {
     setShareError(null);
     setShareBusy(true);
@@ -281,7 +283,7 @@ function Screen() {
       if (!r.share_token) setData((prev) => (prev ? { ...prev, report: { ...prev.report, share_token: token } } : prev));
       const urls = shareUrls(token, language);
       if (kind === "poster") await WebBrowser.openBrowserAsync(urls.poster);
-      else await Share.share({ message: `${t("caseDetail.share.message", { title })}\n${urls.page}` });
+      else await Share.share({ message: `${t(lost ? "caseDetail.share.message" : "caseDetail.share.messageFound", { title })}\n${urls.page}` });
     } catch (e) {
       setShareError(userErrorMessage(e, t, "caseDetail.share.failed", "report.share"));
     } finally {
@@ -534,6 +536,16 @@ function Screen() {
           )}
         </View>
 
+        {/* T1.9BR: how to search for this kind of animal, with a checklist */}
+        {lost && animal && !closed && (
+          <PetSearchTips
+            reportId={String(r.id)}
+            petName={r.pet_name ?? null}
+            subcategoryKey={r.subcategory_key ?? null}
+            onPoster={canShare ? () => void shareCase("poster") : undefined}
+          />
+        )}
+
         {/* T1.9AL: Sist sett */}
         {lost && animal && (
           <PetSightingsCard
@@ -557,7 +569,7 @@ function Screen() {
         {canShare && (
           <View style={s.card}>
             <Text style={s.h2}>{t("caseDetail.share.title")}</Text>
-            <Text style={s.shareBody}>{t("caseDetail.share.body")}</Text>
+            <Text style={s.shareBody}>{t(lost ? "caseDetail.share.body" : "caseDetail.share.bodyFound")}</Text>
             <View style={s.shareButtons}>
               <Pressable accessibilityRole="button" disabled={shareBusy} style={[s.shareButton, shareBusy && s.shareBusy]} onPress={() => void shareCase("link")}>
                 <Ionicons name="share-outline" size={18} color={theme.colors.text} />

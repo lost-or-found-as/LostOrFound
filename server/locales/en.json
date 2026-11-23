@@ -109,5 +109,12 @@
   "push.trustHandedOver.body": "The finder entered your code. The case is solved.",
   "push.thanksReceived.title": "You received a thank-you card",
   "push.thanksReceived.body": "The owner wants to thank you for your help.",
-  "push.feedbackReply.title": "A reply to your feedback"
+  "push.feedbackReply.title": "A reply to your feedback",
+  "share.foundPet": "Found animal",
+  "share.foundHeading": "Do you know this animal?",
+  "share.foundOn": "Found {{date}}",
+  "share.foundCta": "Is this your animal?",
+  "share.foundCtaBody": "Register it as lost in the Lost or Found app and describe the animal. We compare automatically, and the finder is told.",
+  "share.foundPosterScan": "Is it yours? Scan the code",
+  "share.foundPosterFooter": "Describe the animal in the Lost or Found app, and the finder gets in touch"
 }

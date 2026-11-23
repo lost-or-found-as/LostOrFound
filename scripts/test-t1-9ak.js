@@ -48,7 +48,8 @@ ok(page.renderPoster({ report, lang: "en", photoUrl: null, pageUrl: "u", qrSvg: 
 // Routes.
 const share = read("server/routes/share.js");
 ok(/TOKEN_RE = \/\^\[A-Za-z0-9_-\]\{16,40\}\$\//.test(share), "token format checked before the database");
-ok(/r\.type === "LOST" && r\.status === "ACTIVE" && !r\.deleted_at && !r\.closed_at/.test(share), "only open lost cases");
+// T1.9BR: found animals can be shared too.
+ok(/\(r\.type === "LOST" \|\| \(r\.type === "FOUND" && isAnimal\(r\)\)\) && r\.status === "ACTIVE" && !r\.deleted_at && !r\.closed_at/.test(share), "only open lost cases (and found animals)");
 ok(/report \? 410 : 404/.test(share), "closed or unknown: the closed page");
 ok(!/user_id|reward_ore|report_identifiers/.test(share.match(/SHARE_COLUMNS = "[^"]+"/)[0]), "page reads no owner, reward or identifier");
 ok(/require\("qrcode"\)/.test(share) && /catch \(e\) \{\s*console\.warn\("\[share\] QR code failed"/.test(share), "QR code optional");
@@ -70,7 +71,7 @@ for (const lang of ["no", "en", "de"]) {
 
 // App.
 const screen = read("app/report-details/[id].tsx");
-ok(/const canShare = lost && !closed && !expired/.test(screen), "share card only for open lost cases");
+ok(/const canShare = \(lost \|\| animal\) && !closed && !expired/.test(screen), "share card only for open lost cases (T1.9BR: and found animals)");
 ok(/caseDetail\.share\.stop/.test(screen) && /stopSharing\(/.test(screen), "owner can stop sharing");
 ok(/WebBrowser\.openBrowserAsync\(urls\.poster\)/.test(screen) && /Share\.share\(/.test(screen), "poster opens in the browser, link via the share sheet");
 

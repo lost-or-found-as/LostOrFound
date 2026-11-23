@@ -1242,13 +1242,15 @@ router.post("/:id/share", requireUser, async (req, res) => {
   try {
     const { data: report, error } = await supaAdmin
       .from("reports")
-      .select("id, type, status, share_token, deleted_at, hidden_at, description, location_label, pet_name, subcategory_custom")
+      .select("id, type, status, category, subcategory_key, share_token, deleted_at, hidden_at, description, location_label, pet_name, subcategory_custom")
       .eq("id", req.params.id)
       .eq("user_id", req.user.id)
       .maybeSingle();
     if (error) throw error;
     if (!report || report.deleted_at) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
-    if (report.type !== "LOST" || report.status !== "ACTIVE") return res.status(409).json({ error: "SHARE_NOT_ALLOWED" });
+    // T1.9BR: lost cases, and found animals (shown with picture, kind, area and date only).
+    const shareable = report.type === "LOST" || (report.type === "FOUND" && require("../lib/sharePage").isAnimal(report));
+    if (!shareable || report.status !== "ACTIVE") return res.status(409).json({ error: "SHARE_NOT_ALLOWED" });
     // T1.9AY: a hidden case cannot be shared, and the public text must pass the checks.
     if (report.hidden_at) return res.status(403).json({ error: "REPORT_HIDDEN" });
     const text = await checkPublicText(report);

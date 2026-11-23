@@ -9,7 +9,7 @@
 const express = require("express");
 const { supaAdmin } = require("../supabaseClient");
 const { pickLanguage } = require("../lib/pageLanguage");
-const { renderSharePage, renderClosedPage, renderPoster, renderReportForm, renderReportThanks } = require("../lib/sharePage");
+const { renderSharePage, renderClosedPage, renderPoster, renderReportForm, renderReportThanks, isAnimal } = require("../lib/sharePage");
 const contentReports = require("../lib/contentReports");
 const { notifyAdminsContent, notifyOwnerHidden } = require("../lib/adminAlert");
 const { splitImagePath, firstImagePathByReport } = require("../lib/reportThumbnails");
@@ -32,7 +32,9 @@ async function sharedReport(token) {
   return data || null;
 }
 
-const isOpen = (r) => r && r.type === "LOST" && r.status === "ACTIVE" && !r.deleted_at && !r.closed_at && !r.hidden_at;
+// T1.9BR: a found animal can be shared too.
+const isOpen = (r) =>
+  r && (r.type === "LOST" || (r.type === "FOUND" && isAnimal(r))) && r.status === "ACTIVE" && !r.deleted_at && !r.closed_at && !r.hidden_at;
 
 async function photoUrl(reportId) {
   try {
