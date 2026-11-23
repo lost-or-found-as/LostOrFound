@@ -150,6 +150,8 @@ function navigateFromData(router: ReturnType<typeof useRouter>, data: any) {
   if (kind === "safety_report" || kind === "safetyReports") return router.push("/safety-reports");
   if (kind === "match" && id) return router.push(`/matches/${id}`);
   if (kind === "observation" && id) return router.push(`/observation/${id}`);
+  // T1.9BS: a finder wrote via a QR tag.
+  if (kind === "tag_thread" && id) return router.push({ pathname: "/tag-thread", params: { id } });
   if (kind === "report" && id) return router.push({ pathname: "/my-reports", params: { section: data?.section ?? "active", reportId: id } });
   if ((kind === "area_alert_campaign" || kind === "areaAlert") && id) return router.push(`/area-alert/${id}`);
   if (String(data?.type || "").toUpperCase() === "GEO_ALERT" || String(data?.type || "").toUpperCase() === "AREA_ALERT") {

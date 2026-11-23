@@ -261,6 +261,9 @@ try { const inboxRoutes=require("./routes/inbox"); app.use("/inbox",inboxRoutes)
 try { const resolutionRoutes=require("./routes/resolutions"); app.use("/resolutions",resolutionRoutes); console.log("[BOOT] Mounted /resolutions routes"); } catch(e){ console.warn("[BOOT] /resolutions NOT mounted:",e?.message||e); }
 // T1.9BP: control questions, handover code and thank-you cards.
 try { const trustRoutes=require("./routes/trust"); app.use("/trust",trustRoutes); console.log("[BOOT] Mounted /trust routes"); } catch(e){ console.warn("[BOOT] /trust NOT mounted:",e?.message||e); }
+// T1.9BS: QR tags (owner API) and the public tag pages behind the QR codes.
+try { const tagRoutes=require("./routes/tags"); app.use("/tags",tagRoutes); console.log("[BOOT] Mounted /tags routes"); } catch(e){ console.warn("[BOOT] /tags NOT mounted:",e?.message||e); }
+try { const tagPageRoutes=require("./routes/tagPages"); app.use("/t",tagPageRoutes); console.log("[BOOT] Mounted /t routes"); } catch(e){ console.warn("[BOOT] /t NOT mounted:",e?.message||e); }
 
 // ---- Mount /geo ----
 try {

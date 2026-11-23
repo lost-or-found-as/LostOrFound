@@ -132,6 +132,8 @@ export default function ProfileTab() {
       : []),
     // T1.9BP: thank-you cards from owners this user has helped.
     { key: "thanks", icon: "heart-outline", title: t("profile.thanks"), onPress: () => router.push("/thanks") },
+    // T1.9BS: QR tags for keys, bags and other things the user is afraid to lose.
+    { key: "tags", icon: "qr-code-outline", title: t("tags.title"), onPress: () => router.push("/tags") },
   ];
 
   const helpRows: MenuRow[] = [

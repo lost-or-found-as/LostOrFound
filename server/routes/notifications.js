@@ -100,6 +100,14 @@ async function resolveNotificationTarget(notification, userId) {
   if (type === "THANKS_RECEIVED" || entityType === "thanks") return { ok: true, kind: "thanks", id: entityId };
   // T1.9BP: an answer to the user's own feedback opens «Dine tilbakemeldinger».
   if (type === "FEEDBACK_REPLY" || entityType === "feedback_reply") return { ok: true, kind: "feedbackReply", id: entityId };
+  // T1.9BS: a finder wrote via a QR tag; only the tag's owner can open the conversation.
+  if (type === "TAG_MESSAGE" || entityType === "tag_thread") {
+    const { data, error } = await supaAdmin.from("tag_threads").select("id,owner_id").eq("id", entityId).maybeSingle();
+    if (error) throw error;
+    return data && data.owner_id === userId
+      ? { ok: true, kind: "tagThread", id: entityId }
+      : { ok: false, reason: "TARGET_NOT_FOUND", kind: "tagThread", id: entityId };
+  }
   if (type === "FEEDBACK" || entityType === "feedback") {
     return isAdmin(userId)
       ? { ok: true, kind: "feedback", id: entityId }

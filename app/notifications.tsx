@@ -375,6 +375,11 @@ function NotificationsScreen() {
           router.push("/thanks");
           return;
         }
+        // T1.9BS: a finder wrote via a QR tag.
+        if (resolved.target_kind === "tagThread") {
+          router.push({ pathname: "/tag-thread", params: { id: resolved.target_id } });
+          return;
+        }
         if (resolved.target_kind === "feedbackReply") {
           router.push("/my-feedback");
           return;

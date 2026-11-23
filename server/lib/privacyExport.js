@@ -33,6 +33,9 @@ const USER_TABLES = Object.freeze([
   ["control_questions", "owner_id", ["asked_by"]],
   ["thank_you_cards", "from_user", ["to_user"]],
   ["thank_you_cards", "to_user", ["from_user"]],
+  // T1.9BS: the user's QR tags and the conversations finders started (no finder token or visitor key).
+  ["item_tags", "owner_id", []],
+  ["tag_threads", "owner_id", ["finder_token_hash", "visitor_key"]],
 ]);
 
 // Rows that belong to the user's own cases.
@@ -89,6 +92,15 @@ async function buildPrivacyExport(supa, account, now = new Date()) {
     const r = await readTable(supa, table, column, reportIds, omit);
     out.tables[table] = r.rows;
     if (r.error) out.problems.push({ table, error: r.error });
+  }
+  // T1.9BS: messages in the user's tag conversations.
+  const threadIds = (out.tables.tag_threads || []).map((t) => t.id).filter(Boolean);
+  if (threadIds.length) {
+    const r = await readTable(supa, "tag_messages", "thread_id", threadIds, []);
+    out.tables.tag_messages = r.rows;
+    if (r.error) out.problems.push({ table: "tag_messages", error: r.error });
+  } else {
+    out.tables.tag_messages = [];
   }
   return out;
 }

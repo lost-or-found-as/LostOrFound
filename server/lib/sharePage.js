@@ -196,4 +196,4 @@ ${qrSvg ? posterTabs(c.shortName, qrSvg) : ""}
   return `<!doctype html><html lang="${lang === "no" ? "nb" : esc(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(`${c.kicker}: ${c.heading}`)}</title><style>${style}</style></head><body>${body}</body></html>`;
 }
 
-module.exports = { isAnimal, TEAR_OFF_TABS, posterTabs, esc, areaName, pageContent, renderSharePage, renderClosedPage, renderPoster, renderReportForm, renderReportThanks, REPORT_REASONS };
+module.exports = { isAnimal, TEAR_OFF_TABS, posterTabs, esc, shell, areaName, pageContent, renderSharePage, renderClosedPage, renderPoster, renderReportForm, renderReportThanks, REPORT_REASONS };
