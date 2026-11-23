@@ -818,7 +818,12 @@ export default function RegisterScreen() {
                   style={s.input}
                 />
                 {/* T1.9BO: a small nudge for lost keys before the results. */}
-                {type === "LOST" && keysNudge(query) && <Text style={s.mutedSmall}>{t("register.egg.keys")}</Text>}
+                {type === "LOST" && keysNudge(query) && (
+                  <View style={s.eggNudge} accessibilityLiveRegion="polite">
+                    <Ionicons name="key-outline" size={16} color={theme.tone.info.icon} />
+                    <Text style={s.eggNudgeText}>{t("register.egg.keys")}</Text>
+                  </View>
+                )}
                 {hits.length > 0 && (
                   <View style={s.hits}>
                     {hits.map((hit, i) => (
@@ -1469,6 +1474,18 @@ const s = StyleSheet.create({
   itemHintText: { flex: 1, fontSize: 14, lineHeight: 20, fontWeight: "600", color: "#1E3A8A" },
   muted: { fontSize: 14, fontWeight: "600", color: theme.colors.textSecondary },
   mutedSmall: { fontSize: 13, lineHeight: 18, fontWeight: "600", color: theme.colors.textSecondary },
+  // T1.9BP: the keys nudge stands out a little, so it is noticed.
+  eggNudge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: theme.tone.info.bg,
+  },
+  eggNudgeText: { fontSize: 14, fontWeight: "800", color: theme.tone.info.fg },
   linkButton: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
   link: { fontSize: 15, fontWeight: "800", color: theme.colors.primary, textDecorationLine: "underline" },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 10 },

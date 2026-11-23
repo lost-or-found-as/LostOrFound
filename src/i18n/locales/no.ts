@@ -1978,6 +1978,8 @@ export const no: TranslationDictionary = {
   "home.summary.active_one": "aktiv",
   "home.summary.matches": "treff",
   "home.summary.matches_one": "treff",
+  "home.summary.matchesTips": "treff og tips",
+  "home.summary.matchesTips_one": "treff eller tips",
   "home.summary.messages": "nye meldinger",
   "home.summary.messages_one": "ny melding",
   "home.summary.openMatches": "Se treffene",

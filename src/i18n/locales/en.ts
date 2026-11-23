@@ -1982,6 +1982,8 @@ export const en = {
   "home.summary.active_one": "active",
   "home.summary.matches": "matches",
   "home.summary.matches_one": "match",
+  "home.summary.matchesTips": "matches and tips",
+  "home.summary.matchesTips_one": "match or tip",
   "home.summary.messages": "new messages",
   "home.summary.messages_one": "new message",
   "home.summary.openMatches": "See the matches",

@@ -25,7 +25,7 @@ const supaAdmin =
 const authModule = require("../mw/auth");
 const requireUser = authModule?.requireUser || authModule;
 const { loadReportMatches } = require("./matches");
-const { buildReportActivity, OPEN_MATCH_STATUSES } = require("../lib/reportActivity");
+const { buildReportActivity, OPEN_MATCH_STATUSES, isShownOpenMatch } = require("../lib/reportActivity");
 const { isLiveWatch, paidExtensionCount } = require("../lib/longTermWatch");
 const { buildSightings, visibleObservations, cleanOwnerTip, SIGHTING_LIMIT, OWNER_TIP_LIMIT } = require("../lib/petSightings");
 
@@ -116,13 +116,13 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
     // 2) Load all matches for these reports and merge both query results.
     const { data: lostMatches, error: lmErr } = await supaAdmin
       .from("matches")
-      .select("id, status, lost_id, found_id, lost:lost_id(id,user_id,status,visible_until,closed_at,archived_at,deleted_at), found:found_id(id,user_id,status,visible_until,closed_at,archived_at,deleted_at)")
+      .select("id, status, score, lost_id, found_id, lost:lost_id(id,user_id,status,visible_until,closed_at,archived_at,deleted_at), found:found_id(id,user_id,status,visible_until,closed_at,archived_at,deleted_at)")
       .in("lost_id", reportIds);
     if (lmErr) return res.status(400).json({ error: lmErr.message });
 
     const { data: foundMatches, error: fmErr } = await supaAdmin
       .from("matches")
-      .select("id, status, lost_id, found_id, lost:lost_id(id,user_id,status,visible_until,closed_at,archived_at,deleted_at), found:found_id(id,user_id,status,visible_until,closed_at,archived_at,deleted_at)")
+      .select("id, status, score, lost_id, found_id, lost:lost_id(id,user_id,status,visible_until,closed_at,archived_at,deleted_at), found:found_id(id,user_id,status,visible_until,closed_at,archived_at,deleted_at)")
       .in("found_id", reportIds);
     if (fmErr) return res.status(400).json({ error: fmErr.message });
 
@@ -183,13 +183,37 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
     // Active matches drive active match counts. Confirmed historical matches retain chat access.
     const matchToReport = buildMap(activeMatches);
     const historyMatchToReport = buildMap(historicalMatches);
+
+    // T1.9BP: «possible matches» per case, counted by the same rules as the match list (open,
+    // shown score, time order, preview on an expired case), so the card never promises a match
+    // the list does not show.
+    const possibleMatchCounts = {};
+    {
+      const candidates = new Set();
+      for (const m of ownedMatches) {
+        if (!isShownOpenMatch(m)) continue;
+        if (reportSet.has(String(m.lost_id))) candidates.add(String(m.lost_id));
+        if (reportSet.has(String(m.found_id))) candidates.add(String(m.found_id));
+      }
+      await Promise.all(
+        [...candidates].slice(0, 40).map(async (rid) => {
+          try {
+            const { matches } = await loadReportMatches(rid, user.id);
+            const n = (matches || []).filter(isShownOpenMatch).length;
+            if (n) possibleMatchCounts[rid] = n;
+          } catch (e) {
+            console.warn("[reports] possible match count failed", e?.message ?? e);
+          }
+        }),
+      );
+    }
     const matchIds = Array.from(new Set([
       ...Object.keys(matchToReport),
       ...Object.keys(historyMatchToReport),
     ]));
 
     if (matchIds.length === 0) {
-      return res.json({ reports: reps, matchToReport, historyMatchToReport, lastMessages: [], newObservations });
+      return res.json({ reports: reps, matchToReport, historyMatchToReport, lastMessages: [], newObservations, possibleMatchCounts });
     }
 
     // 4) Load the latest message per match in one request. Requires last_message_per_conversation.
@@ -212,6 +236,7 @@ router.get("/mine/with-activity", requireUser, async (req, res) => {
       historyMatchToReport,
       lastMessages: lastRows || [],
       newObservations,
+      possibleMatchCounts,
     });
   } catch (e) {
     return res.status(500).json({ error: e?.message ?? "Server error" });

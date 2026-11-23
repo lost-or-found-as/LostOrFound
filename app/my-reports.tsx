@@ -312,8 +312,10 @@ function MyReportsScreen() {
         reportToMatches[rid].push(mid);
       }
       const matchCounts: Record<string, number> = {};
+      // T1.9BP: the server counts possible matches by the same rules as the match list.
+      const possibleCounts: Record<string, number> | null = data.possibleMatchCounts ?? null;
       for (const r of reps) {
-        matchCounts[r.id] = (reportToMatches[r.id] ?? []).length;
+        matchCounts[r.id] = possibleCounts ? Number(possibleCounts[r.id] || 0) : (reportToMatches[r.id] ?? []).length;
       }
 
       const lastByMatch: Record<string, LastActivity> = {};

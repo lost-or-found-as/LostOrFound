@@ -80,4 +80,13 @@ ok(/router\.push\("\/thanks"\)/.test(read("app/notifications.tsx")) && /key: "th
 for (const f of ["src/i18n/locales/no.ts", "src/i18n/locales/en.ts"])
   for (const k of ["trust.title", "trust.askTitle", "trust.retryOwner", "trust.codeHint", "trust.codeLocked", "trust.thanksTitle", "trust.err.codeWrong", "trust.quoted", "thanks.title", "profile.thanks", "trust.placeQuery.police"])
     ok(read(f).includes(`"${k}"`), `${k} in ${f}`);
+// Test round 23.11: counts follow the match list; Home counts tips too; the keys nudge stands out.
+const ra = require(path.join(root, "server/lib/reportActivity.js"));
+eq([{ status: "NEW", score: 80 }, { status: "SEEN", score: 55 }, { status: "NEW", score: 40 }, { status: "DISMISSED", score: 90 }, { status: "CONFIRMED", score: 90 }].filter(ra.isShownOpenMatch).length, 2, "only open matches the list shows");
+const act = read("server/routes/reportsActivity.js");
+ok(/possibleMatchCounts\[rid\] = n/.test(act) && /loadReportMatches\(rid, user\.id\)/.test(act) && (act.match(/select\("id, status, score, lost_id/g) || []).length === 2, "server counts with the list's rules");
+ok(/possibleCounts \? Number\(possibleCounts\[r\.id\] \|\| 0\)/.test(read("app/my-reports.tsx")), "My cases uses the count");
+const hs = read("src/lib/homeSummary.ts");
+ok(/openMatches: sum\(counts\) \+ sum\(tips\)/.test(hs) && /tipsReportId/.test(hs) && /home\.summary\.matchesTips/.test(read("app/(tabs)/index.tsx")), "Home counts matches and tips");
+ok(/s\.eggNudge/.test(read("app/(report)/register.tsx")), "keys nudge visible");
 console.log(`T1.9BP OK (${n} checks)`);

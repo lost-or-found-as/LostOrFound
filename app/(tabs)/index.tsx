@@ -249,7 +249,15 @@ export default function DashboardScreen() {
             <View style={styles.summaryRow}>
               {/* T1.9BH: each count opens what it counts. */}
               <SummaryCount value={summary.activeCases} label={t("home.summary.active", { count: summary.activeCases })} onPress={() => router.push("/my-reports")} />
-              <SummaryCount value={summary.openMatches} label={t("home.summary.matches", { count: summary.openMatches })} onPress={() => openReportMatches(summary.matchesReportId)} />
+              <SummaryCount
+                value={summary.openMatches}
+                label={t("home.summary.matchesTips", { count: summary.openMatches })}
+                onPress={() =>
+                  summary.tipsReportId
+                    ? router.push({ pathname: "/report-details/[id]", params: { id: summary.tipsReportId } })
+                    : openReportMatches(summary.matchesReportId)
+                }
+              />
               <SummaryCount value={summary.unreadChats} label={t("home.summary.messages", { count: summary.unreadChats })} onPress={() => router.push("/messages")} />
             </View>
             <Pressable

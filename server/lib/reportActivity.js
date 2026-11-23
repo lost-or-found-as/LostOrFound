@@ -8,6 +8,11 @@ const { isLiveWatch, isLongTermProduct, yearsOfProduct, paidExtensionCount, EXTE
 // T1.9G: score from which a match counts as strong (the "good" and "excellent" levels in the app).
 const STRONG_MATCH_SCORE = 70;
 const OPEN_MATCH_STATUSES = new Set(["NEW", "SEEN"]);
+// T1.9BP: the match list hides matches under 55 («low»), so counts leave them out too.
+const MIN_SHOWN_MATCH_SCORE = 55;
+function isShownOpenMatch(m) {
+  return OPEN_MATCH_STATUSES.has(String(m?.status || "").toUpperCase()) && Number(m?.score || 0) >= MIN_SHOWN_MATCH_SCORE;
+}
 const CONFIRMED_MATCH_STATUSES = new Set(["CONFIRMED", "PAID"]);
 const ACTIVITY_EVENT_LIMIT = 20;
 
@@ -22,7 +27,7 @@ function latestIso(values) {
 
 // Pure: builds the summary and the newest-first event list from loaded rows. Exported for tests.
 function buildReportActivity({ report, matches, confirmations, lastMessages, unreadByMatch, observations, campaigns, orders, longTermWatch, now = Date.now() }) {
-  const open = (matches || []).filter((m) => OPEN_MATCH_STATUSES.has(String(m?.status || "").toUpperCase()));
+  const open = (matches || []).filter(isShownOpenMatch);
   const confirmed = (matches || []).filter((m) => CONFIRMED_MATCH_STATUSES.has(String(m?.status || "").toUpperCase()));
   const lastByMatch = new Map((lastMessages || []).map((x) => [String(x.conversation_id), x]));
   const confirmedAt = new Map((confirmations || []).map((x) => [String(x.entity_id), x.created_at]));
@@ -102,4 +107,6 @@ function buildReportActivity({ report, matches, confirmations, lastMessages, unr
   };
 }
 
-module.exports = { buildReportActivity, OPEN_MATCH_STATUSES, CONFIRMED_MATCH_STATUSES, STRONG_MATCH_SCORE };
+module.exports = {
+  isShownOpenMatch,
+  MIN_SHOWN_MATCH_SCORE, buildReportActivity, OPEN_MATCH_STATUSES, CONFIRMED_MATCH_STATUSES, STRONG_MATCH_SCORE };
