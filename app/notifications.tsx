@@ -218,7 +218,8 @@ function NotificationsScreen() {
           setItems([]);
           return;
         }
-        const r = await fetch(`${API_BASE_URL}/notifications?limit=80`, {
+        // T1.9BT fix: the server writes the texts in the app's language.
+        const r = await fetch(`${API_BASE_URL}/notifications?limit=80&lang=${language}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await r.json().catch(() => ({}));

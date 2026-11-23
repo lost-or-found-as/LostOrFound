@@ -17,6 +17,8 @@ const requireUser = authModule?.requireUser || authModule;
 const { getAreaAlertAccess } = require("../lib/areaAlertAccess");
 const { isAdmin } = require("../lib/chatSafety");
 const { loadClosedNearbyIds } = require("../lib/nearbyClosed");
+const { normalizeLanguage } = require("../lib/languages");
+const { localizedStored } = require("../lib/messages");
 
 if (!supaAdmin || typeof supaAdmin.from !== "function") {
   throw new Error(
@@ -286,16 +288,28 @@ router.get("/", requireUser, async (req, res) => {
 
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const { data, error } = await supaAdmin
+    const listColumns = "id, user_id, type, entity_type, entity_id, title, body, created_at, read_at, agg_count, notification_key";
+    let { data, error } = await supaAdmin
       .from("notifications")
-      .select(
-        "id, user_id, type, entity_type, entity_id, title, body, created_at, read_at, agg_count, notification_key",
-      )
+      .select(`${listColumns}, title_key, body_key, text_params`)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(limit);
+    // Before the T1.9BT migration the key columns are missing: list the stored text.
+    if (error && /title_key|body_key|text_params/.test(String(error.message || ""))) {
+      ({ data, error } = await supaAdmin.from("notifications").select(listColumns).eq("user_id", userId).order("created_at", { ascending: false }).limit(limit));
+    }
 
     if (error) return res.status(400).json({ error: error.message });
+
+    // T1.9BT fix: written in the app's language (?lang=), whatever the phone's push language was.
+    // Older app builds send no language: they get the stored text, as before.
+    const lang = req.query.lang ? normalizeLanguage(req.query.lang) : null;
+    data = (data || []).map(({ title_key, body_key, text_params, ...n }) => ({
+      ...n,
+      title: lang ? localizedStored(lang, title_key, text_params?.title, n.title) : n.title,
+      body: lang ? localizedStored(lang, body_key, text_params?.body, n.body) : n.body,
+    }));
 
     // T1.9BN: nearby notices about solved or deleted cases are not listed.
     let hidden = new Set();

@@ -19,18 +19,25 @@ async function notifyUser({ userId, type, entityType, entityId, title, body, tit
   const preferredLanguage = installations.data?.[0]?.language || "no";
   const inAppTitle = localized(titles || title, preferredLanguage);
   const inAppBody = localized(bodies || body, preferredLanguage);
-  const inserted = await supaAdmin
-    .from("notifications")
-    .insert({
-      user_id: userId,
-      type,
-      entity_type: entityType,
-      entity_id: entityId,
-      title: inAppTitle,
-      body: inAppBody,
-    })
-    .select("id")
-    .single();
+  const row = {
+    user_id: userId,
+    type,
+    entity_type: entityType,
+    entity_id: entityId,
+    title: inAppTitle,
+    body: inAppBody,
+  };
+  // T1.9BT fix: keys and values, so the list can follow the app's language later.
+  const titleKey = titles?.__key || null;
+  const bodyKey = bodies?.__key || null;
+  const keyed = titleKey || bodyKey
+    ? { title_key: titleKey, body_key: bodyKey, text_params: { title: titles?.__params || null, body: bodies?.__params || null } }
+    : {};
+  let inserted = await supaAdmin.from("notifications").insert({ ...row, ...keyed }).select("id").single();
+  // Before the migration has run, the columns are missing: store the text alone.
+  if (inserted.error && Object.keys(keyed).length && /title_key|body_key|text_params/.test(String(inserted.error.message || ""))) {
+    inserted = await supaAdmin.from("notifications").insert(row).select("id").single();
+  }
 
   if (inserted.error) console.warn("[notify] in-app failed", inserted.error.message);
   // T1.9BT: something happened for this user; their Live Activities are recounted shortly.

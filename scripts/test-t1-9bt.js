@@ -166,6 +166,21 @@ const eq = (a, b, msg) => { assert.deepStrictEqual(a, b, msg); n++; };
   ok(/type\.startsWith\("RESOLUTION_"\)/.test(read("src/lib/pushNotifications.ts")), "push for a close proposal opens the chat");
   ok(/THANKS_BLOCKING = new Set\(\["HARASSMENT", "HATE", "SEXUAL"\]\)/.test(read("server/routes/trust.js")), "a name in a thank-you card is allowed");
 
+  // Notifications follow the app's language.
+  const msgs = require(path.join(root, "server/lib/messages.js"));
+  const pair = msgs.localizedPair("bonus.awarded.title", { points: 3 });
+  eq(pair.__key, "bonus.awarded.title", "pair carries its key");
+  eq(pair.__params, { points: 3 }, "pair carries its values");
+  ok(!Object.keys(pair).includes("__key"), "the key does not show up as a language");
+  eq(msgs.localizedStored("en", "push.resolutionProposed.title", null, "Forslag om å avslutte saken"), "Proposal to close the case", "stored Norwegian shown in English");
+  eq(msgs.localizedStored("en", null, null, "Gammel tekst"), "Gammel tekst", "rows without a key keep their text");
+  eq(msgs.localizedStored("en", "no.such.key", null, "Lagret"), "Lagret", "unknown key keeps the stored text");
+  ok(/title_key: titleKey, body_key: bodyKey/.test(read("server/lib/userNotify.js")), "keys stored with the notification");
+  ok(/insert\(row\)/.test(read("server/lib/userNotify.js")), "works before the migration");
+  ok(/req\.query\.lang \? normalizeLanguage/.test(read("server/routes/notifications.js")), "list written in the asked language; older builds get stored text");
+  ok(/notifications\?limit=80&lang=\$\{language\}/.test(read("app/notifications.tsx")), "app asks in its language");
+  ok(/add column if not exists title_key text/.test(read("supabase/migrations/20261126100000_t1_9bt_notification_text_keys.sql")), "migration");
+
   console.log(`OK: T1.9BT ${n} checks`);
 })().catch((e) => {
   console.error(e);
