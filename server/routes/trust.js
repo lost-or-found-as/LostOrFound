@@ -20,6 +20,7 @@ const trust = require("../lib/trust");
 const router = express.Router();
 const KINDS = new Set(["MATCH", "OBSERVATION"]);
 const ENTITY = { MATCH: "chat", OBSERVATION: "observation" };
+const THANKS_BLOCKING = new Set(["HARASSMENT", "HATE", "SEXUAL"]);
 
 function fail(res, status, code) {
   return res.status(status).json({ error: code });
@@ -294,9 +295,10 @@ router.post("/:kind/:id/thanks", requireUser, async (req, res) => {
     if (!trust.THANKS_DESIGNS.includes(design)) return fail(res, 400, "THANKS_DESIGN_INVALID");
     const message = trust.cleanText(req.body?.message);
     if (!message) return fail(res, 400, "THANKS_EMPTY");
-    // The same text check as public text: insults, hate or sexual content are refused.
+    // Insults, hate or sexual content are refused. T1.9BT fix: a name is fine here – the card is
+    // private, and «Tusen takk, Ola!» was stopped as a named person.
     const problems = await modelProblems([message]);
-    if (problems && problems.length) return fail(res, 400, "THANKS_TEXT_NOT_ALLOWED");
+    if ((problems || []).some((p) => THANKS_BLOCKING.has(p))) return fail(res, 400, "THANKS_TEXT_NOT_ALLOWED");
     const ins = await supaAdmin
       .from("thank_you_cards")
       .insert({ context_type: c.kind, context_id: c.id, from_user: c.owner, to_user: c.helper, design, message });

@@ -241,6 +241,8 @@ function Screen() {
         ? t("cases.active.days.left", { count: daysLeft })
         : t("caseDetail.active");
   const radius = Number(r.radius_m || r.search_radius_m || r.area_radius_m || r.location_radius_m || 0);
+  // The whole circle fits on the small map (about 2.6 radii across), never closer than before.
+  const radiusDelta = Math.min(2, Math.max(0.02, (radius * 2.6) / 111320));
   // T1.9BH: a lost case drawn as places, routes or areas shows them, not one circle.
   const areas = lost ? usableAreas((r as any).search_areas) : [];
   const areasMapRegion = areas.length ? areasRegion(areas) : null;
@@ -600,7 +602,7 @@ function Screen() {
             <MapView
 mapType={APP_MAP_TYPE}
               style={s.map}
-              initialRegion={areasMapRegion ?? { latitude: Number(r.lat), longitude: Number(r.lng), latitudeDelta: 0.02, longitudeDelta: 0.02 }}
+              initialRegion={areasMapRegion ?? { latitude: Number(r.lat), longitude: Number(r.lng), latitudeDelta: radiusDelta, longitudeDelta: radiusDelta }}
               scrollEnabled={false}
             >
               {areasMapRegion ? <SearchAreaShapes areas={areas} /> : <Marker coordinate={{ latitude: Number(r.lat), longitude: Number(r.lng) }} />}

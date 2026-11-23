@@ -2314,6 +2314,9 @@ export const en = {
   "widget.quiet": "Nothing new",
   "widget.unread": "{{count}} unread messages",
   "widget.empty": "No active cases",
+  // T1.9BT fix: fold the map panel.
+  "report.map.panel.hide": "Hide options to see the whole map",
+  "report.map.panel.show": "Show options",
 } as const;
 
 export type TranslationKey = keyof typeof en;

@@ -2310,4 +2310,7 @@ export const no: TranslationDictionary = {
   "widget.quiet": "Ingen nye hendelser",
   "widget.unread": "{{count}} uleste meldinger",
   "widget.empty": "Ingen aktive saker",
+  // T1.9BT fix: fold the map panel.
+  "report.map.panel.hide": "Skjul valg og se hele kartet",
+  "report.map.panel.show": "Vis valg",
 };

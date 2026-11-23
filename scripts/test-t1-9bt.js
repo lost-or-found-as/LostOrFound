@@ -155,6 +155,17 @@ const eq = (a, b, msg) => { assert.deepStrictEqual(a, b, msg); n++; };
   eq(wp[1].widgets.map((w) => w.name), ["LofCases"], "widget name matches createWidget");
   ok(/createWidget<CasesWidgetProps>\(WIDGET_NAME/.test(read("src/lib/casesWidget.tsx")) && /WIDGET_NAME = "LofCases"/.test(read("src/lib/casesWidget.tsx")), "same name in code");
 
+  // Fixes from testing build 9.
+  const map = read("app/(report)/map.tsx");
+  ok(/circleEdges/.test(map) && /fitCircle\(selectedArea\.points\[0\], nextRadius\)/.test(map), "map fits the whole place when the radius changes");
+  ok(/bottom: \(panelFolded \? 60 : panelHeight\) \+ 24/.test(map), "map keeps the place clear of the panel");
+  ok(/setPanelFolded\(\(v\) => !v\)/.test(map) && /report\.map\.panel\.hide/.test(map), "panel can be folded");
+  ok(/radiusDelta/.test(read("app/report-details/[id].tsx")), "case map shows the whole radius");
+  const notif = read("server/routes/notifications.js");
+  ok(/type\.startsWith\("RESOLUTION_"\)/.test(notif) && /matchTarget\.status === "CONFIRMED"/.test(notif), "close proposals and confirmed matches open the chat");
+  ok(/type\.startsWith\("RESOLUTION_"\)/.test(read("src/lib/pushNotifications.ts")), "push for a close proposal opens the chat");
+  ok(/THANKS_BLOCKING = new Set\(\["HARASSMENT", "HATE", "SEXUAL"\]\)/.test(read("server/routes/trust.js")), "a name in a thank-you card is allowed");
+
   console.log(`OK: T1.9BT ${n} checks`);
 })().catch((e) => {
   console.error(e);

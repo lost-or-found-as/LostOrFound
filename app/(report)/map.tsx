@@ -3,7 +3,8 @@
 // FOUND case. Used by the old and the new registration. T1.9W: floating header card, dark search
 // button, bottom panel with kit buttons and in-panel notices instead of system alerts.
 import React, { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import MapView, { Circle, Marker, MapPressEvent, Polygon, Polyline, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import { APP_MAP_TYPE } from "../../src/lib/mapStyle";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -56,6 +57,13 @@ export default function MapPickerScreen() {
     longitude: draft.location?.longitude ?? 10.7522,
   });
   const [locating, setLocating] = useState(false);
+  // T1.9BT fix: the map fits a place inside the free space between the header and the panel, and
+  // the panel can be folded down to see the whole map.
+  const [topHeight, setTopHeight] = useState(180);
+  const [panelHeight, setPanelHeight] = useState(330);
+  const [panelFolded, setPanelFolded] = useState(false);
+  const onTopLayout = (e: LayoutChangeEvent) => setTopHeight(Math.round(e.nativeEvent.layout.height));
+  const onPanelLayout = (e: LayoutChangeEvent) => setPanelHeight(Math.round(e.nativeEvent.layout.height));
   // T1.9AU: the blue dot appears once the user has asked for their location.
   const [showUser, setShowUser] = useState(false);
   const [addressQuery, setAddressQuery] = useState("");
@@ -84,18 +92,31 @@ export default function MapPickerScreen() {
     body: t("report.map.delete.an.existing.place.route.or"),
   });
 
+  const edgePadding = () => ({ top: topHeight + 24, right: 40, bottom: (panelFolded ? 60 : panelHeight) + 24, left: 40 });
+
+  // The whole circle: its northern, southern, eastern and western edge.
+  const circleEdges = (center: Point, radiusMeters: number) => {
+    const dLat = radiusMeters / 111320;
+    const dLng = radiusMeters / (111320 * Math.max(0.2, Math.cos((center.latitude * Math.PI) / 180)));
+    return [
+      { latitude: center.latitude + dLat, longitude: center.longitude },
+      { latitude: center.latitude - dLat, longitude: center.longitude },
+      { latitude: center.latitude, longitude: center.longitude + dLng },
+      { latitude: center.latitude, longitude: center.longitude - dLng },
+    ];
+  };
+
+  const fitCircle = (center: Point, radiusMeters: number) => {
+    requestAnimationFrame(() => {
+      mapRef.current?.fitToCoordinates(circleEdges(center, Number(radiusMeters || 500)), { edgePadding: edgePadding(), animated: true });
+    });
+  };
+
   const fitArea = (area: SearchArea) => {
     if (!area.points?.length) return;
+    if (area.kind === "CIRCLE") return fitCircle(area.points[0], Number(area.radiusMeters || 500));
     requestAnimationFrame(() => {
-      if (area.kind === "CIRCLE") {
-        const center = area.points[0];
-        const delta = Math.max(0.006, Math.min(1.2, Number(area.radiusMeters || 500) / 25000));
-        mapRef.current?.animateToRegion({ ...center, latitudeDelta: delta, longitudeDelta: delta }, 250);
-      } else {
-        mapRef.current?.fitToCoordinates(area.points, {
-          edgePadding: { top: 100, right: 70, bottom: 330, left: 70 }, animated: true,
-        });
-      }
+      mapRef.current?.fitToCoordinates(area.points, { edgePadding: edgePadding(), animated: true });
     });
   };
 
@@ -139,6 +160,7 @@ export default function MapPickerScreen() {
       const newArea: SearchArea = { id: uid(), kind: "CIRCLE", radiusMeters: radius, points: [point] };
       setAreas((current) => [...current, newArea]);
       setSelectedAreaId(newArea.id);
+      fitCircle(point, radius);
     } else {
       if (atLimit && workingPoints.length === 0) return limitNotice();
       setWorkingPoints((current) => [...current, point]);
@@ -202,6 +224,8 @@ export default function MapPickerScreen() {
     setAreas((current) => current.map((area) =>
       area.id === selectedAreaId && area.kind !== "POLYGON" ? { ...area, radiusMeters: nextRadius } : area
     ));
+    // A bigger or smaller place: show all of it.
+    if (selectedArea?.kind === "CIRCLE" && selectedArea.points[0]) fitCircle(selectedArea.points[0], nextRadius);
   };
 
   const placePoint = (point: Point) => {
@@ -222,7 +246,8 @@ export default function MapPickerScreen() {
       limitNotice();
       return;
     }
-    mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 250);
+    if (!isFound && !drawingShape) fitCircle(point, selectedArea?.kind === "CIRCLE" ? Number(selectedArea.radiusMeters || radius) : radius);
+    else mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 250);
   };
 
   const searchAddress = async () => {
@@ -342,7 +367,7 @@ export default function MapPickerScreen() {
   };
 
   const renderTop = () => (
-    <View style={[styles.top, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
+    <View style={[styles.top, { paddingTop: insets.top + 8 }]} pointerEvents="box-none" onLayout={onTopLayout}>
       <View style={styles.headerCard}>
         <IconButton icon="arrow-back" label={t("common.back")} onPress={() => router.back()} />
         <View style={styles.headerText}>
@@ -441,8 +466,21 @@ export default function MapPickerScreen() {
         {mode === "POLYGON" && workingPoints.length > 2 && <Polygon coordinates={workingPoints} strokeWidth={2} strokeColor="#F59E0B" fillColor="rgba(245,158,11,0.16)" />}
       </MapView>
       {renderTop()}
-      <View style={[styles.panel, { paddingBottom: insets.bottom + 16 }]}>
-        <View style={styles.grabber} />
+      <View style={[styles.panel, { paddingBottom: insets.bottom + 16 }]} onLayout={onPanelLayout}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t(panelFolded ? "report.map.panel.show" : "report.map.panel.hide")}
+          onPress={() => setPanelFolded((v) => !v)}
+          hitSlop={8}
+          style={styles.grabberButton}
+        >
+          <View style={styles.grabber} />
+          <View style={styles.foldRow}>
+            <Ionicons name={panelFolded ? "chevron-up" : "chevron-down"} size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.foldText}>{t(panelFolded ? "report.map.panel.show" : "report.map.panel.hide")}</Text>
+          </View>
+        </Pressable>
+        {!panelFolded && (<>
         {areas.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.areaList}>
             {areas.map((area, index) => {
@@ -544,6 +582,8 @@ export default function MapPickerScreen() {
 
         {renderNotice()}
 
+        </>)}
+
         <View style={styles.actions}>
           <Button label={t("report.map.my.location.2")} variant="secondary" busy={locating} onPress={() => void centerOnUser()} style={styles.flex} />
           <Button label={t("report.map.done")} onPress={confirm} style={styles.flex} />
@@ -618,6 +658,9 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   grabber: { alignSelf: "center", width: 40, height: 5, borderRadius: 999, backgroundColor: "#CBD5E1" },
+  grabberButton: { alignSelf: "stretch", alignItems: "center", gap: 4, minHeight: 32 },
+  foldRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  foldText: { fontSize: 12, fontWeight: "800", color: theme.colors.textSecondary },
   notice: { marginTop: 0 },
 
   areaList: { gap: 8 },

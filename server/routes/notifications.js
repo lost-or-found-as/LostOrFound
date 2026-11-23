@@ -27,7 +27,7 @@ if (!supaAdmin || typeof supaAdmin.from !== "function") {
 async function userOwnsMatch(matchId, userId) {
   const { data, error } = await supaAdmin
     .from("matches")
-    .select("id, lost:lost_id ( user_id ), found:found_id ( user_id )")
+    .select("id, status, lost:lost_id ( user_id ), found:found_id ( user_id )")
     .eq("id", matchId)
     .maybeSingle();
 
@@ -36,7 +36,7 @@ async function userOwnsMatch(matchId, userId) {
 
   const owns =
     data?.lost?.user_id === userId || data?.found?.user_id === userId;
-  return owns ? { ok: true, kind: "match", id: matchId } : null;
+  return owns ? { ok: true, kind: "match", id: matchId, status: String(data.status || "").toUpperCase() } : null;
 }
 
 async function userOwnsReport(reportId, userId) {
@@ -165,7 +165,11 @@ async function resolveNotificationTarget(notification, userId) {
     }
 
     // T1.9BP: control-question notices open the chat too.
-    return type === "NEW_MESSAGE" || type.startsWith("TRUST_") || entityType === "chat"
+    // T1.9BT fix: a confirmed match has a chat, and the chat stays readable after the case is
+    // solved, while the match page does not open for a closed case. So proposals to close the
+    // case, confirmations and anything else about a confirmed match open the chat.
+    const confirmed = matchTarget.status === "CONFIRMED" || matchTarget.status === "PAID";
+    return type === "NEW_MESSAGE" || type.startsWith("TRUST_") || type.startsWith("RESOLUTION_") || entityType === "chat" || confirmed
       ? { ok: true, kind: "chat", id: entityId }
       : { ok: true, kind: "match", id: entityId };
   }

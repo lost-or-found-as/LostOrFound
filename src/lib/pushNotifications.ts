@@ -148,6 +148,11 @@ function navigateFromData(router: ReturnType<typeof useRouter>, data: any) {
   const id = String(data?.targetId ?? "");
   if (kind === "chat" && id) return router.push(`/chat/${id}`);
   if (kind === "safety_report" || kind === "safetyReports") return router.push("/safety-reports");
+  // T1.9BT fix: proposals to close the case and confirmations are about a chat that exists.
+  const type = String(data?.type || "").toUpperCase();
+  if (kind === "match" && id && (type.startsWith("RESOLUTION_") || type === "MATCH_CONFIRMED" || type.startsWith("TRUST_"))) {
+    return router.push(`/chat/${id}`);
+  }
   if (kind === "match" && id) return router.push(`/matches/${id}`);
   if (kind === "observation" && id) return router.push(`/observation/${id}`);
   // T1.9BS: a finder wrote via a QR tag.
