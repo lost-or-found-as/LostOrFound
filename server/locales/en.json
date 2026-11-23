@@ -108,5 +108,6 @@
   "push.trustHandedOver.title": "The item is back with you",
   "push.trustHandedOver.body": "The finder entered your code. The case is solved.",
   "push.thanksReceived.title": "You received a thank-you card",
-  "push.thanksReceived.body": "The owner wants to thank you for your help."
+  "push.thanksReceived.body": "The owner wants to thank you for your help.",
+  "push.feedbackReply.title": "A reply to your feedback"
 }

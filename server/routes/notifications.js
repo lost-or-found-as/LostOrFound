@@ -98,6 +98,8 @@ async function resolveNotificationTarget(notification, userId) {
   if (type === "BONUS_AWARDED" || entityType === "bonus") return { ok: true, kind: "bonus", id: entityId };
   // T1.9BP: a thank-you card opens «Takkekort».
   if (type === "THANKS_RECEIVED" || entityType === "thanks") return { ok: true, kind: "thanks", id: entityId };
+  // T1.9BP: an answer to the user's own feedback opens «Dine tilbakemeldinger».
+  if (type === "FEEDBACK_REPLY" || entityType === "feedback_reply") return { ok: true, kind: "feedbackReply", id: entityId };
   if (type === "FEEDBACK" || entityType === "feedback") {
     return isAdmin(userId)
       ? { ok: true, kind: "feedback", id: entityId }

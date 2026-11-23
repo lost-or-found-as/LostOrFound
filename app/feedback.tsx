@@ -8,11 +8,18 @@ import { useI18n } from "../src/i18n/I18nProvider";
 import { Button, ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
 import { theme } from "../src/ui/theme";
+import { useAuth } from "../src/contexts/AuthContext";
+import { isAnonymousUser } from "../src/lib/authGate";
 import { FEEDBACK_KINDS, FEEDBACK_KIND_KEYS, FEEDBACK_MAX_LENGTH, sendFeedback, type FeedbackKind } from "../src/lib/feedback";
 
 export default function FeedbackScreen() {
   const router = useRouter();
   const { t, language } = useI18n();
+  // T1.9BP: signed-in users can read their feedback and any answers.
+  const { user } = useAuth();
+  const isGuest = isAnonymousUser(user as any);
+  const myFeedbackLink =
+    user && !isGuest ? <Button label={t("feedback.mine")} variant="neutral" onPress={() => router.push("/my-feedback")} /> : null;
   const [kind, setKind] = useState<FeedbackKind>("IDEA");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,6 +54,7 @@ export default function FeedbackScreen() {
               <InlineNotice tone="success" icon="checkmark-circle-outline" title={t("feedback.sent.title")} body={t("feedback.sent.body")} />
               <Button label={t("feedback.sent.done")} onPress={() => router.back()} />
               <Button label={t("feedback.sent.more")} variant="secondary" onPress={() => setSent(false)} />
+              {myFeedbackLink}
             </>
           ) : (
             <View style={s.card}>
@@ -81,6 +89,7 @@ export default function FeedbackScreen() {
               <Button label={t("feedback.send")} onPress={send} busy={busy} disabled={!canSend} />
             </View>
           )}
+          {!sent && myFeedbackLink}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

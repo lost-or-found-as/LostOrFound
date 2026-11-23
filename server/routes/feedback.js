@@ -74,12 +74,13 @@ router.get("/admin", requireUser, requireAdmin, async (req, res) => {
     const done = String(req.query.status || "new").toLowerCase() === "done";
     const { data, error } = await supaAdmin
       .from("app_feedback")
-      .select("id, kind, message, status, is_guest, platform, os_version, device_model, app_version, language, created_at, handled_at")
+      .select("id, user_id, kind, message, status, is_guest, platform, os_version, device_model, app_version, language, created_at, handled_at, reply_text, replied_at")
       .eq("status", done ? "DONE" : "NEW")
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;
-    return res.json({ items: data || [] });
+    // T1.9BP: the sender's id stays on the server; the app only learns whether it can answer.
+    return res.json({ items: (data || []).map(({ user_id, ...rest }) => ({ ...rest, can_reply: !rest.is_guest && !!user_id })) });
   } catch (e) {
     return res.status(500).json({ error: "FEEDBACK_LIST_FAILED" });
   }
@@ -95,6 +96,66 @@ router.post("/admin/:id/done", requireUser, requireAdmin, async (req, res) => {
     return res.json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: "FEEDBACK_UPDATE_FAILED" });
+  }
+});
+
+// T1.9BP: answer feedback in the app. The sender is notified and sees the answer under
+// «Dine tilbakemeldinger». Answering also marks the feedback as done.
+const REPLY_MAX = 1000;
+router.post("/admin/:id/reply", requireUser, requireAdmin, async (req, res) => {
+  try {
+    const text = String(req.body?.message ?? "").trim().slice(0, REPLY_MAX);
+    if (!text) return res.status(400).json({ error: "REPLY_EMPTY" });
+    const { data: fb, error: fErr } = await supaAdmin.from("app_feedback").select("id, user_id, is_guest").eq("id", req.params.id).maybeSingle();
+    if (fErr) throw fErr;
+    if (!fb) return res.status(404).json({ error: "FEEDBACK_NOT_FOUND" });
+    if (fb.is_guest || !fb.user_id) return res.status(409).json({ error: "FEEDBACK_NO_RECIPIENT" });
+    const now = new Date().toISOString();
+    const { error } = await supaAdmin
+      .from("app_feedback")
+      .update({ reply_text: text, replied_at: now, replied_by: req.user.id, status: "DONE", handled_at: now, handled_by: req.user.id })
+      .eq("id", fb.id);
+    if (error) throw error;
+    const preview = text.length > 180 ? `${text.slice(0, 177)}...` : text;
+    await notifyUser({
+      userId: fb.user_id,
+      type: "FEEDBACK_REPLY",
+      entityType: "feedback_reply",
+      entityId: fb.id,
+      titles: localizedPair("push.feedbackReply.title"),
+      bodies: Object.fromEntries(Object.keys(localizedPair("push.feedbackReply.title")).map((l) => [l, preview])),
+    }).catch((e) => console.warn("[feedback] reply notify failed", e?.message ?? e));
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("[feedback] reply failed", e?.message ?? e);
+    return res.status(500).json({ error: "FEEDBACK_REPLY_FAILED" });
+  }
+});
+
+// T1.9BP: move feedback back to «Nye».
+router.post("/admin/:id/reopen", requireUser, requireAdmin, async (req, res) => {
+  try {
+    const { error } = await supaAdmin.from("app_feedback").update({ status: "NEW", handled_at: null, handled_by: null }).eq("id", req.params.id);
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: "FEEDBACK_UPDATE_FAILED" });
+  }
+});
+
+// T1.9BP: the user's own feedback with any answers.
+router.get("/mine", requireUser, async (req, res) => {
+  try {
+    const { data, error } = await supaAdmin
+      .from("app_feedback")
+      .select("id, kind, message, created_at, reply_text, replied_at")
+      .eq("user_id", req.user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return res.json({ items: data || [] });
+  } catch (e) {
+    return res.status(500).json({ error: "FEEDBACK_LIST_FAILED" });
   }
 });
 

@@ -101,5 +101,6 @@
   "push.trustHandedOver.title": "Der Gegenstand ist zurück",
   "push.trustHandedOver.body": "Der Finder hat deinen Code eingegeben. Der Fall ist gelöst.",
   "push.thanksReceived.title": "Du hast eine Dankeskarte bekommen",
-  "push.thanksReceived.body": "Der Eigentümer möchte sich für deine Hilfe bedanken."
+  "push.thanksReceived.body": "Der Eigentümer möchte sich für deine Hilfe bedanken.",
+  "push.feedbackReply.title": "Antwort auf dein Feedback"
 }

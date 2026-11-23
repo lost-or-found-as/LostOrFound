@@ -28,7 +28,14 @@ export type FeedbackItem = {
   app_version: string | null;
   language: string | null;
   created_at: string;
+  // T1.9BP: an answer from the admin, and whether one can be sent (not to guests).
+  reply_text?: string | null;
+  replied_at?: string | null;
+  can_reply?: boolean;
 };
+
+export type MyFeedback = { id: string; kind: FeedbackKind; message: string; created_at: string; reply_text: string | null; replied_at: string | null };
+export const FEEDBACK_REPLY_MAX = 1000;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = (await supabase.auth.getSession()).data.session?.access_token;
@@ -66,4 +73,17 @@ export async function fetchAdminFeedback(status: "new" | "done") {
 
 export async function markFeedbackDone(id: string) {
   return request<{ ok: true }>(`/admin/${encodeURIComponent(id)}/done`, { method: "POST" });
+}
+
+// T1.9BP: answers in the app.
+export async function replyToFeedback(id: string, message: string) {
+  return request<{ ok: true }>(`/admin/${encodeURIComponent(id)}/reply`, { method: "POST", body: JSON.stringify({ message: message.trim() }) });
+}
+
+export async function reopenFeedback(id: string) {
+  return request<{ ok: true }>(`/admin/${encodeURIComponent(id)}/reopen`, { method: "POST" });
+}
+
+export async function fetchMyFeedback() {
+  return (await request<{ items: MyFeedback[] }>("/mine")).items;
 }

@@ -89,4 +89,15 @@ ok(/possibleCounts \? Number\(possibleCounts\[r\.id\] \|\| 0\)/.test(read("app/m
 const hs = read("src/lib/homeSummary.ts");
 ok(/openMatches: sum\(counts\) \+ sum\(tips\)/.test(hs) && /tipsReportId/.test(hs) && /home\.summary\.matchesTips/.test(read("app/(tabs)/index.tsx")), "Home counts matches and tips");
 ok(/s\.eggNudge/.test(read("app/(report)/register.tsx")), "keys nudge visible");
+// Answers to feedback in the app.
+const fbr = read("server/routes/feedback.js");
+ok(/"\/admin\/:id\/reply", requireUser, requireAdmin/.test(fbr) && /"\/admin\/:id\/reopen", requireUser, requireAdmin/.test(fbr) && /"\/mine", requireUser/.test(fbr), "reply, reopen and own list");
+ok(/FEEDBACK_NO_RECIPIENT/.test(fbr) && /can_reply: !rest\.is_guest && !!user_id/.test(fbr) && /\(\{ user_id, \.\.\.rest \}\)/.test(fbr), "guests cannot get answers; the sender id stays on the server");
+ok(/kind: "feedbackReply"/.test(read("server/routes/notifications.js")) && /router\.push\("\/my-feedback"\)/.test(read("app/notifications.tsx")), "reply notice opens the answer");
+ok(/replyToFeedback\(id, replyText\)/.test(read("app/feedback-admin.tsx")) && /feedbackAdmin\.reopen/.test(read("app/feedback-admin.tsx")), "admin can answer and move back");
+ok(/router\.push\("\/my-feedback"\)/.test(read("app/feedback.tsx")), "users find their answers");
+ok(/add column if not exists reply_text/.test(read("supabase/migrations/20261123110000_t1_9bp_feedback_reply.sql")), "migration");
+for (const l of ["no", "en", "de"]) ok(require(path.join(root, `server/locales/${l}.json`))["push.feedbackReply.title"], `reply title in ${l}`);
+for (const f of ["src/i18n/locales/no.ts", "src/i18n/locales/en.ts"])
+  for (const k of ["feedbackAdmin.reply", "feedbackAdmin.reopen", "feedback.mine", "myFeedback.title", "myFeedback.noReply"]) ok(read(f).includes(`"${k}"`), `${k} in ${f}`);
 console.log(`T1.9BP OK (${n} checks)`);

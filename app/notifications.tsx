@@ -372,6 +372,10 @@ function NotificationsScreen() {
           router.push("/thanks");
           return;
         }
+        if (resolved.target_kind === "feedbackReply") {
+          router.push("/my-feedback");
+          return;
+        }
         if (resolved.target_kind === "feedback") {
           router.push("/feedback-admin");
           return;

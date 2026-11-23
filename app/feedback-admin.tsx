@@ -1,7 +1,7 @@
 // app/feedback-admin.tsx
 // T1.9V: admin list of feedback from the app (Profil → Tilbakemeldinger, admins only).
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { requireAccount } from "../src/ui/AccountRequired";
 import { useI18n } from "../src/i18n/I18nProvider";
@@ -9,7 +9,16 @@ import { formatDateTimeCustom } from "../src/i18n/formatters";
 import { Button, EmptyState, ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
 import { theme } from "../src/ui/theme";
-import { FEEDBACK_KIND_KEYS, fetchAdminFeedback, markFeedbackDone, type FeedbackItem, type FeedbackKind } from "../src/lib/feedback";
+import {
+  FEEDBACK_KIND_KEYS,
+  FEEDBACK_REPLY_MAX,
+  fetchAdminFeedback,
+  markFeedbackDone,
+  reopenFeedback,
+  replyToFeedback,
+  type FeedbackItem,
+  type FeedbackKind,
+} from "../src/lib/feedback";
 
 type Tab = "new" | "done";
 
@@ -29,6 +38,10 @@ function Screen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // T1.9BP: answer in the app; the sender gets a notification.
+  const [replyId, setReplyId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(
     async (mode: "initial" | "refresh" = "initial") => {
@@ -55,6 +68,34 @@ function Screen() {
     try {
       setBusyId(id);
       await markFeedbackDone(id);
+      setItems((prev) => prev.filter((x) => x.id !== id));
+    } catch {
+      setError(t("feedbackAdmin.updateError"));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const sendReply = async (id: string) => {
+    try {
+      setBusyId(id);
+      setError(null);
+      await replyToFeedback(id, replyText);
+      setReplyId(null);
+      setReplyText("");
+      setNotice(t("feedbackAdmin.replySent"));
+      await load("refresh");
+    } catch {
+      setError(t("feedbackAdmin.replyError"));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const reopen = async (id: string) => {
+    try {
+      setBusyId(id);
+      await reopenFeedback(id);
       setItems((prev) => prev.filter((x) => x.id !== id));
     } catch {
       setError(t("feedbackAdmin.updateError"));
@@ -94,6 +135,7 @@ function Screen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load("refresh")} />}
         >
           {!!error && <InlineNotice tone="warning" title={error} actionLabel={t("errors.retry")} onAction={() => void load()} />}
+          {!!notice && <InlineNotice tone="success" title={notice} />}
           {!error && items.length === 0 && <EmptyState icon="chatbubbles-outline" title={t("feedbackAdmin.empty")} />}
           {items.map((item) => {
             const meta = [item.is_guest ? t("feedbackAdmin.guest") : null, item.platform, item.os_version, item.app_version, item.language]
@@ -110,8 +152,56 @@ function Screen() {
                 </View>
                 <Text style={s.message}>{item.message}</Text>
                 {!!meta && <Text style={s.meta}>{meta}</Text>}
-                {tab === "new" && (
-                  <Button label={t("feedbackAdmin.markDone")} variant="neutral" busy={busyId === item.id} onPress={() => void done(item.id)} />
+                {!!item.reply_text && (
+                  <View style={s.reply}>
+                    <Text style={s.replyLabel}>{t("feedbackAdmin.yourReply")}</Text>
+                    <Text style={s.replyText}>{item.reply_text}</Text>
+                  </View>
+                )}
+                {replyId === item.id ? (
+                  <View style={s.replyBox}>
+                    <TextInput
+                      value={replyText}
+                      onChangeText={(v) => setReplyText(v.slice(0, FEEDBACK_REPLY_MAX))}
+                      placeholder={t("feedbackAdmin.replyPlaceholder")}
+                      placeholderTextColor={theme.colors.textSecondary}
+                      multiline
+                      style={s.replyInput}
+                      accessibilityLabel={t("feedbackAdmin.reply")}
+                    />
+                    <View style={s.actions}>
+                      <Button label={t("common.cancel")} variant="neutral" onPress={() => setReplyId(null)} style={s.flex1} />
+                      <Button
+                        label={t("feedbackAdmin.sendReply")}
+                        onPress={() => void sendReply(item.id)}
+                        busy={busyId === item.id}
+                        disabled={!replyText.trim()}
+                        style={s.flex1}
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <View style={s.actions}>
+                    {item.can_reply ? (
+                      <Button
+                        label={t(item.reply_text ? "feedbackAdmin.replyAgain" : "feedbackAdmin.reply")}
+                        variant="secondary"
+                        onPress={() => {
+                          setReplyId(item.id);
+                          setReplyText("");
+                          setNotice(null);
+                        }}
+                        style={s.flex1}
+                      />
+                    ) : (
+                      <Text style={[s.meta, s.flex1]}>{t("feedbackAdmin.noReplyGuest")}</Text>
+                    )}
+                    {tab === "new" ? (
+                      <Button label={t("feedbackAdmin.markDone")} variant="neutral" busy={busyId === item.id} onPress={() => void done(item.id)} style={s.flex1} />
+                    ) : (
+                      <Button label={t("feedbackAdmin.reopen")} variant="neutral" busy={busyId === item.id} onPress={() => void reopen(item.id)} style={s.flex1} />
+                    )}
+                  </View>
                 )}
               </View>
             );
@@ -128,6 +218,23 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   content: { padding: 16, gap: 10, paddingBottom: 40 },
+  actions: { flexDirection: "row", gap: 8, alignItems: "center" },
+  flex1: { flex: 1 },
+  reply: { gap: 4, padding: 10, borderRadius: 10, backgroundColor: theme.tone.info.bg },
+  replyLabel: { fontSize: 12, fontWeight: "800", color: theme.tone.info.fg },
+  replyText: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: theme.tone.info.fg },
+  replyBox: { gap: 8 },
+  replyInput: {
+    minHeight: 88,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.bg,
+    padding: 10,
+    fontSize: 15,
+    color: theme.colors.text,
+    textAlignVertical: "top",
+  },
   tabs: { flexDirection: "row", gap: 8, marginTop: 10 },
   tab: {
     minHeight: 40,

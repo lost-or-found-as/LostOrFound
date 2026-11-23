@@ -108,5 +108,6 @@
   "push.trustHandedOver.title": "Tingen er levert tilbake",
   "push.trustHandedOver.body": "Finneren tastet koden din. Saken er løst.",
   "push.thanksReceived.title": "Du har fått et takkekort",
-  "push.thanksReceived.body": "Eieren vil takke deg for hjelpen."
+  "push.thanksReceived.body": "Eieren vil takke deg for hjelpen.",
+  "push.feedbackReply.title": "Svar på tilbakemeldingen din"
 }
