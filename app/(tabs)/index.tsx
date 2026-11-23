@@ -17,6 +17,9 @@ import { greetingKey } from "../../src/lib/greeting";
 import { registerLogoTap, seasonFor } from "../../src/lib/easterEggs";
 import { introSeen } from "../../src/lib/intro";
 import { fetchHomeSummary, readCachedHomeSummary, writeCachedHomeSummary, type HomeSummary } from "../../src/lib/homeSummary";
+// T1.9BT: the home screen widget and Live Activities (iOS; off until the server switch is on).
+import { updateCasesWidget } from "../../src/lib/casesWidget";
+import { resumeCaseActivities } from "../../src/lib/liveActivity";
 
 const HOW_STEPS = [
   { title: "how.card1.title", body: "how.card1.body" },
@@ -28,7 +31,7 @@ const HOW_STEPS = [
 export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const isGuest = isAnonymousUser(user as any);
   const hasAccount = !!user && !isGuest;
   const [newRegistration] = useNewRegistration();
@@ -63,6 +66,7 @@ export default function DashboardScreen() {
         setSummary(value);
         setSummaryKnown(true);
         void writeCachedHomeSummary(userId, value);
+        void updateCasesWidget(value, t);
       })
       .catch((e) => {
         console.warn("[home] could not load summary", e);
@@ -71,8 +75,13 @@ export default function DashboardScreen() {
     return () => {
       live = false;
     };
-  }, [user?.id, isGuest]);
+  }, [user?.id, isGuest, t]);
   useFocusEffect(loadSummary);
+  // T1.9BT: after a restart, running Live Activities keep sending their newest token to the server.
+  useEffect(() => {
+    if (!user || isGuest) return;
+    void resumeCaseActivities(language).catch((e) => console.warn("[home] live activities", e));
+  }, [user?.id, isGuest, language]);
   // T1.9BO: tap the logo seven times quickly and a pin drops (a pumpkin-coloured moon on
   // 31 October, a gift in December). Only for fun.
   const logoTaps = useRef<number[]>([]);

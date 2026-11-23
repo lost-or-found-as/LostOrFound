@@ -161,5 +161,14 @@
   "push.tagFinderReply.title": "Ny melding fra finneren",
   "push.tagMessage.body": "Merket «{{label}}» ble skannet. Åpne for å lese meldingen.",
   "push.tagMessage.bodyNoLabel": "Et av QR-merkene dine ble skannet. Åpne for å lese meldingen.",
-  "tag.print.button": "Skriv ut arket"
+  "tag.print.button": "Skriv ut arket",
+  "liveActivity.kicker.lost": "Savnet",
+  "liveActivity.kicker.lostPet": "Savnet dyr",
+  "liveActivity.tips.one": "1 tips",
+  "liveActivity.tips.other": "{{count}} tips",
+  "liveActivity.matches.one": "1 mulig treff",
+  "liveActivity.matches.other": "{{count}} mulige treff",
+  "liveActivity.none": "Ingen tips ennå",
+  "liveActivity.since": "Savnet i",
+  "liveActivity.ended": "Saken er avsluttet"
 }

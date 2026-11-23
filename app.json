@@ -96,7 +96,26 @@
       "expo-image",
       "expo-router",
       "expo-splash-screen",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-widgets",
+        {
+          "groupIdentifier": "group.com.kjfok.lostorfound",
+          "enablePushNotifications": true,
+          "widgets": [
+            {
+              "name": "LofCases",
+              "displayName": "Lost or Found",
+              "description": "Your active cases and what is new.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     ],
     "userInterfaceStyle": "light"
   }

@@ -64,6 +64,7 @@ import { custodyText } from "../../src/lib/custodyDisplay";
 import { isAnimal } from "../../src/lib/registerForm";
 import { PetSightingsCard } from "../../src/ui/PetSightingsCard";
 import { PetSearchTips } from "../../src/ui/PetSearchTips";
+import { LiveActivityCard } from "../../src/ui/LiveActivityCard";
 import { reachOffer } from "../../src/lib/areaVisibility";
 import type { TranslationKey } from "../../src/i18n/locales/en";
 
@@ -588,6 +589,9 @@ function Screen() {
             {!!shareError && <InlineNotice tone="warning" title={shareError} style={s.notice} />}
           </View>
         )}
+
+        {/* T1.9BT: follow the case on the lock screen (iOS, while the server switch is on) */}
+        {lost && !closed && !expired && <LiveActivityCard reportId={String(r.id)} followable />}
 
         {/* Område */}
         {r.lat != null && r.lng != null && (

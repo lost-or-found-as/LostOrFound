@@ -2296,4 +2296,18 @@ export const no: TranslationDictionary = {
   "tags.error.alreadyYours": "Dette merket er allerede ditt.",
   "tags.error.blocked": "Samtalen er blokkert.",
   "tags.error.rate": "Du sender veldig raskt. Vent litt.",
+  // T1.9BT: Live Activities and the home screen widget.
+  "liveActivity.title": "På låseskjermen",
+  "liveActivity.body": "Følg saken på låseskjermen og i Dynamic Island. Den viser hvor lenge det er siden, og oppdateres når du får tips eller mulige treff. iOS fjerner den etter høyst 12 timer.",
+  "liveActivity.bodyOn": "Saken vises på låseskjermen. Den stopper av seg selv når saken er løst eller avsluttet.",
+  "liveActivity.start": "Vis på låseskjermen",
+  "liveActivity.stop": "Fjern fra låseskjermen",
+  "liveActivity.error.start": "Kunne ikke starte. Sjekk at Live Activities er slått på under Innstillinger → Lost or Found.",
+  "liveActivity.error.generic": "Noe gikk galt. Prøv igjen.",
+  "widget.heading": "Lost or Found",
+  "widget.activeCases": "aktive saker",
+  "widget.news": "{{count}} nye treff og tips",
+  "widget.quiet": "Ingen nye hendelser",
+  "widget.unread": "{{count}} uleste meldinger",
+  "widget.empty": "Ingen aktive saker",
 };

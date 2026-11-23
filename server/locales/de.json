@@ -154,5 +154,14 @@
   "push.tagFinderReply.title": "Neue Nachricht vom Finder",
   "push.tagMessage.body": "Dein Anhänger „{{label}}“ wurde gescannt. Öffne die App, um die Nachricht zu lesen.",
   "push.tagMessage.bodyNoLabel": "Einer deiner QR-Anhänger wurde gescannt. Öffne die App, um die Nachricht zu lesen.",
-  "tag.print.button": "Blatt drucken"
+  "tag.print.button": "Blatt drucken",
+  "liveActivity.kicker.lost": "Vermisst",
+  "liveActivity.kicker.lostPet": "Tier vermisst",
+  "liveActivity.tips.one": "1 Hinweis",
+  "liveActivity.tips.other": "{{count}} Hinweise",
+  "liveActivity.matches.one": "1 möglicher Treffer",
+  "liveActivity.matches.other": "{{count}} mögliche Treffer",
+  "liveActivity.none": "Noch keine Hinweise",
+  "liveActivity.since": "Vermisst seit",
+  "liveActivity.ended": "Der Fall ist abgeschlossen"
 }

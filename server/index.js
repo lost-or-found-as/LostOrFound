@@ -264,6 +264,8 @@ try { const trustRoutes=require("./routes/trust"); app.use("/trust",trustRoutes)
 // T1.9BS: QR tags (owner API) and the public tag pages behind the QR codes.
 try { const tagRoutes=require("./routes/tags"); app.use("/tags",tagRoutes); console.log("[BOOT] Mounted /tags routes"); } catch(e){ console.warn("[BOOT] /tags NOT mounted:",e?.message||e); }
 try { const tagPageRoutes=require("./routes/tagPages"); app.use("/t",tagPageRoutes); console.log("[BOOT] Mounted /t routes"); } catch(e){ console.warn("[BOOT] /t NOT mounted:",e?.message||e); }
+// T1.9BT: Live Activities on the lock screen (off unless LIVE_ACTIVITIES_ENABLED=true).
+try { const liveRoutes=require("./routes/liveActivities"); app.use("/live-activities",liveRoutes); console.log("[BOOT] Mounted /live-activities routes"); } catch(e){ console.warn("[BOOT] /live-activities NOT mounted:",e?.message||e); }
 
 // ---- Mount /geo ----
 try {
@@ -291,6 +293,11 @@ app.listen(PORT, () => {
   const { notifyImageHeld } = require("./lib/adminAlert");
   scheduleImageModeration({ supa: supaAdmin, log: console, notifyHeld: notifyImageHeld });
   console.log(`[BOOT] imageModeration=${moderationEnabled() ? "on" : "off"}`);
+  // T1.9BT: Live Activities are recounted every 15 minutes while switched on.
+  const { scheduleLiveActivities, liveActivitiesEnabled } = require("./lib/liveActivities");
+  const { apnsConfigured } = require("./lib/apns");
+  scheduleLiveActivities({ supa: supaAdmin, log: console });
+  console.log(`[BOOT] liveActivities=${liveActivitiesEnabled() ? "on" : "off"} apns=${apnsConfigured() ? "configured" : "missing"}`);
   console.log(`[BOOT] cwd=${process.cwd()}`);
   console.log(`[BOOT] serverDir=${__dirname}`);
 });

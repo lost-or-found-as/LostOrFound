@@ -161,5 +161,14 @@
   "push.tagFinderReply.title": "New message from the finder",
   "push.tagMessage.body": "Your tag \"{{label}}\" was scanned. Open to read the message.",
   "push.tagMessage.bodyNoLabel": "One of your QR tags was scanned. Open to read the message.",
-  "tag.print.button": "Print the sheet"
+  "tag.print.button": "Print the sheet",
+  "liveActivity.kicker.lost": "Lost",
+  "liveActivity.kicker.lostPet": "Lost pet",
+  "liveActivity.tips.one": "1 tip",
+  "liveActivity.tips.other": "{{count}} tips",
+  "liveActivity.matches.one": "1 possible match",
+  "liveActivity.matches.other": "{{count}} possible matches",
+  "liveActivity.none": "No tips yet",
+  "liveActivity.since": "Missing for",
+  "liveActivity.ended": "The case is closed"
 }

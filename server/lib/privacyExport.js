@@ -36,6 +36,8 @@ const USER_TABLES = Object.freeze([
   // T1.9BS: the user's QR tags and the conversations finders started (no finder token or visitor key).
   ["item_tags", "owner_id", []],
   ["tag_threads", "owner_id", ["finder_token_hash", "visitor_key"]],
+  // T1.9BT: Live Activities the user started (without the device token).
+  ["live_activity_tokens", "user_id", ["push_token"]],
 ]);
 
 // Rows that belong to the user's own cases.

@@ -2300,6 +2300,20 @@ export const en = {
   "tags.error.alreadyYours": "This tag is already yours.",
   "tags.error.blocked": "The conversation is blocked.",
   "tags.error.rate": "You are sending very fast. Please wait a moment.",
+  // T1.9BT: Live Activities and the home screen widget.
+  "liveActivity.title": "On the lock screen",
+  "liveActivity.body": "Follow the case on the lock screen and in the Dynamic Island. It shows how long it has been and updates when you get tips or possible matches. iOS removes it after 12 hours at most.",
+  "liveActivity.bodyOn": "The case is shown on the lock screen. It stops by itself when the case is solved or closed.",
+  "liveActivity.start": "Show on lock screen",
+  "liveActivity.stop": "Remove from lock screen",
+  "liveActivity.error.start": "Could not start. Check that Live Activities are on under Settings → Lost or Found.",
+  "liveActivity.error.generic": "Something went wrong. Please try again.",
+  "widget.heading": "Lost or Found",
+  "widget.activeCases": "active cases",
+  "widget.news": "{{count}} new matches and tips",
+  "widget.quiet": "Nothing new",
+  "widget.unread": "{{count}} unread messages",
+  "widget.empty": "No active cases",
 } as const;
 
 export type TranslationKey = keyof typeof en;

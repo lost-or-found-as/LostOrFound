@@ -33,6 +33,12 @@ async function notifyUser({ userId, type, entityType, entityId, title, body, tit
     .single();
 
   if (inserted.error) console.warn("[notify] in-app failed", inserted.error.message);
+  // T1.9BT: something happened for this user; their Live Activities are recounted shortly.
+  try {
+    require("./liveActivities").nudgeUser(userId);
+  } catch (e) {
+    console.warn("[notify] live activity nudge failed", e?.message ?? e);
+  }
   if (!push) return { inApp: !inserted.error, push: 0 };
 
   const q = await supaAdmin
