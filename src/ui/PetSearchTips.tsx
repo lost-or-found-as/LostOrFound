@@ -7,13 +7,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useI18n } from "../i18n/I18nProvider";
 import { theme } from "./theme";
 import { haptic } from "../lib/haptics";
-import { PET_TIPS, loadTicks, petKind, saveTicks, toggleTick } from "../lib/petSearchTips";
+import * as Localization from "expo-localization";
+import { PET_TIPS, loadTicks, petKind, saveTicks, tipItems, toggleTick } from "../lib/petSearchTips";
 
 type Props = { reportId: string; petName: string | null; subcategoryKey: string | null; onPoster?: () => void };
 
 export function PetSearchTips({ reportId, petName, subcategoryKey, onPoster }: Props) {
   const { t } = useI18n();
-  const tips = PET_TIPS[petKind(subcategoryKey)];
+  const kind = petKind(subcategoryKey);
+  const tips = PET_TIPS[kind];
+  // T1.9BR: the chip registry follows the phone's region (DyreID in Norway).
+  const items = tipItems(kind, Localization.getLocales()[0]?.regionCode ?? null);
   const [ticks, setTicks] = useState<string[]>([]);
 
   useEffect(() => {
@@ -31,7 +35,7 @@ export function PetSearchTips({ reportId, petName, subcategoryKey, onPoster }: P
     void saveTicks(reportId, next);
   };
 
-  const done = tips.items.filter((i) => ticks.includes(i.id)).length;
+  const done = items.filter((i) => ticks.includes(i.id)).length;
 
   return (
     <View style={s.card}>
@@ -42,7 +46,7 @@ export function PetSearchTips({ reportId, petName, subcategoryKey, onPoster }: P
         </Text>
       </View>
       <Text style={s.lead}>{t(tips.lead)}</Text>
-      {tips.items.map((item) => {
+      {items.map((item) => {
         const on = ticks.includes(item.id);
         return (
           <View key={item.id} style={s.row}>
@@ -71,7 +75,7 @@ export function PetSearchTips({ reportId, petName, subcategoryKey, onPoster }: P
           </View>
         );
       })}
-      <Text style={s.progress}>{t("petTips.progress", { done, total: tips.items.length })}</Text>
+      <Text style={s.progress}>{t("petTips.progress", { done, total: items.length })}</Text>
     </View>
   );
 }

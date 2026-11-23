@@ -14,6 +14,21 @@ export function petKind(subcategoryKey: string | null | undefined): PetKind {
 
 export type TipItem = { id: string; label: TranslationKey; link?: string };
 
+/**
+ * T1.9BR: DyreID is the Norwegian chip registry, so the link is for phones set to Norway (the
+ * phone's region, not the app language). Elsewhere the tip points to the local registry in words.
+ */
+export function chipTip(regionCode: string | null | undefined): TipItem {
+  return String(regionCode || "").toUpperCase() === "NO"
+    ? { id: "chip", label: "petTips.item.chip", link: DYREID_URL }
+    : { id: "chip", label: "petTips.item.chipGeneric" };
+}
+
+/** The checklist for this phone's region. */
+export function tipItems(kind: PetKind, regionCode: string | null | undefined): TipItem[] {
+  return PET_TIPS[kind].items.map((i) => (i.id === "chip" ? chipTip(regionCode) : i));
+}
+
 const CHIP: TipItem = { id: "chip", label: "petTips.item.chip", link: DYREID_URL };
 const POSTER: TipItem = { id: "poster", label: "petTips.item.poster" };
 

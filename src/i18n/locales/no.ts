@@ -1430,6 +1430,7 @@ export const no: TranslationDictionary = {
   "petTips.item.otherFood": "Sett ut mat og vann der dyret forsvant",
   "petTips.item.otherVets": "Ring dyreklinikker og dyrebutikker i området",
   "petTips.item.chip": "Sjekk at chipen er registrert med riktig telefonnummer hos DyreID",
+  "petTips.item.chipGeneric": "Sjekk at chipen er registrert med riktig telefonnummer i chipregisteret der du bor",
   "petTips.item.poster": "Heng opp plakat i nabolaget",
   "petTips.openLink": "Åpne DyreID",
   "petTips.progress": "{{done}} av {{total}} gjort",

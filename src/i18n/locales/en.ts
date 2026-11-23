@@ -1434,6 +1434,7 @@ export const en = {
   "petTips.item.otherFood": "Put out food and water where the animal went missing",
   "petTips.item.otherVets": "Call vets and pet shops in the area",
   "petTips.item.chip": "Check that the chip is registered with the right phone number at DyreID",
+  "petTips.item.chipGeneric": "Check that the chip is registered with the right phone number in your local chip registry",
   "petTips.item.poster": "Put up posters in the neighbourhood",
   "petTips.openLink": "Open DyreID",
   "petTips.progress": "{{done}} of {{total}} done",

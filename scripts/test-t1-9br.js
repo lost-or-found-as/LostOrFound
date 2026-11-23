@@ -46,4 +46,7 @@ ok(/const canShare = \(lost \|\| animal\) && !closed && !expired/.test(rd) && /c
 for (const f of ["src/i18n/locales/no.ts", "src/i18n/locales/en.ts"])
   for (const k of ["caseDetail.share.bodyFound", "caseDetail.share.messageFound", "petTips.title", "petTips.titleNamed", "petTips.lead.cat", "petTips.lead.dog", "petTips.lead.other", "petTips.item.chip", "petTips.item.poster", "petTips.progress", "petTips.openLink"])
     ok(read(f).includes(`"${k}"`), `${k} in ${f}`);
+// The chip registry follows the phone's region, not the language.
+ok(/regionCode \|\| ""\)\.toUpperCase\(\) === "NO"/.test(tips) && /petTips\.item\.chipGeneric/.test(tips) && /Localization\.getLocales\(\)\[0\]\?\.regionCode/.test(read("src/ui/PetSearchTips.tsx")), "DyreID only in Norway");
+for (const f of ["src/i18n/locales/no.ts", "src/i18n/locales/en.ts"]) ok(read(f).includes('"petTips.item.chipGeneric"'), `chipGeneric in ${f}`);
 console.log(`T1.9BR OK (${n} checks)`);
