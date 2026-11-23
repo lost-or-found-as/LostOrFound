@@ -5,6 +5,7 @@ import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
+import { APP_MAP_TYPE } from "../src/lib/mapStyle";
 import * as Location from "expo-location";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { userErrorMessage } from "../src/lib/userError";
@@ -197,6 +198,7 @@ function Screen() {
             <View style={[s.card, fieldError === "location" && s.cardMissing]}>
               <View style={s.mapBox}>
                 <MapView
+mapType={APP_MAP_TYPE}
                   ref={mapRef}
                   style={StyleSheet.absoluteFill}
                   initialRegion={{ ...point, latitudeDelta: alertPoint ? 0.04 : FALLBACK_DELTA, longitudeDelta: alertPoint ? 0.04 : FALLBACK_DELTA }}

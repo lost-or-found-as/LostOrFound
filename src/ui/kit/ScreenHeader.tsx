@@ -25,11 +25,11 @@ export function ScreenHeader({ title, subtitle, onBack, right, raised, children 
       <View style={styles.row}>
         {onBack ? <IconButton icon="arrow-back" label={t("common.back")} onPress={onBack} /> : null}
         <View style={styles.text}>
-          <Text style={[styles.title, raised && styles.titleRaised]} numberOfLines={1} accessibilityRole="header">
+          <Text style={[styles.title, raised && styles.titleRaised]} numberOfLines={1} accessibilityRole="header" maxFontSizeMultiplier={1.4}>
             {title}
           </Text>
           {!!subtitle && (
-            <Text style={styles.subtitle} numberOfLines={1}>
+            <Text style={styles.subtitle} numberOfLines={1} maxFontSizeMultiplier={1.5}>
               {subtitle}
             </Text>
           )}

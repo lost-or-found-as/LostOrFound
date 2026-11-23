@@ -9,6 +9,7 @@ import { API_BASE_URL } from "../../src/lib/config";
 import { supabase } from "../../src/lib/supabase";
 import { theme } from "../../src/ui/theme";
 import { isAnonymousUser } from "../../src/lib/authGate";
+import { haptic } from "../../src/lib/haptics";
 
 async function getUnreadCount(token: string): Promise<number> {
   const response = await fetch(`${API_BASE_URL}/notifications/unread-count`, {
@@ -72,7 +73,12 @@ export default function TabsLayout() {
         tabBarLabelStyle: styles.label,
         tabBarStyle: styles.bar,
         tabBarHideOnKeyboard: true,
+        // T1.9BQ: tab labels keep their size with very large text (iOS shows the large-content
+        // viewer on long press instead), so the bar never breaks.
+        tabBarAllowFontScaling: false,
       }}
+      // T1.9BQ: a light tick when switching tabs.
+      screenListeners={{ tabPress: () => haptic.tap() }}
     >
       <Tabs.Screen
         name="index"

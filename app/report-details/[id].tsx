@@ -3,6 +3,7 @@
 // "Neste steg" card says what to do now, then Detaljer, Område, the area-alert offer and one
 // Aktivitet timeline. Case actions (edit, extend, close, delete) live in the ⋯ menu.
 import { requireAccount } from "../../src/ui/AccountRequired";
+import { SkeletonDetail, SkeletonList } from "../../src/ui/Skeleton";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import * as WebBrowser from "expo-web-browser";
@@ -10,6 +11,7 @@ import { shareUrls, startSharing, stopSharing } from "../../src/lib/reportShare"
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, Circle } from "react-native-maps";
+import { APP_MAP_TYPE } from "../../src/lib/mapStyle";
 import { areasRegion, SearchAreaShapes, usableAreas } from "../../src/ui/SearchAreaShapes";
 import ImageViewing from "react-native-image-viewing";
 import { API_BASE_URL } from "../../src/lib/config";
@@ -183,14 +185,7 @@ function Screen() {
     return (
       <View style={s.safe}>
         {header}
-        <View style={s.loadingContent}>
-          <View style={[s.loadingBlock, s.loadingHero]} />
-          <View style={s.loadingCard}>
-            <ActivityIndicator color={theme.colors.primary} />
-            <Text style={s.loadingText}>{t("caseDetail.loadingReport")}</Text>
-          </View>
-          <View style={s.loadingBlock} />
-        </View>
+        <SkeletonDetail label={t("caseDetail.loadingReport")} />
       </View>
     );
 
@@ -587,6 +582,7 @@ function Screen() {
           <View style={s.card}>
             <Text style={s.h2}>{t("caseDetail.area")}</Text>
             <MapView
+mapType={APP_MAP_TYPE}
               style={s.map}
               initialRegion={areasMapRegion ?? { latitude: Number(r.lat), longitude: Number(r.lng), latitudeDelta: 0.02, longitudeDelta: 0.02 }}
               scrollEnabled={false}

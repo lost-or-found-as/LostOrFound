@@ -14,6 +14,7 @@ import { theme } from "./theme";
 import { Button } from "./kit";
 import { InlineNotice } from "./InlineNotice";
 import { userErrorMessage } from "../lib/userError";
+import { haptic } from "../lib/haptics";
 import {
   SAFE_PLACES,
   THANKS_DESIGNS,
@@ -65,15 +66,19 @@ export function TrustPanel({ kind, id, refreshKey, onResolved, hidden }: Props) 
     void load();
   }, [load, refreshKey]);
 
-  const run = async (fn: () => Promise<unknown>, after?: () => void) => {
+  // T1.9BQ: feel = "success" for a code accepted, a match confirmed or a card sent; "warning"
+  // for an answer that did not match. A failed call always gives the warning tick.
+  const run = async (fn: () => Promise<unknown>, after?: () => void, feel?: "success" | "warning") => {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       await fn();
+      if (feel) haptic[feel]();
       after?.();
       await load();
     } catch (e) {
+      haptic.warning();
       setError(userErrorMessage(e, t, "errors.generic", "trust"));
     } finally {
       setBusy(false);
@@ -158,7 +163,7 @@ export function TrustPanel({ kind, id, refreshKey, onResolved, hidden }: Props) 
         {!!error && <InlineNotice tone="error" title={error} style={s.noMargin} />}
         <Button
           label={t("trust.thanksSend")}
-          onPress={() => void run(() => sendThanks(kind, id, design, message.trim()))}
+          onPress={() => void run(() => sendThanks(kind, id, design, message.trim()), undefined, "success")}
           busy={busy}
           disabled={!message.trim()}
         />
@@ -224,12 +229,13 @@ export function TrustPanel({ kind, id, refreshKey, onResolved, hidden }: Props) 
                 void run(
                   () => judgeAnswer(q.id, false),
                   () => setNotice(t(triesLeft > 0 ? "trust.notMatchingSent" : "trust.noMatchHelper")),
+                  "warning",
                 )
               }
               style={s.flex1}
               disabled={busy}
             />
-            <Button label={t("trust.matching")} onPress={() => void run(() => judgeAnswer(q.id, true))} style={s.flex1} busy={busy} />
+            <Button label={t("trust.matching")} onPress={() => void run(() => judgeAnswer(q.id, true), undefined, "success")} style={s.flex1} busy={busy} />
           </View>
         </View>
       );
@@ -317,6 +323,7 @@ export function TrustPanel({ kind, id, refreshKey, onResolved, hidden }: Props) 
                   setCode("");
                   onResolved?.();
                 },
+                "success",
               )
             }
             busy={busy}

@@ -5,6 +5,7 @@ import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View, Pressable } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { APP_MAP_TYPE } from "../src/lib/mapStyle";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -71,6 +72,7 @@ function SightingAddScreen() {
             <Text style={s.label}>{t("sightingAdd.where")}</Text>
             <View style={s.mapFrame}>
               <MapView
+mapType={APP_MAP_TYPE}
                 provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
                 style={s.map}
                 initialRegion={

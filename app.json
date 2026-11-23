@@ -97,6 +97,7 @@
       "expo-router",
       "expo-splash-screen",
       "expo-status-bar"
-    ]
+    ],
+    "userInterfaceStyle": "light"
   }
 }

@@ -5,6 +5,7 @@ import { requireAccount } from "../../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
+import { APP_MAP_TYPE } from "../../src/lib/mapStyle";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { theme } from "../../src/ui/theme";
 import { useI18n } from "../../src/i18n/I18nProvider";
@@ -219,6 +220,7 @@ function Screen() {
             {hasPoint && (
               <View style={s.mapBox} pointerEvents="none" accessible accessibilityLabel={placeLabel ?? t("observation.detail.mapLabel")}>
                 <MapView
+mapType={APP_MAP_TYPE}
                   style={StyleSheet.absoluteFill}
                   initialRegion={{ latitude: lat, longitude: lng, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
                   scrollEnabled={false}

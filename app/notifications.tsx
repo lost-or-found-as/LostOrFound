@@ -3,6 +3,8 @@
 // T1.9G: tap a card to open it, small trash button per card, "Merk alle som lest", grouped by
 // I dag / Tidligere, icon per type. Errors show in the screen instead of system dialogs.
 import { requireAccount } from "../src/ui/AccountRequired";
+import { SkeletonDetail, SkeletonList } from "../src/ui/Skeleton";
+import { animateNextLayout } from "../src/lib/haptics";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, SectionList, Pressable, StyleSheet, ActivityIndicator, RefreshControl } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -282,6 +284,7 @@ function NotificationsScreen() {
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw Object.assign(new Error(data?.error || `HTTP_${r.status}`), { status: r.status });
+        animateNextLayout();
         setItems((prev) => prev.filter((x) => x.id !== id));
       } catch (e: any) {
         setNotice({
@@ -514,10 +517,7 @@ function NotificationsScreen() {
         )}
 
         {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={theme.colors.primary} />
-            <Text style={styles.muted}>{t("notifications.loading")}</Text>
-          </View>
+          <SkeletonList rows={5} thumb={false} />
         ) : (
           <SectionList
             sections={sections}

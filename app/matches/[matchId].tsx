@@ -3,6 +3,7 @@
 // owner's message, and the next step: the owner confirms (chat opens) or says "Not mine".
 // The finder waits until the owner has confirmed.
 import { requireAccount } from "../../src/ui/AccountRequired";
+import { SkeletonDetail, SkeletonList } from "../../src/ui/Skeleton";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -417,10 +418,7 @@ function MatchDetailsScreen() {
       <View style={styles.screen}>
         <Stack.Screen options={{ headerShown: false }} />
         {header}
-        <View style={styles.center}>
-          <ActivityIndicator />
-          <Text style={styles.muted}>{t("matchDetail.loading")}</Text>
-        </View>
+        <SkeletonDetail />
       </View>
     );
   }

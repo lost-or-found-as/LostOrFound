@@ -5,6 +5,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Circle, Marker, MapPressEvent, Polygon, Polyline, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import { APP_MAP_TYPE } from "../../src/lib/mapStyle";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
@@ -414,7 +415,7 @@ export default function MapPickerScreen() {
   if (isFound) {
     return (
       <View style={styles.safe}>
-        <MapView ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} showsUserLocation={showUser} onPress={onMapPress}>
+        <MapView mapType={APP_MAP_TYPE} ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} showsUserLocation={showUser} onPress={onMapPress}>
           <Marker coordinate={foundPin} draggable onDragEnd={(event) => { clearNotice(); setFoundPin(event.nativeEvent.coordinate); }} />
         </MapView>
         {renderTop()}
@@ -433,7 +434,7 @@ export default function MapPickerScreen() {
 
   return (
     <View style={styles.safe}>
-      <MapView ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} showsUserLocation={showUser} onPress={onMapPress}>
+      <MapView mapType={APP_MAP_TYPE} ref={mapRef} provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined} style={styles.map} initialRegion={initialRegion} showsUserLocation={showUser} onPress={onMapPress}>
         {areas.map(renderArea)}
         {workingPoints.map((point, index) => <Marker key={`working-${index}`} coordinate={point} pinColor="#F59E0B" />)}
         {mode === "ROUTE" && workingPoints.length > 1 && <Polyline coordinates={workingPoints} strokeWidth={6} strokeColor="#F59E0B" />}

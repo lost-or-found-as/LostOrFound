@@ -4,6 +4,7 @@ import React, { useCallback, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { requireAccount } from "../src/ui/AccountRequired";
+import { SkeletonDetail, SkeletonList } from "../src/ui/Skeleton";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { formatDateTimeCustom } from "../src/i18n/formatters";
 import { EmptyState, ScreenHeader } from "../src/ui/kit";
@@ -36,9 +37,7 @@ function Screen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenHeader title={t("myFeedback.title")} onBack={() => router.back()} raised />
       {items === null ? (
-        <View style={s.center}>
-          <ActivityIndicator />
-        </View>
+        <SkeletonList rows={3} thumb={false} />
       ) : (
         <FlatList
           data={items}

@@ -2,6 +2,7 @@
 // Mine saker. T1.9W: rebuilt in the shared kit style (ScreenHeader, segmented tabs, cards with a
 // thumbnail, BottomSheet menu, ConfirmSheet, InlineNotice, pull to refresh). Same data and actions.
 import { requireAccount } from "../src/ui/AccountRequired";
+import { SkeletonDetail, SkeletonList } from "../src/ui/Skeleton";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -846,10 +847,7 @@ function MyReportsScreen() {
         </ScreenHeader>
 
         {loading && !hasLoadedRef.current ? (
-          <View style={styles.center}>
-            <ActivityIndicator />
-            <Text style={styles.muted}>{t("cases.loading.cases")}</Text>
-          </View>
+          <SkeletonList rows={4} />
         ) : (
           <ScrollView
             contentContainerStyle={styles.list}

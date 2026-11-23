@@ -22,6 +22,7 @@ import {
   View,
 } from "react-native";
 import MapView, { Circle, Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
+import { APP_MAP_TYPE } from "../src/lib/mapStyle";
 import * as Location from "expo-location";
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -614,6 +615,7 @@ function AlertAreasScreen() {
           />
           <View style={s.editorMapWrap}>
             <MapView
+mapType={APP_MAP_TYPE}
               ref={editorMapRef}
               provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
               style={StyleSheet.absoluteFill}
@@ -786,6 +788,7 @@ function AlertAreasScreen() {
 
           <View style={s.mapCard}>
             <MapView
+mapType={APP_MAP_TYPE}
               ref={overviewMapRef}
               provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
               style={StyleSheet.absoluteFill}

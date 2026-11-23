@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import MapView, { Marker, Polyline } from "react-native-maps";
+import { APP_MAP_TYPE } from "../lib/mapStyle";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "./theme";
 import { useI18n } from "../i18n/I18nProvider";
@@ -100,7 +101,7 @@ export function PetSightingsCard({ reportId, petName, refreshKey, onOpenObservat
     <View style={s.card}>
       <Text style={s.h2}>{t("caseDetail.sightings.title")}</Text>
       {region && (
-        <MapView style={s.map} initialRegion={region} scrollEnabled={false} zoomEnabled={false} pitchEnabled={false} rotateEnabled={false}>
+        <MapView mapType={APP_MAP_TYPE} style={s.map} initialRegion={region} scrollEnabled={false} zoomEnabled={false} pitchEnabled={false} rotateEnabled={false}>
           {path.length > 1 && <Polyline coordinates={path} strokeColor={SIGHTING_COLOR} strokeWidth={3} lineDashPattern={[6, 6]} />}
           <Marker coordinate={{ latitude: data.start.latitude, longitude: data.start.longitude }} pinColor={START_COLOR} />
           {data.sightings.map((x, i) => (

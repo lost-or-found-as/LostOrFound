@@ -4,6 +4,7 @@
 // T1.9BL: filter (all, my cases, I help), active first and solved folded away below, the item's
 // photo, the other person's helper level and a clear unread count.
 import { requireAccount } from "../src/ui/AccountRequired";
+import { SkeletonDetail, SkeletonList } from "../src/ui/Skeleton";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Image, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from "react-native";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
@@ -106,7 +107,7 @@ function MessagesScreen() {
       </ScreenHeader>
       {error && <InlineNotice tone="warning" title={t("messages.loadErrorTitle")} body={error} actionLabel={t("errors.retry")} onAction={() => void load()} style={s.notice} />}
       {!items && !error ? (
-        <ActivityIndicator style={s.loading} color={theme.colors.primary} />
+        <SkeletonList rows={5} />
       ) : (
         <SectionList
           sections={sections}

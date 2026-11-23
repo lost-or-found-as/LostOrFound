@@ -3,6 +3,7 @@
 // declines. Shared by the observation detail screen and the observation chat.
 // Same API as before: GET /resolutions/context/OBSERVATION/:id, POST /resolutions/propose,
 // POST /resolutions/:proposalId/respond.
+import { haptic } from "./haptics";
 import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { useI18n } from "../i18n/I18nProvider";
@@ -99,6 +100,8 @@ export function useObservationResolution(observationId: string | undefined) {
           body: JSON.stringify({ accept }),
         });
         await failIfNotOk(r, "RESOLUTION_RESPOND_FAILED");
+        // T1.9BQ: a solved case is worth a little celebration.
+        if (accept) haptic.success();
         setNotice(accept ? "closed" : "rejected");
         await reload();
       } catch (e: any) {

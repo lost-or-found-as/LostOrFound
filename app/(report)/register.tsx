@@ -26,9 +26,11 @@ import {
   View,
 } from "react-native";
 import { keysNudge } from "../../src/lib/easterEggs";
+import { haptic } from "../../src/lib/haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Circle, Marker } from "react-native-maps";
+import { APP_MAP_TYPE } from "../../src/lib/mapStyle";
 import { areasRegion, SearchAreaShapes, usableAreas } from "../../src/ui/SearchAreaShapes";
 import * as Location from "expo-location";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -90,6 +92,7 @@ function PreviewMap({ region, showsUserLocation, children }: { region: PreviewRe
   const ref = useRef<MapView>(null);
   return (
     <MapView
+mapType={APP_MAP_TYPE}
       key={`${region.latitude},${region.longitude},${region.latitudeDelta}`}
       ref={ref}
       pointerEvents="none"
@@ -468,6 +471,8 @@ export default function RegisterScreen() {
       return;
     }
     // T1.9N: the case screen opens with a confirmation and the first matches.
+    // T1.9BQ: a success tick when the case is sent.
+    haptic.success();
     router.replace({ pathname: "/report-details/[id]", params: { id: reportId, created: "1" } });
   };
 

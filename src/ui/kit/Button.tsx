@@ -4,6 +4,7 @@
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
 import { theme } from "../theme";
+import { haptic } from "../../lib/haptics";
 
 export type ButtonVariant = "primary" | "secondary" | "neutral" | "danger";
 
@@ -33,7 +34,11 @@ export function Button({ label, onPress, variant = "primary", busy, disabled, st
       accessibilityState={{ disabled: !!off, busy: !!busy }}
       accessibilityHint={accessibilityHint}
       disabled={off}
-      onPress={onPress}
+      onPress={() => {
+        // T1.9BQ: a light tap on the main buttons only (sparingly).
+        if (variant === "primary" || variant === "danger") haptic.press();
+        onPress();
+      }}
       style={({ pressed }) => [
         styles.base,
         { backgroundColor: look.bg, borderColor: look.border },
@@ -42,7 +47,9 @@ export function Button({ label, onPress, variant = "primary", busy, disabled, st
         style,
       ]}
     >
-      {busy ? <ActivityIndicator color={look.fg} /> : <Text style={[styles.label, { color: look.fg }]}>{label}</Text>}
+      {busy ? <ActivityIndicator color={look.fg} /> : <Text style={[styles.label, { color: look.fg }]} maxFontSizeMultiplier={1.5}>
+          {label}
+        </Text>}
     </Pressable>
   );
 }

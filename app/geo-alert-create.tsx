@@ -17,6 +17,7 @@ import MapView, {
   PROVIDER_GOOGLE,
   Region,
 } from "react-native-maps";
+import { APP_MAP_TYPE } from "../src/lib/mapStyle";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../src/lib/supabase";
 import { API_BASE_URL } from "../src/lib/config";
@@ -430,6 +431,7 @@ function GeoAlertCreateScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.mapFrame}>
             <MapView
+mapType={APP_MAP_TYPE}
               ref={mapRef}
               provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
               style={styles.map}

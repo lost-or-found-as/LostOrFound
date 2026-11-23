@@ -8,6 +8,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-nat
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../src/ui/theme";
+import { SkeletonDetail, SkeletonList } from "../src/ui/Skeleton";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { formatDate } from "../src/i18n/formatters";
 import { ScreenHeader } from "../src/ui/kit";
@@ -15,6 +16,7 @@ import { InlineNotice } from "../src/ui/InlineNotice";
 import { BONUS_EVENTS, BONUS_POINTS, LEVEL_ICONS, LEVEL_PROGRESS_FROM, fetchMyBonus, levelKey, starText, type MyBonus } from "../src/lib/helperBonus";
 import { BADGE_ICONS, HIDDEN_BADGES } from "../src/lib/easterEggs";
 import { Confetti } from "../src/ui/Confetti";
+import { haptic } from "../src/lib/haptics";
 import { useAuth } from "../src/contexts/AuthContext";
 import type { TranslationKey } from "../src/i18n/locales/en";
 
@@ -37,7 +39,10 @@ export default function BonusScreen() {
         try {
           if (await AsyncStorage.getItem(key)) return;
           await AsyncStorage.setItem(key, "1");
-          if (live) setConfetti(true);
+          if (live) {
+            setConfetti(true);
+            haptic.success();
+          }
         } catch {
           // Confetti is only for fun; nothing to do when storage fails.
         }
@@ -62,7 +67,7 @@ export default function BonusScreen() {
       <ScreenHeader title={t("bonus.title")} onBack={() => router.back()} />
       <ScrollView contentContainerStyle={s.container}>
         {state.loading ? (
-          <ActivityIndicator style={s.loading} />
+          <SkeletonList rows={3} thumb={false} style={s.skeleton} />
         ) : !b || !b.enabled ? (
           <InlineNotice tone="info" title={t("bonus.offTitle")} body={t("bonus.offBody")} />
         ) : (
@@ -194,6 +199,7 @@ export default function BonusScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   container: { padding: 16, gap: 12, paddingBottom: 40 },
+  skeleton: { padding: 0 },
   loading: { marginTop: 40 },
   card: { backgroundColor: theme.colors.card, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border, padding: 16, gap: 8 },
   useCard: { borderColor: theme.colors.primary, borderWidth: 2 },

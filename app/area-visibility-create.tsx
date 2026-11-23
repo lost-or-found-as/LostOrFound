@@ -6,6 +6,7 @@ import { requireAccount } from "../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { APP_MAP_TYPE } from "../src/lib/mapStyle";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { InfoButton, ScreenHeader } from "../src/ui/kit";
@@ -175,6 +176,7 @@ function AreaVisibilityCreateScreen() {
         <ScrollView contentContainerStyle={s.content}>
           <View style={s.mapFrame}>
             <MapView
+mapType={APP_MAP_TYPE}
               ref={mapRef}
               provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
               style={s.map}

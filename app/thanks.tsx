@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-nativ
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { requireAccount } from "../src/ui/AccountRequired";
+import { SkeletonDetail, SkeletonList } from "../src/ui/Skeleton";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
@@ -36,9 +37,7 @@ function Screen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenHeader title={t("thanks.title")} onBack={() => router.back()} raised />
       {cards === null ? (
-        <View style={s.center}>
-          <ActivityIndicator />
-        </View>
+        <SkeletonList rows={3} />
       ) : (
         <FlatList
           data={cards}

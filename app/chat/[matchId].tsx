@@ -36,6 +36,7 @@ import { Button, ConfirmSheet, ScreenHeader } from "../../src/ui/kit";
 import { toHelperStatus, type HelperStatus } from "../../src/lib/helperBonus";
 import { HelperBadge } from "../../src/ui/HelperBadge";
 import { TrustPanel } from "../../src/ui/TrustPanel";
+import { haptic } from "../../src/lib/haptics";
 import { ChatClosedBar, ChatSafetyMenu, useChatSafety } from "../../src/ui/ChatSafety";
 import { unblockChatPartner } from "../../src/lib/chatSafety";
 import type { Lang } from "../../src/i18n/languages";
@@ -290,6 +291,8 @@ function ChatScreen() {
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw Object.assign(codedError(String(j?.error || "RESOLUTION_RESPOND_FAILED")), { status: r.status });
+      // T1.9BQ: a solved case is worth a little celebration.
+      if (accept) haptic.success();
       await loadResolution();
     } catch (e) {
       setError(userErrorMessage(e, t, "errors.generic", "resolution"));

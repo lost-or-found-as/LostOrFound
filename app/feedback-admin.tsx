@@ -4,11 +4,13 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { requireAccount } from "../src/ui/AccountRequired";
+import { SkeletonDetail, SkeletonList } from "../src/ui/Skeleton";
 import { useI18n } from "../src/i18n/I18nProvider";
 import { formatDateTimeCustom } from "../src/i18n/formatters";
 import { Button, EmptyState, ScreenHeader } from "../src/ui/kit";
 import { InlineNotice } from "../src/ui/InlineNotice";
 import { theme } from "../src/ui/theme";
+import { animateNextLayout } from "../src/lib/haptics";
 import {
   FEEDBACK_KIND_KEYS,
   FEEDBACK_REPLY_MAX,
@@ -68,6 +70,7 @@ function Screen() {
     try {
       setBusyId(id);
       await markFeedbackDone(id);
+      animateNextLayout();
       setItems((prev) => prev.filter((x) => x.id !== id));
     } catch {
       setError(t("feedbackAdmin.updateError"));
@@ -96,6 +99,7 @@ function Screen() {
     try {
       setBusyId(id);
       await reopenFeedback(id);
+      animateNextLayout();
       setItems((prev) => prev.filter((x) => x.id !== id));
     } catch {
       setError(t("feedbackAdmin.updateError"));
@@ -126,9 +130,7 @@ function Screen() {
         </View>
       </ScreenHeader>
       {loading ? (
-        <View style={s.center}>
-          <ActivityIndicator />
-        </View>
+        <SkeletonList rows={4} thumb={false} />
       ) : (
         <ScrollView
           contentContainerStyle={s.content}

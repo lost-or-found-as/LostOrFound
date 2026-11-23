@@ -2,7 +2,7 @@
 // T1.9W: Home. Header with an explanation sheet, a summary of the user's cases, two big
 // action tiles (lost / found) and a shortcut to nearby alerts.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,6 +15,7 @@ import { InfoButton } from "../../src/ui/kit";
 import { registerRoute, useNewRegistration } from "../../src/lib/newRegistration";
 import { greetingKey } from "../../src/lib/greeting";
 import { registerLogoTap, seasonFor } from "../../src/lib/easterEggs";
+import { introSeen } from "../../src/lib/intro";
 import { fetchHomeSummary, readCachedHomeSummary, writeCachedHomeSummary, type HomeSummary } from "../../src/lib/homeSummary";
 
 const HOW_STEPS = [
@@ -89,6 +90,17 @@ export default function DashboardScreen() {
       Animated.timing(pinDrop, { toValue: 2, duration: 300, useNativeDriver: true }),
     ]).start(() => setEgg(null));
   };
+
+  // T1.9BQ: the short intro once per install, the first time Home opens.
+  useEffect(() => {
+    let live = true;
+    void introSeen().then((seen) => {
+      if (live && !seen) router.push("/intro");
+    });
+    return () => {
+      live = false;
+    };
+  }, [router]);
 
   // T1.9BN: greeting by time of day, refreshed whenever Home comes into view.
   const [greeting, setGreeting] = useState(() => greetingKey());
@@ -339,7 +351,46 @@ export default function DashboardScreen() {
   );
 }
 
+// T1.9BQ: a number that counts up (or down) to its new value, quickly. Shown at once with
+// reduced motion.
+function useCountTo(value: number) {
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    let frame = 0;
+    let live = true;
+    const start = from.current;
+    if (start === value) return;
+    void AccessibilityInfo.isReduceMotionEnabled()
+      .catch(() => false)
+      .then((still) => {
+        if (!live) return;
+        if (still) {
+          from.current = value;
+          setShown(value);
+          return;
+        }
+        const t0 = Date.now();
+        const step = () => {
+          const p = Math.min(1, (Date.now() - t0) / 450);
+          const eased = 1 - Math.pow(1 - p, 3);
+          setShown(Math.round(start + (value - start) * eased));
+          if (p < 1) frame = requestAnimationFrame(step);
+          else from.current = value;
+        };
+        frame = requestAnimationFrame(step);
+      });
+    return () => {
+      live = false;
+      cancelAnimationFrame(frame);
+      from.current = value;
+    };
+  }, [value]);
+  return shown;
+}
+
 function SummaryCount({ value, label, onPress }: { value: number; label: string; onPress: () => void }) {
+  const shown = useCountTo(value);
   return (
     <Pressable
       accessibilityRole="button"
@@ -348,8 +399,10 @@ function SummaryCount({ value, label, onPress }: { value: number; label: string;
       hitSlop={6}
       style={({ pressed }) => [styles.summaryCount, pressed && styles.pressed]}
     >
-      <Text style={styles.summaryValue}>{value}</Text>
-      <Text style={styles.summaryCountLabel} numberOfLines={2}>
+      <Text style={styles.summaryValue} maxFontSizeMultiplier={1.3}>
+        {shown}
+      </Text>
+      <Text style={styles.summaryCountLabel} numberOfLines={2} maxFontSizeMultiplier={1.4}>
         {label}
       </Text>
     </Pressable>

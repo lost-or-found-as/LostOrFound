@@ -2,6 +2,7 @@
 // Match list: premium header, latest-message status, sender, and unread indicator.
 // Behavior: reportId identifies the current case; chat opens only when status is CONFIRMED.
 import { requireAccount } from "../src/ui/AccountRequired";
+import { SkeletonDetail, SkeletonList } from "../src/ui/Skeleton";
 import React, {
   useCallback,
   useEffect,
@@ -872,10 +873,7 @@ function MatchScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       {header}
       {loading && !matches.length ? (
-        <View style={list.center}>
-          <ActivityIndicator />
-          <Text style={list.meta}>{t("match.loading.matches")}</Text>
-        </View>
+        <SkeletonList rows={3} />
       ) : (
         <FlatList
           style={list.flex}
