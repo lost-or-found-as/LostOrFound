@@ -87,5 +87,19 @@
   "image.held.NUDITY": "es zeigt Nacktheit.",
   "image.held.DOCUMENT": "es zeigt eine Karte oder ein Dokument mit persönlichen Daten.",
   "image.held.VIOLENCE": "es zeigt Gewalt oder Blut.",
-  "image.held.OTHER": "es passt nicht zu einem öffentlichen Fall."
+  "image.held.OTHER": "es passt nicht zu einem öffentlichen Fall.",
+  "push.trustQuestion.title": "Der Finder hat eine Kontrollfrage",
+  "push.trustQuestion.body": "Antworte im Chat, damit der Finder weiß, dass der Gegenstand dir gehört.",
+  "push.trustAnswer.title": "Der Eigentümer hat die Kontrollfrage beantwortet",
+  "push.trustAnswer.body": "Sieh dir die Antwort im Chat an und sag, ob sie stimmt.",
+  "push.trustConfirmed.title": "Deine Antwort hat gestimmt",
+  "push.trustConfirmed.body": "Der Finder hat deine Antwort bestätigt. Vereinbart die Übergabe im Chat.",
+  "push.trustRetry.title": "Die Antwort hat nicht gestimmt",
+  "push.trustRetry.body": "Du kannst es noch einmal versuchen. Sieh dir die Kontrollfrage im Chat an.",
+  "push.trustNoMatch.title": "Die Antworten haben nicht gestimmt",
+  "push.trustNoMatch.body": "Der Finder kann im Chat eine neue Frage stellen.",
+  "push.trustHandedOver.title": "Der Gegenstand ist zurück",
+  "push.trustHandedOver.body": "Der Finder hat deinen Code eingegeben. Der Fall ist gelöst.",
+  "push.thanksReceived.title": "Du hast eine Dankeskarte bekommen",
+  "push.thanksReceived.body": "Der Eigentümer möchte sich für deine Hilfe bedanken."
 }

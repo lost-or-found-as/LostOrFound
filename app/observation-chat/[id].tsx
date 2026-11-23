@@ -4,6 +4,7 @@
 import { requireAccount } from "../../src/ui/AccountRequired";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { TrustPanel } from "../../src/ui/TrustPanel";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -182,6 +183,8 @@ function Screen() {
             ListHeaderComponent={
               <View style={s.listHeader}>
                 <InlineNotice tone="warning" icon="shield-checkmark-outline" title={t("chat.safety")} style={s.noMargin} />
+                {/* T1.9BP: control question, safe handover with code, thank-you card. */}
+                <TrustPanel kind="OBSERVATION" id={observationId} refreshKey={`${solved?.closesAt || ""}:${messages.length}`} onResolved={() => void resolution.reload?.()} hidden={safety.state.closed || !observationId} />
                 {reportSent && <InlineNotice tone="success" icon="checkmark-circle-outline" title={t("safety.reportSent")} style={s.noMargin} />}
                 {!!loadError && (
                   <InlineNotice

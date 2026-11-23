@@ -335,6 +335,10 @@ function NotificationsScreen() {
           return;
         }
         // T1.9AX: bonus notices open «Din bonus».
+        if (notificationType === "THANKS_RECEIVED") {
+          router.push("/thanks");
+          return;
+        }
         if (notificationType === "BONUS_AWARDED") {
           router.push("/bonus");
           return;
@@ -361,6 +365,11 @@ function NotificationsScreen() {
         // T1.9BJ: bonus and feedback notices.
         if (resolved.target_kind === "bonus") {
           router.push("/bonus");
+          return;
+        }
+        // T1.9BP: a thank-you card.
+        if (resolved.target_kind === "thanks") {
+          router.push("/thanks");
           return;
         }
         if (resolved.target_kind === "feedback") {

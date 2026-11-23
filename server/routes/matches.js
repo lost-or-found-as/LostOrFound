@@ -28,6 +28,7 @@ const requireUser = authModule?.requireUser || authModule;
 const { notifyUser } = require("../lib/userNotify");
 const { localizedPair } = require("../lib/messages");
 const { redactCustodyForViewer } = require("../lib/reportCustody");
+const { custodyLocked } = require("../lib/trust");
 const { checkLimit, limitResponse } = require("../lib/rateLimits");
 const { isChatClosed } = require("../lib/chatSafetyStore");
 
@@ -363,7 +364,19 @@ router.get("/:id", requireUser, async (req, res) => {
       }
     }
 
-    const shown = dropHeldImages(redactCustodyForViewer(enrichMatchColorInfo(enrichMatchAreaInfo(match)), user.id), user.id);
+    let shown = dropHeldImages(redactCustodyForViewer(enrichMatchColorInfo(enrichMatchAreaInfo(match)), user.id), user.id);
+    // T1.9BP: while the finder's control question is open or did not match, the owner does not
+    // see where the item was handed in.
+    if (shown?.lost?.user_id === user.id && shown?.found?.custody_place != null) {
+      const cq = await supaAdmin
+        .from("control_questions")
+        .select("status,created_at")
+        .eq("context_type", "MATCH")
+        .eq("context_id", match.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (!cq.error && custodyLocked(cq.data || [])) shown = { ...shown, custody_locked: true, found: { ...shown.found, custody_place: null } };
+    }
     return res.json({
       match: access === "preview" ? previewMatchForViewer(shown, user.id) : shown,
       counterpart_helper: access === "preview" ? null : counterpartHelper,

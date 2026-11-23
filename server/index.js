@@ -259,6 +259,8 @@ try {
 try { const bonusRoutes=require("./routes/bonus"); app.use("/bonus",bonusRoutes); console.log("[BOOT] Mounted /bonus routes"); } catch(e){ console.warn("[BOOT] /bonus NOT mounted:",e?.message||e); }
 try { const inboxRoutes=require("./routes/inbox"); app.use("/inbox",inboxRoutes); console.log("[BOOT] Mounted /inbox routes"); } catch(e){ console.warn("[BOOT] /inbox NOT mounted:",e?.message||e); }
 try { const resolutionRoutes=require("./routes/resolutions"); app.use("/resolutions",resolutionRoutes); console.log("[BOOT] Mounted /resolutions routes"); } catch(e){ console.warn("[BOOT] /resolutions NOT mounted:",e?.message||e); }
+// T1.9BP: control questions, handover code and thank-you cards.
+try { const trustRoutes=require("./routes/trust"); app.use("/trust",trustRoutes); console.log("[BOOT] Mounted /trust routes"); } catch(e){ console.warn("[BOOT] /trust NOT mounted:",e?.message||e); }
 
 // ---- Mount /geo ----
 try {

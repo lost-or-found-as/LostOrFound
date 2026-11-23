@@ -94,5 +94,19 @@
   "image.held.NUDITY": "bildet viser nakenhet.",
   "image.held.DOCUMENT": "bildet viser et kort eller dokument med personopplysninger.",
   "image.held.VIOLENCE": "bildet viser vold eller blod.",
-  "image.held.OTHER": "bildet passer ikke for en offentlig sak."
+  "image.held.OTHER": "bildet passer ikke for en offentlig sak.",
+  "push.trustQuestion.title": "Finneren har et kontrollspørsmål",
+  "push.trustQuestion.body": "Svar i chatten, så vet finneren at tingen er din.",
+  "push.trustAnswer.title": "Eieren har svart på kontrollspørsmålet",
+  "push.trustAnswer.body": "Se svaret i chatten og si om det stemmer.",
+  "push.trustConfirmed.title": "Svaret ditt stemte",
+  "push.trustConfirmed.body": "Finneren har bekreftet svaret ditt. Avtal overlevering i chatten.",
+  "push.trustRetry.title": "Svaret stemte ikke",
+  "push.trustRetry.body": "Du kan prøve igjen. Se kontrollspørsmålet i chatten.",
+  "push.trustNoMatch.title": "Svarene stemte ikke",
+  "push.trustNoMatch.body": "Finneren kan stille et nytt spørsmål i chatten.",
+  "push.trustHandedOver.title": "Tingen er levert tilbake",
+  "push.trustHandedOver.body": "Finneren tastet koden din. Saken er løst.",
+  "push.thanksReceived.title": "Du har fått et takkekort",
+  "push.thanksReceived.body": "Eieren vil takke deg for hjelpen."
 }

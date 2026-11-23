@@ -57,7 +57,7 @@ const visDispatch = dispatch.slice(dispatch.indexOf("async function dispatchArea
 ok(/geo_alert_create_in_app_notifications/.test(visDispatch) && !/expoSend|geo_alert_eligible_installations/.test(visDispatch), "no push for visibility");
 ok(/kind === "VISIBILITY"/.test(read("server/routes/geoAlertPreview.js")), "preview prices visibility");
 ok(/getAreaAlertAccess\(c,u\)/.test(read("server/routes/observations.js")), "people without push can report a sighting");
-ok(/AREA_VISIBILITY_TIER_\*/.test(read("server/routes/resolutions.js")), "resolving a case ends visibility too");
+ok(/AREA_VISIBILITY_TIER_\*/.test(read("server/lib/resolutionCore.js")), "resolving a case ends visibility too (T1.9BP: lib/resolutionCore.js)");
 const { buildReportActivity } = require(path.join(root, "server/lib/reportActivity.js"));
 const act = buildReportActivity({ report: { id: "r", user_id: "u", type: "LOST", created_at: "2026-11-10T10:00:00Z" }, campaigns: [{ kind: "VISIBILITY", activated_at: "2026-11-11T10:00:00Z", radius_m: 1000 }, { activated_at: "2026-11-12T10:00:00Z" }] });
 eq(act.events.map((e) => e.type), ["AREA_ALERT_SENT", "AREA_VISIBILITY", "CREATED"], "timeline tells the kinds apart");

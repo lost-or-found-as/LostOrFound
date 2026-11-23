@@ -28,6 +28,11 @@ const USER_TABLES = Object.freeze([
   ["helper_bonus_ledger", "user_id", ["counterpart_user_id", "source_id", "report_id"]],
   ["chat_reports", "reporter_id", ["reported_user_id", "message_snapshot", "handled_by"]],
   ["user_blocks", "blocker_id", ["blocked_id"]],
+  // T1.9BP: questions the user asked, cards sent and received (without the other person's id).
+  ["control_questions", "asked_by", ["owner_id"]],
+  ["control_questions", "owner_id", ["asked_by"]],
+  ["thank_you_cards", "from_user", ["to_user"]],
+  ["thank_you_cards", "to_user", ["from_user"]],
 ]);
 
 // Rows that belong to the user's own cases.
@@ -71,7 +76,8 @@ async function buildPrivacyExport(supa, account, now = new Date()) {
   };
   for (const [table, column, omit] of USER_TABLES) {
     const r = await readTable(supa, table, column, account.id, omit);
-    out.tables[table] = r.rows;
+    // T1.9BP: a table can be listed twice (asked and answered, sent and received).
+    out.tables[table] = [...(out.tables[table] || []), ...(r.rows || [])];
     if (r.error) out.problems.push({ table, error: r.error });
   }
   const reportIds = (out.tables.reports || []).map((r) => r.id).filter(Boolean);

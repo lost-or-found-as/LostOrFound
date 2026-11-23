@@ -96,6 +96,8 @@ async function resolveNotificationTarget(notification, userId) {
 
   // T1.9BJ: bonus notices open «Din bonus»; admin notices open the admin screens.
   if (type === "BONUS_AWARDED" || entityType === "bonus") return { ok: true, kind: "bonus", id: entityId };
+  // T1.9BP: a thank-you card opens «Takkekort».
+  if (type === "THANKS_RECEIVED" || entityType === "thanks") return { ok: true, kind: "thanks", id: entityId };
   if (type === "FEEDBACK" || entityType === "feedback") {
     return isAdmin(userId)
       ? { ok: true, kind: "feedback", id: entityId }
@@ -152,7 +154,8 @@ async function resolveNotificationTarget(notification, userId) {
       };
     }
 
-    return type === "NEW_MESSAGE"
+    // T1.9BP: control-question notices open the chat too.
+    return type === "NEW_MESSAGE" || type.startsWith("TRUST_") || entityType === "chat"
       ? { ok: true, kind: "chat", id: entityId }
       : { ok: true, kind: "match", id: entityId };
   }

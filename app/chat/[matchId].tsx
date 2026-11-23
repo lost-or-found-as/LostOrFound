@@ -35,6 +35,7 @@ import { InlineNotice } from "../../src/ui/InlineNotice";
 import { Button, ConfirmSheet, ScreenHeader } from "../../src/ui/kit";
 import { toHelperStatus, type HelperStatus } from "../../src/lib/helperBonus";
 import { HelperBadge } from "../../src/ui/HelperBadge";
+import { TrustPanel } from "../../src/ui/TrustPanel";
 import { ChatClosedBar, ChatSafetyMenu, useChatSafety } from "../../src/ui/ChatSafety";
 import { unblockChatPartner } from "../../src/lib/chatSafety";
 import type { Lang } from "../../src/i18n/languages";
@@ -407,6 +408,8 @@ function ChatScreen() {
             ListHeaderComponent={
               <View style={styles.listHeader}>
                 <InlineNotice tone="warning" icon="shield-checkmark-outline" title={t("chat.safety")} style={styles.noMargin} />
+                {/* T1.9BP: control question, safe handover with code, thank-you card. */}
+                <TrustPanel kind="MATCH" id={String(matchId)} refreshKey={`${status}:${messages.length}`} onResolved={() => void loadResolution()} hidden={safety.state.closed} />
                 {reportSent && <InlineNotice tone="success" icon="checkmark-circle-outline" title={t("safety.reportSent")} style={styles.noMargin} />}
                 {!!error && <InlineNotice tone="error" title={error} style={styles.noMargin} />}
               </View>

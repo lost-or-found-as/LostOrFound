@@ -52,6 +52,15 @@ const EXACT: Record<string, TranslationKey> = {
   // T1.9BM: the case was solved more than 7 days ago.
   CHAT_CLOSED_AFTER_SOLVED: "chat.solvedClosed",
   MATCH_PREVIEW_ONLY: "match.previewOnly",
+  // T1.9BP: trust tools.
+  CODE_WRONG: "trust.err.codeWrong",
+  CODE_LOCKED: "trust.codeLocked",
+  CODE_USED: "trust.err.codeUsed",
+  CASE_RESOLVED: "trust.err.resolved",
+  QUESTION_LIMIT: "trust.err.questionLimit",
+  QUESTION_OPEN: "trust.err.questionOpen",
+  THANKS_TEXT_NOT_ALLOWED: "trust.err.thanksText",
+  THANKS_ALREADY_SENT: "trust.err.thanksSent",
   // T1.9AY: protection of public content.
   EMAIL_NOT_VERIFIED: "errors.emailNotVerified",
   PUBLIC_TEXT_NOT_ALLOWED: "errors.publicText",

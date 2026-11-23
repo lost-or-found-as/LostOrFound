@@ -23,7 +23,8 @@ const hb = read("server/lib/helperBonus.js");
 ok(/counterpartUserId && !testPair && \(await sharedDevice/.test(hb) && /counterpartUserId && !testPair && PAIR_EVENTS\.has/.test(hb) && /caseReportId && !testPair && CASE_AGE_EVENTS/.test(hb), "test pair skips device, pair and age");
 ok(/nextPendingAt,\s*pendingReturns,/.test(hb), "summary says when and how many returns wait");
 
-const res = read("server/routes/resolutions.js");
+// T1.9BP: the bonus rules moved to lib/resolutionCore.js.
+const res = read("server/routes/resolutions.js") + read("server/lib/resolutionCore.js");
 ok(/observation_type==="FOUND"\?"RETURN_CONFIRMED":"SIGHTING_RESOLVED"/.test(res.replace(/\s/g, "").replace('String(p.observation?.observation_type||"").toUpperCase()', "observation_type")), "found and returned is a return");
 ok(/campaign_id,observation_type"\)/.test(res), "type loaded");
 

@@ -94,5 +94,19 @@
   "image.held.NUDITY": "it shows nudity.",
   "image.held.DOCUMENT": "it shows a card or document with personal details.",
   "image.held.VIOLENCE": "it shows violence or blood.",
-  "image.held.OTHER": "it does not suit a public case."
+  "image.held.OTHER": "it does not suit a public case.",
+  "push.trustQuestion.title": "The finder has a control question",
+  "push.trustQuestion.body": "Answer in the chat so the finder knows the item is yours.",
+  "push.trustAnswer.title": "The owner has answered the control question",
+  "push.trustAnswer.body": "See the answer in the chat and say whether it matches.",
+  "push.trustConfirmed.title": "Your answer matched",
+  "push.trustConfirmed.body": "The finder confirmed your answer. Agree on the handover in the chat.",
+  "push.trustRetry.title": "The answer did not match",
+  "push.trustRetry.body": "You can try again. See the control question in the chat.",
+  "push.trustNoMatch.title": "The answers did not match",
+  "push.trustNoMatch.body": "The finder can ask a new question in the chat.",
+  "push.trustHandedOver.title": "The item is back with you",
+  "push.trustHandedOver.body": "The finder entered your code. The case is solved.",
+  "push.thanksReceived.title": "You received a thank-you card",
+  "push.thanksReceived.body": "The owner wants to thank you for your help."
 }
