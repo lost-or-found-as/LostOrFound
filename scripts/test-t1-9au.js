@@ -17,7 +17,8 @@ ok(/const drawingShape = selectedArea \? selectedArea\.kind !== "CIRCLE" : mode 
 ok(/if \(isFound\) \{\s*setFoundPin\(point\);\s*\} else if \(drawingShape\) \{/.test(map), "route or area: the map only moves");
 ok(/mapRef\.current\?\.animateToRegion\(\{ \.\.\.point, latitudeDelta: 0\.02, longitudeDelta: 0\.02 \}, 250\);\s*\};/.test(map), "the map still moves to the point");
 ok((map.match(/showsUserLocation=\{showUser\}/g) || []).length === 2, "blue dot on both maps after my location");
-ok(/setShowUser\(true\);\s*placePoint\(point\);/.test(map), "dot switched on by my location");
+// Fix after build 12: for a lost case my location only moves the map (the tabs stay); found still gets a pin.
+ok(/setShowUser\(true\);[\s\S]{0,260}if \(isFound\) placePoint\(point\);/.test(map), "dot switched on by my location");
 
 // 2. The small preview map zooms to the chosen place.
 ok(/function PreviewMap\(/.test(form) && /onMapReady=\{\(\) => ref\.current\?\.animateToRegion\(region, 0\)\}/.test(form), "preview moves itself once ready");

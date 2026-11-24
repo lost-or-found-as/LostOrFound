@@ -303,7 +303,10 @@ export default function MapPickerScreen() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const point = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       setShowUser(true);
-      placePoint(point);
+      // Found: the pin goes where you are. Lost: only the map moves to you (with the blue dot), so
+      // the place, route and area tabs stay open and you tap where it may have been lost.
+      if (isFound) placePoint(point);
+      else fitCircle(point, selectedArea?.kind === "CIRCLE" ? Number(selectedArea.radiusMeters || radius) : radius);
     } catch {
       setNotice({ tone: "warning", title: t("report.map.location.failedTitle"), body: t("report.map.location.failedBody") });
     } finally {

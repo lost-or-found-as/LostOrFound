@@ -166,6 +166,8 @@ const eq = (a, b, msg) => { assert.deepStrictEqual(a, b, msg); n++; };
   ok(/type\.startsWith\("RESOLUTION_"\)/.test(read("src/lib/pushNotifications.ts")), "push for a close proposal opens the chat");
   ok(/THANKS_BLOCKING = new Set\(\["HARASSMENT", "HATE", "SEXUAL"\]\)/.test(read("server/routes/trust.js")), "a name in a thank-you card is allowed");
 
+  ok(/if \(isFound\) placePoint\(point\);\s*else fitCircle\(point/.test(map), "my location only moves the map for a lost case; the tabs stay");
+
   // Notifications follow the app's language.
   const msgs = require(path.join(root, "server/lib/messages.js"));
   const pair = msgs.localizedPair("bonus.awarded.title", { points: 3 });
