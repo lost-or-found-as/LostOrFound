@@ -2,10 +2,10 @@
 // T1.9S: sign in, create account, check-your-e-mail and forgot password in one screen.
 // - The back button goes back, or to the start page when there is nothing behind.
 // - Guests can explore the app and report found items; a lost report needs an account.
-// - Google is offered on Android only until Sign in with Apple can be added on iPhone
-//   (Apple requires both together).
+// - T1.9BV: Sign in with Apple on iPhone, and Google on both platforms (Apple requires Apple
+//   sign-in whenever another sign-in service is offered).
 // - Errors are shown in the screen, never as system alerts.
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -31,9 +31,11 @@ import { codedError, userErrorMessage } from "../../src/lib/userError";
 import { openLegal } from "../../src/lib/legal";
 import { InlineNotice } from "../../src/ui/InlineNotice";
 import { BottomSheet, Button, IconButton } from "../../src/ui/kit";
+import * as AppleAuthentication from "expo-apple-authentication";
+import { appleSignInAvailable, isCancelled, signInWithApple, signInWithGoogleInApp } from "../../src/lib/socialSignIn";
 
 type Mode = "login" | "signup" | "checkEmail";
-const SHOW_GOOGLE = Platform.OS === "android";
+const SHOW_GOOGLE = true;
 
 function withTimeout<T>(p: Promise<T>, ms = 20000) {
   return Promise.race<T>([p, new Promise<T>((_, reject) => setTimeout(() => reject(codedError("TIMEOUT")), ms))]);
@@ -53,7 +55,15 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState<null | "email" | "google" | "guest" | "resend">(null);
+  const [busy, setBusy] = useState<null | "email" | "google" | "apple" | "guest" | "resend">(null);
+  const [appleReady, setAppleReady] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void appleSignInAvailable().then((ok) => live && setAppleReady(ok));
+    return () => {
+      live = false;
+    };
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
@@ -135,17 +145,43 @@ export default function LoginScreen() {
     }
   };
 
+  // T1.9BV: after Apple, or Google on iPhone, the session is already set here.
+  const finishSocial = async () => {
+    const uid = (await supabase.auth.getSession()).data.session?.user?.id;
+    if (uid) await ensureProfileRow(uid).catch(() => {});
+    await refresh();
+    setTimeout(goToApp, 50);
+  };
+
+  const signInApple = async () => {
+    setBusy("apple");
+    setError(null);
+    try {
+      await signInWithApple();
+      await finishSocial();
+    } catch (e) {
+      if (!isCancelled(e)) setError(userErrorMessage(e, t, "auth.login.unknown.error", "auth.apple"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const signInGoogle = async () => {
     setBusy("google");
     setError(null);
     try {
+      if (Platform.OS === "ios") {
+        await signInWithGoogleInApp();
+        await finishSocial();
+        return;
+      }
       await rememberGuestForClaim();
       const res: any = await withTimeout(supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } }) as any);
       if (res?.error) throw res.error;
       if (!res?.data?.url) throw codedError("OAUTH_NOT_READY");
       await Linking.openURL(res.data.url);
     } catch (e) {
-      setError(userErrorMessage(e, t, "auth.login.unknown.error", "auth.oauth"));
+      if (!isCancelled(e)) setError(userErrorMessage(e, t, "auth.login.unknown.error", "auth.oauth"));
     } finally {
       setBusy(null);
     }
@@ -310,6 +346,22 @@ export default function LoginScreen() {
             <View style={s.line} />
           </View>
 
+          {appleReady && (
+            <View pointerEvents={busy ? "none" : "auto"} style={busy === "apple" ? s.pressed : undefined}>
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={
+                  signup
+                    ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
+                    : AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
+                }
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={14}
+                style={s.apple}
+                onPress={() => void signInApple()}
+              />
+            </View>
+          )}
+
           {SHOW_GOOGLE && (
             <Pressable
               accessibilityRole="button"
@@ -416,6 +468,7 @@ const s = StyleSheet.create({
     gap: 10,
   },
   socialText: { fontSize: 16, fontWeight: "800", color: theme.colors.text },
+  apple: { width: "100%", height: 52 },
   guest: {
     minHeight: 76,
     borderRadius: 16,

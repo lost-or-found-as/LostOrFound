@@ -63,6 +63,28 @@ router.post("/claim-guest-reports", requireUser, async (req, res) => {
 // The work itself lives in lib/accountDeletion.js (T1.9AQ), shared with the admin script.
 const { deleteAccount } = require("../lib/accountDeletion");
 
+// T1.9BV: POST /account/apple-token  body: { authorizationCode }
+// After Sign in with Apple the app sends the one-time code; Apple's refresh token is kept so it
+// can be revoked when the account is deleted. Failing here never blocks the sign-in.
+router.post("/apple-token", requireUser, async (req, res) => {
+  try {
+    const apple = require("../lib/appleSignIn");
+    const result = await apple.exchangeCode(String(req.body?.authorizationCode || ""));
+    if (!result.ok) {
+      if (result.reason !== "APPLE_NOT_CONFIGURED") console.warn("[account] apple code exchange failed", result.reason);
+      return res.json({ ok: false, reason: result.reason });
+    }
+    const up = await supaAdmin
+      .from("apple_sign_in_tokens")
+      .upsert({ user_id: req.user.id, refresh_token: result.refreshToken, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    if (up.error) throw up.error;
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("[account] apple token failed", e?.message ?? e);
+    return res.status(500).json({ error: "APPLE_TOKEN_FAILED" });
+  }
+});
+
 // DELETE /account   (registered accounts; a guest has no sign-in to delete beyond its found reports)
 router.delete("/", requireUser, async (req, res) => {
   try {

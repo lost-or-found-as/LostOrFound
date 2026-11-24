@@ -38,6 +38,8 @@ const USER_TABLES = Object.freeze([
   ["tag_threads", "owner_id", ["finder_token_hash", "visitor_key"]],
   // T1.9BT: Live Activities the user started (without the device token).
   ["live_activity_tokens", "user_id", ["push_token"]],
+  // T1.9BV: that Apple sign-in can be revoked (not the token itself).
+  ["apple_sign_in_tokens", "user_id", ["refresh_token"]],
 ]);
 
 // Rows that belong to the user's own cases.

@@ -64,7 +64,8 @@
         ],
         "NSLocationWhenInUseUsageDescription": "Lost or Found uses your location to help you report where an item was lost or found.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "usesAppleSignIn": true
     },
     "plugins": [
       [
@@ -115,7 +116,8 @@
             }
           ]
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "userInterfaceStyle": "light"
   }

@@ -42,6 +42,9 @@ async function deleteAccount(userId, { supa, deleteOwnedReport, log = console })
     const del = await supa.from(table).delete().eq(column, userId);
     if (del.error) log.warn(`[account] delete: ${table} cleanup failed`, del.error.message);
   }
+  // T1.9BV: Apple requires revoking Sign in with Apple when the account is deleted. Best effort:
+  // a failure is logged, the deletion goes on.
+  await require("./appleSignIn").revokeForUser(supa, userId, { log });
   const { error: authError } = await supa.auth.admin.deleteUser(userId);
   if (authError) {
     log.error("[account] delete: auth user failed", authError.message);

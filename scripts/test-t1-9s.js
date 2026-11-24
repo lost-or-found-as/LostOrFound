@@ -18,7 +18,8 @@ const login = read("app/(auth)/login.tsx");
 ok(/router\.canGoBack\(\) \? router\.back\(\) : router\.replace\("\/"/.test(login), "back button always goes somewhere");
 ok(!/\bAlert\b/.test(login), "no system alerts");
 ok(!/remember\.me|setRemember/.test(login), "no 'remember me' that does nothing");
-ok(/const SHOW_GOOGLE = Platform\.OS === "android";/.test(login) && !/provider: "apple"|apple\.coming/.test(login), "Google on Android only, no dead Apple button");
+// T1.9BV: Apple on iPhone (only where available) and Google on both platforms replaced the Android-only Google button.
+ok(/const SHOW_GOOGLE = true;/.test(login) && /appleReady &&/.test(login) && !/apple\.coming/.test(login), "Google on both platforms, Apple only where it works");
 ok(/resetPasswordForEmail\(forgotEmail\.trim\(\), \{ redirectTo: recoveryRedirect \}\)/.test(login), "forgot password sends a link");
 ok(/createURL\("auth-callback", \{ queryParams: \{ next: "new-password" \} \}\)/.test(login), "the link opens the new-password screen");
 ok(/supabase\.auth\.resend\(\{ type: "signup"/.test(login), "confirmation can be sent again");
