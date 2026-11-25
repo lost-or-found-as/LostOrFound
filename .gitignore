@@ -53,3 +53,8 @@ supabase/.temp/
 # T1.9AO: data exports for access requests are personal data
 innsyn-*.json
 statistikk-*.html
+
+# T1.9BW: Firebase files (google-services.json comes from an EAS file variable; service account keys never in git)
+google-services.json
+GoogleService-Info.plist
+*firebase-adminsdk*.json
