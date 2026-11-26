@@ -59,7 +59,8 @@ ok(/router\.push\(`\/chat\/\$\{item\.id\}`\)/.test(screen) && /router\.push\(`\/
 ok(/export default requireAccount\(MessagesScreen\)/.test(screen), "accounts only");
 ok(/setLastSeen\(`obs:\$\{id\}`\)/.test(read("app/observation-chat/[id].tsx")), "sighting chats marked read");
 const home = read("app/(tabs)/index.tsx");
-ok(/t\("home\.messagesBody"\)/.test(home), "Home has Meldinger");
+// T1.9BY: Home reaches Meldinger through the summary count, not a row of its own.
+ok(/router\.push\("\/messages"\)/.test(home), "Home reaches Meldinger");
 ok(/key: "messages", icon: "chatbubbles-outline"/.test(read("app/(tabs)/profile.tsx")), "Profile has Meldinger");
 ok(/return "solved";/.test(read("app/area-alert/[id].tsx")), "solved alert said plainly");
 

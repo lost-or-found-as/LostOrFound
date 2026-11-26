@@ -2313,4 +2313,9 @@ export const no: TranslationDictionary = {
   // T1.9BT fix: fold the map panel.
   "report.map.panel.hide": "Skjul valg og se hele kartet",
   "report.map.panel.show": "Vis valg",
+  // T1.9BY: signed out on Home and Profile.
+  "home.signedOut.title": "Du er ikke innlogget",
+  "home.signedOut.body": "Logg inn for å følge sakene dine",
+  "profile.signedOut.title": "Ikke innlogget",
+  "profile.signedOut.body": "Trykk for å logge inn",
 };

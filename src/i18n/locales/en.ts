@@ -2317,6 +2317,11 @@ export const en = {
   // T1.9BT fix: fold the map panel.
   "report.map.panel.hide": "Hide options to see the whole map",
   "report.map.panel.show": "Show options",
+  // T1.9BY: signed out on Home and Profile.
+  "home.signedOut.title": "You're not signed in",
+  "home.signedOut.body": "Sign in to follow your cases",
+  "profile.signedOut.title": "Not signed in",
+  "profile.signedOut.body": "Tap to sign in",
 } as const;
 
 export type TranslationKey = keyof typeof en;

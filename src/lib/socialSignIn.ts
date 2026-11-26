@@ -50,14 +50,17 @@ async function sendAppleCode(authorizationCode: string | null) {
 
 export async function signInWithApple(): Promise<void> {
   if (!(await appleSignInAvailable())) throw codedError("APPLE_SIGNIN_UNAVAILABLE");
-  await rememberGuestForClaim();
   const rawNonce = Crypto.randomUUID();
   const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+  // T1.9BY: Apple's sheet opens first, before anything waits on Supabase, so the button always
+  // answers. The guest session is remembered afterwards (with a time limit), still before the
+  // new sign-in replaces it.
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [AppleAuthentication.AppleAuthenticationScope.EMAIL],
     nonce: hashedNonce,
   });
   if (!credential.identityToken) throw codedError("APPLE_NO_TOKEN");
+  await rememberGuestForClaim();
   const { error } = await supabase.auth.signInWithIdToken({ provider: "apple", token: credential.identityToken, nonce: rawNonce });
   if (error) throw error;
   await sendAppleCode(credential.authorizationCode);

@@ -205,15 +205,34 @@ export default function ProfileTab() {
           {t("profile.title")}
         </Text>
 
-        <View style={styles.accountCard}>
-          <View style={styles.avatar}>
-            <Ionicons name={isGuest ? "person-outline" : "person"} size={26} color={theme.colors.primary} />
+        {/* T1.9BY: signed out, the card says so and opens the sign-in. */}
+        {!user ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t("profile.signedOut.title")}. ${t("profile.signedOut.body")}`}
+            onPress={() => router.push({ pathname: "/(auth)/login", params: { mode: "login", returnTo: "/(tabs)/profile" } })}
+            style={({ pressed }) => [styles.accountCard, pressed && { opacity: 0.86 }]}
+          >
+            <View style={styles.avatar}>
+              <Ionicons name="person-outline" size={26} color={theme.colors.primary} />
+            </View>
+            <View style={styles.accountText}>
+              <Text style={styles.accountTitle}>{t("profile.signedOut.title")}</Text>
+              <Text style={styles.accountSub}>{t("profile.signedOut.body")}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+          </Pressable>
+        ) : (
+          <View style={styles.accountCard}>
+            <View style={styles.avatar}>
+              <Ionicons name={isGuest ? "person-outline" : "person"} size={26} color={theme.colors.primary} />
+            </View>
+            <View style={styles.accountText}>
+              <Text style={styles.accountTitle}>{isGuest ? t("profile.guest") : t("profile.account")}</Text>
+              <Text style={styles.accountSub}>{email || (isGuest ? t("profile.guestBody") : t("profile.noEmail"))}</Text>
+            </View>
           </View>
-          <View style={styles.accountText}>
-            <Text style={styles.accountTitle}>{isGuest ? t("profile.guest") : t("profile.account")}</Text>
-            <Text style={styles.accountSub}>{email || (isGuest ? t("profile.guestBody") : t("profile.noEmail"))}</Text>
-          </View>
-        </View>
+        )}
 
         {isGuest && (
           <View style={styles.stack}>

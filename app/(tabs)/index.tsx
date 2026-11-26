@@ -1,6 +1,8 @@
 ﻿// app/(tabs)/index.tsx
 // T1.9W: Home. Header with an explanation sheet, a summary of the user's cases, two big
-// action tiles (lost / found) and a shortcut to nearby alerts.
+// action tiles (lost / found).
+// T1.9BY: cleaner Home: bigger logo and name, "how it works" only behind the info button,
+// messages through the summary count, no nearby shortcut, and a sign-in card when signed out.
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -9,7 +11,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { useI18n } from "../../src/i18n/I18nProvider";
 import { isAnonymousUser } from "../../src/lib/authGate";
-import { AuthHeaderAction } from "../../src/ui/AuthHeaderAction";
 import { theme } from "../../src/ui/theme";
 import { InfoButton } from "../../src/ui/kit";
 import { registerRoute, useNewRegistration } from "../../src/lib/newRegistration";
@@ -211,8 +212,6 @@ export default function DashboardScreen() {
               {hasAccount ? t(greeting) : t("dashboard.greeting")}
             </Text>
           </View>
-          {/* Logged-in users log out from Profile (with a confirmation); guests get a sign-in shortcut. */}
-          {!hasAccount && <AuthHeaderAction />}
           <InfoButton title={t("profile.how")}>
             <View style={styles.howList}>
               {HOW_STEPS.map((step, index) => (
@@ -247,6 +246,25 @@ export default function DashboardScreen() {
             />
             <Text style={styles.eggText}>{t(egg === "halloween" ? "home.egg.halloween" : egg === "christmas" ? "home.egg.christmas" : "home.egg.pin")}</Text>
           </Animated.View>
+        )}
+
+        {/* T1.9BY: signed out (or guest): one clear way in, where the summary would be. */}
+        {!hasAccount && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t("home.signedOut.title")}. ${t("home.signedOut.body")}`}
+            onPress={() => router.push({ pathname: "/(auth)/login", params: { mode: "login", returnTo: "/(tabs)" } })}
+            style={({ pressed }) => [styles.signInCard, pressed && styles.pressed]}
+          >
+            <Ionicons name="person-circle-outline" size={28} color={theme.colors.textSecondary} />
+            <View style={styles.signInText}>
+              <Text style={styles.signInTitle}>{t("home.signedOut.title")}</Text>
+              <Text style={styles.signInBody}>{t("home.signedOut.body")}</Text>
+            </View>
+            <View style={styles.signInPill}>
+              <Text style={styles.signInPillText}>{t("profile.login")}</Text>
+            </View>
+          </Pressable>
         )}
 
         {hasAccount && !summaryKnown && (
@@ -299,57 +317,6 @@ export default function DashboardScreen() {
         <View style={styles.tiles}>
           {lostTile}
           {foundTile}
-        </View>
-
-        {hasAccount && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push({ pathname: "/notifications", params: { tab: "nearby" } })}
-            style={({ pressed }) => [styles.nearby, pressed && styles.pressed]}
-          >
-            <View style={styles.nearbyIcon}>
-              <Ionicons name="location-outline" size={21} color={theme.tone.info.icon} />
-            </View>
-            <View style={styles.nearbyText}>
-              <Text style={styles.nearbyTitle}>{t("notifications.nearby")}</Text>
-              <Text style={styles.nearbyBody}>{t("home.nearbyBody")}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-          </Pressable>
-        )}
-
-        {/* T1.9BJ: all conversations, also as a helper and after a case is solved. */}
-        {hasAccount && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push("/messages")}
-            style={({ pressed }) => [styles.nearby, pressed && styles.pressed]}
-          >
-            <View style={styles.nearbyIcon}>
-              <Ionicons name="chatbubbles-outline" size={21} color={theme.tone.info.icon} />
-            </View>
-            <View style={styles.nearbyText}>
-              <Text style={styles.nearbyTitle}>{t("messages.title")}</Text>
-              <Text style={styles.nearbyBody}>{t("home.messagesBody")}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-          </Pressable>
-        )}
-
-        {/* T1.9X: the steps are shown on the page as well, so the start page explains itself. */}
-        <View style={styles.howCard}>
-          <Text style={styles.howCardTitle}>{t("profile.how")}</Text>
-          {HOW_STEPS.map((step, index) => (
-            <View key={step.title} style={styles.howStep}>
-              <View style={styles.howBadge}>
-                <Text style={styles.howBadgeText}>{index + 1}</Text>
-              </View>
-              <View style={styles.howText}>
-                <Text style={styles.howTitle}>{t(step.title)}</Text>
-                <Text style={styles.howBody}>{t(step.body)}</Text>
-              </View>
-            </View>
-          ))}
         </View>
 
         {isGuest && <Text style={styles.footnote}>{t("guest.homeFootnote")}</Text>}
@@ -422,9 +389,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 110, gap: 12 },
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 6 },
-  logo: { width: 44, height: 44, borderRadius: 12 },
+  logo: { width: 60, height: 60, borderRadius: 16 },
   headerText: { flex: 1, minWidth: 0 },
-  brand: { color: theme.colors.text, fontWeight: "900", fontSize: 22 },
+  brand: { color: theme.colors.text, fontWeight: "900", fontSize: 28 },
   greeting: { color: theme.colors.textSecondary, fontWeight: "600", fontSize: 14 },
   howList: { gap: 14 },
   howStep: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
@@ -473,15 +440,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.card,
     gap: 14,
   },
-  howCard: {
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.card,
-    gap: 12,
-  },
-  howCardTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "900" },
   tileHighlighted: { borderWidth: 2, borderColor: theme.colors.primary },
   tileIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   lostIcon: { backgroundColor: "#FFE4E6" },
@@ -513,28 +471,22 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   eggText: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
-  nearby: {
-    minHeight: 68,
+  signInCard: {
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     padding: 14,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.card,
   },
-  nearbyIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#DBEAFE",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nearbyText: { flex: 1, gap: 2 },
-  nearbyTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "900" },
-  nearbyBody: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  signInText: { flex: 1, gap: 2 },
+  signInTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "900" },
+  signInBody: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  signInPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: theme.colors.text },
+  signInPillText: { color: theme.colors.card, fontSize: 14, fontWeight: "900" },
   footnote: { color: theme.colors.textSecondary, fontSize: 13, lineHeight: 19, fontWeight: "600" },
   pressed: { opacity: 0.86 },
 });

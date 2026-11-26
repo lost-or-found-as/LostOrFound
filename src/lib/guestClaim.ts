@@ -33,7 +33,26 @@ async function clearPending() {
 }
 
 // Call right before the guest session is replaced by a sign-in or sign-up.
+// T1.9BY: best effort with a time limit. It runs before every sign-in, so it must never be the
+// reason a sign-in hangs.
+const REMEMBER_GUEST_TIMEOUT_MS = 4_000;
+
 export async function rememberGuestForClaim(): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limit = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn("[guestClaim] remembering the guest session took too long; skipped");
+      resolve();
+    }, REMEMBER_GUEST_TIMEOUT_MS);
+  });
+  try {
+    await Promise.race([rememberGuestNow(), limit]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function rememberGuestNow(): Promise<void> {
   try {
     const { data } = await supabase.auth.getSession();
     let session = data.session;

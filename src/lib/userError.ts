@@ -90,6 +90,8 @@ const EXACT: Record<string, TranslationKey> = {
   over_request_rate_limit: "errors.rateLimited",
   over_sms_send_rate_limit: "errors.rateLimited",
   anonymous_provider_disabled: "errors.serviceBody",
+  // T1.9BY: Supabase's own name for a request that failed on the way (no answer, network down).
+  AuthRetryableFetchError: "errors.networkBody",
 };
 
 // Patterns for messages from libraries and older server routes that send plain English text.
@@ -99,7 +101,7 @@ const PATTERNS: [RegExp, TranslationKey][] = [
   [/user already registered/i, "errors.auth.userExists"],
   [/password should be/i, "errors.auth.weakPassword"],
   [/rate limit/i, "errors.rateLimited"],
-  [/network request failed|failed to fetch|network ?error/i, "errors.networkBody"],
+  [/network request failed|failed to fetch|network ?error|load failed/i, "errors.networkBody"],
   [/timeout|timed out|aborterror/i, "errors.timeout"],
   [/^(missing bearer token|invalid token|unauthorized|jwt expired)$/i, "errors.authBody"],
   [/not allowed|access_denied|forbidden/i, "errors.notAllowed"],

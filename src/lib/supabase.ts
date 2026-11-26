@@ -16,7 +16,27 @@ if (!supabaseUrl || !supabaseKey) {
   );
 }
 
+// T1.9BY: a sign-in request that never answers (a stalled network, a blocked host) held the
+// auth lock, so every later sign-in, password reset and Apple sign-in waited for ever. Auth
+// requests now give up after AUTH_REQUEST_TIMEOUT_MS; the lock is released and the user sees a
+// timeout or network message. Storage uploads and database calls keep the normal fetch.
+export const AUTH_REQUEST_TIMEOUT_MS = 15_000;
+
+export function fetchWithAuthTimeout(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+  if (!String(url).includes("/auth/v1/")) return fetch(input as any, init);
+  const controller = new AbortController();
+  const outer = init.signal;
+  if (outer) {
+    if (outer.aborted) controller.abort();
+    else outer.addEventListener("abort", () => controller.abort(), { once: true } as any);
+  }
+  const timer = setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
+  return fetch(input as any, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
+  global: { fetch: fetchWithAuthTimeout },
   auth: {
     ...(Platform.OS !== "web" ? { storage: AsyncStorage } : {}),
     autoRefreshToken: true,

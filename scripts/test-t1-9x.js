@@ -28,7 +28,8 @@ ok(/register\.when\.dateLabel/.test(reg) && /register\.when\.timeLabel/.test(reg
 // 2. Home: lost tile above found tile, steps on the page.
 const home = read("app/(tabs)/index.tsx");
 ok(/\{lostTile\}\s*\{foundTile\}/.test(home), "lost above found");
-ok(/howCard/.test(home), "steps card on the home screen");
+// T1.9BY: the steps live behind the info button in the header.
+ok(/<InfoButton title=\{t\("profile\.how"\)\}>[\s\S]*HOW_STEPS\.map/.test(home), "steps behind the info button");
 
 // 3. Mine kjøp: server orders, pilot-free shown, restore errors in plain text.
 const screen = read("app/premium-status.tsx");
